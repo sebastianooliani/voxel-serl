@@ -12,7 +12,7 @@ python sac_policy_robotiq.py "$@" \
     --batch_size 2048 \
     --eval_period 1000 \
     --reward_scale 1 \
-    --checkpoint_path "/home/tuvok/build_playground/serl/examples/robotiq_sac/checkpoints" \
-    --log_rlds_path "/home/tuvok/build_playground/serl/examples/robotiq_sac/rlds"
+    --checkpoint_path "/home/tuvok/build_playground/real-world-rl/serl/examples/robotiq_sac/checkpoints" \
+    --log_rlds_path "/home/tuvok/build_playground/real-world-rl/serl/examples/robotiq_sac/rlds"
 
 #    --debug

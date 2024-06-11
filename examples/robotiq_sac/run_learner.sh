@@ -12,6 +12,6 @@ python sac_policy_robotiq.py "$@" \
     --max_steps 50000 \
     --reward_scale 1 \
     --demo_paths "/home/tuvok/build_playground/real-world-rl/serl/examples/robotiq_sac/robotiq_test_20_demos_2024-06-11_13-54-48.pkl" \
-    --checkpoint_path "/home/tuvok/build_playground/serl/examples/robotiq_sac/checkpoints" \
-    --log_rlds_path "/home/tuvok/build_playground/serl/examples/robotiq_sac/rlds"
+    --checkpoint_path "/home/tuvok/build_playground/real-world-rl/serl/examples/robotiq_sac/checkpoints" \
+    --log_rlds_path "/home/tuvok/build_playground/real-world-rl/serl/examples/robotiq_sac/rlds"
 #    --debug

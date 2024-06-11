@@ -120,7 +120,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                 obs = next_obs
 
                 if done:
-                    if reward:
+                    if reward > 1.:
                         dt = time.time() - start_time
                         time_list.append(dt)
                         print(dt)
@@ -154,7 +154,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
     # training loop
     timer = Timer()
-    running_return = 0.0
+    running_reward = 0.0
     for step in tqdm.tqdm(range(FLAGS.max_steps), dynamic_ncols=True):
         timer.tick("total")
 
@@ -178,7 +178,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
             next_obs = np.asarray(next_obs, dtype=np.float32)
             reward = np.asarray(reward, dtype=np.float32)
 
-            running_return += reward
+            running_reward += reward
 
             data_store.insert(
                 dict(
@@ -193,8 +193,8 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
             obs = next_obs
             if done or truncated:
-                # print(f"running return: {running_return}   done:{done}  truncated:{truncated}")
-                running_return = 0.0
+                print(f"running return: {running_reward}   done:{done}  truncated:{truncated}")
+                running_reward = 0.0
                 obs, _ = env.reset()
 
         if step % FLAGS.steps_per_update == 0:
@@ -313,7 +313,8 @@ def main(_):
         camera_mode="none",
     )
     if FLAGS.actor:
-        env = SpacemouseIntervention(env)
+        # env = SpacemouseIntervention(env)
+        pass
     env = RelativeFrame(env)
     # env = ExperimentalFrameRotationWrapper(env, [0., -np.pi/4., 0.])
     env = Quat2EulerWrapper(env)
