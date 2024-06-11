@@ -33,7 +33,7 @@ from serl_launcher.utils.launcher import (
 )
 
 from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
-from robotiq_env.envs.wrappers import SpacemouseIntervention, Quat2EulerWrapper
+from robotiq_env.envs.wrappers import SpacemouseIntervention, Quat2EulerWrapper, ExperimentalFrameRotationWrapper
 
 import robotiq_env
 
@@ -315,11 +315,12 @@ def main(_):
     if FLAGS.actor:
         env = SpacemouseIntervention(env)
     env = RelativeFrame(env)
+    # env = ExperimentalFrameRotationWrapper(env, [0., -np.pi/4., 0.])
     env = Quat2EulerWrapper(env)
     env = SerlObsWrapperNoImages(env)
     # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
     # env = TransformReward(env, lambda r: FLAGS.reward_scale * r)
-    env = RecordEpisodeStatistics(env)
+    # env = RecordEpisodeStatistics(env)
 
     rng, sampling_rng = jax.random.split(rng)
     print(f"obs shape: {env.observation_space.sample().shape}")

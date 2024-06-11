@@ -229,9 +229,9 @@ class RobotiqImpedanceController(threading.Thread):
 
         # TODO make better and more general (tcp force check)
         # check for big downward tcp force and adapt accordingly
-        if self.curr_force[2] > 0.5 and force_pos[2] < 0.:
+        # if self.curr_force[2] > 0.5 and force_pos[2] < 0.:
             # print(force_pos[2], end="  ")
-            force_pos[2] = max((1.5 - self.curr_force[2]), 0.) * force_pos[2] + min(self.curr_force[2] - 0.5, 1.) * 20.
+            # force_pos[2] = max((1.5 - self.curr_force[2]), 0.) * force_pos[2] + min(self.curr_force[2] - 0.5, 1.) * 20.
             # print(force_pos[2])
 
         return np.concatenate((force_pos, torque))
@@ -365,7 +365,7 @@ class RobotiqImpedanceController(threading.Thread):
                 # send command to robot
                 t_start = self.robotiq_control.initPeriod()
                 fm_successful = self.robotiq_control.forceMode(
-                    self.fm_task_frame,
+                    [0., 0., 0., 0., 0., 0.],         # was self.fm_task_frame
                     self.fm_selection_vector,
                     force,
                     2,
@@ -397,7 +397,7 @@ class RobotiqImpedanceController(threading.Thread):
 
             # move to real home
             pi = 3.1415
-            reset_Q = [pi / 2., -pi / 2., pi / 2., -pi / 2., -pi / 2., 0.]
+            reset_Q = self.reset_Q
             self.robotiq_control.moveJ(reset_Q, speed=1., acceleration=0.8)
 
             # terminate

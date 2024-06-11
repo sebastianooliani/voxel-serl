@@ -88,6 +88,7 @@ class RobotiqEnv(gym.Env):
         self.action_scale = config.ACTION_SCALE
 
         self.config = config
+        self.frame_rotation = [0., np.pi/4., 0.]
 
         self.resetQ = config.RESET_Q
         self.curr_reset_pose = np.zeros((7,), dtype=np.float32)
@@ -185,7 +186,7 @@ class RobotiqEnv(gym.Env):
             kp=10000,
             kd=2200,
             config=config,
-            verbose=False,
+            verbose=True,
             plot=False,
             # old_obs=camera_mode is None       # do not use anymore
         )
@@ -212,11 +213,25 @@ class RobotiqEnv(gym.Env):
     def clip_safety_box(self,
                         next_pos: np.ndarray) -> np.ndarray:  # TODO make better, no euler -> quat -> euler -> quat
         """Clip the pose to be within the safety box."""
-        next_pos[:3] = np.clip(
-            next_pos[:3], self.xyz_bounding_box.low, self.xyz_bounding_box.high
+        rot = R.from_euler('xyz', self.frame_rotation)
+        next_pos_rotated = np.dot(rot.as_matrix(), next_pos[:3])
+        next_pos_rotated = np.clip(
+            next_pos_rotated, self.xyz_bounding_box.low, self.xyz_bounding_box.high
         )
-        euler = R.from_quat(next_pos[3:]).as_euler("xyz")
+        next_pos[:3] = np.dot(rot.as_matrix().transpose(), next_pos_rotated)
+        # print("clipped position: ", next_pos)
+        # next_pos[:3] = np.clip(
+        #     next_pos[:3], self.xyz_bounding_box.low, self.xyz_bounding_box.high
+        # )
 
+        orientation_closeness = 1. - sum(next_pos[3:] * self.curr_reset_pose[3:]) ** 2
+        # print(orientation_closeness)
+        if orientation_closeness > 0.015:
+            next_pos[3:] = self.curr_pos[3:]
+            # print('im in here')
+
+        """
+        euler = R.from_quat(next_pos[3:]).as_euler("xyz")
         # Clip first euler angle separately due to discontinuity from pi to -pi
         sign = np.sign(euler[0])
         euler[0] = sign * (
@@ -231,6 +246,7 @@ class RobotiqEnv(gym.Env):
             euler[1:], self.rpy_bounding_box.low[1:], self.rpy_bounding_box.high[1:]
         )
         next_pos[3:] = R.from_euler("xyz", euler).as_quat()
+        """
 
         return next_pos
 

@@ -32,7 +32,12 @@ def on_esc(key):
 
 
 if __name__ == "__main__":
-    env = gym.make("robotiq-grip-v1")
+    env = gym.make(
+        "robotiq-grip-v1",
+        fake_env=False,
+        max_episode_length=100,
+        camera_mode="none"
+        )
     env = SpacemouseIntervention(env)
     env = RelativeFrame(env)
     env = Quat2EulerWrapper(env)

@@ -22,7 +22,7 @@ class SpacemouseIntervention(gym.ActionWrapper):
         self.left = np.array([False] * gripper_action_span, dtype=np.bool_)
         self.right = self.left.copy()
 
-        self.invert_axes = [-1, -1, 1, 1, -1, -1]
+        self.invert_axes = [1, -1, 1, 1, 1, 1]
         self.deadspace = 0.15
 
     def action(self, action: np.ndarray) -> np.ndarray:
@@ -71,12 +71,14 @@ class SpacemouseIntervention(gym.ActionWrapper):
         position = self.unwrapped.curr_pos
         z_angle = np.arctan2(position[1], position[0])  # get first joint angle
 
-        z_rot = R.from_rotvec(np.array([0, 0, z_angle]))
         action[:6] *= self.invert_axes  # if some want to be inverted
-        action[:3] = z_rot.apply(action[:3])  # z rotation invariant translation
+        # z_rot = R.from_rotvec(np.array([0, 0, z_angle]))
+        # action[:3] = z_rot.apply(action[:3])  # z rotation invariant translation
+        # action[3:6] = z_rot.inv().apply(action[3:6])  # z rotation invariant rotation
 
-        # TODO add tcp orientation to the equation (extract z rotation from tcp pose)
-        action[3:6] = z_rot.inv().apply(action[3:6])  # z rotation invariant rotation
+        # rotate by the task frame definition
+        task_frame_rotation = R.from_euler('zyx', [0., np.pi/4., 0.]).as_matrix()
+        action[:3] = np.dot(task_frame_rotation, action[:3])
 
         return action
 
@@ -88,6 +90,34 @@ class SpacemouseIntervention(gym.ActionWrapper):
         info["left"] = self.left.any()
         info["right"] = self.right.any()
         return obs, rew, done, truncated, info
+
+
+class ExperimentalFrameRotationWrapper(gym.Wrapper):
+    def __init__(self, env, rotation):
+        super().__init__(env)
+        self.rotation = R.from_euler("xyz", rotation)
+
+    def step(self, action):
+        a = self._rotate_action(action)
+        obs, rew, done, truncated, info = self.env.step(a)
+        print(f"before: {obs['state']['tcp_pose']}")
+
+        for info in ["tcp_pose", "tcp_vel", "tcp_force", "tcp_torque"]:
+            obs["state"][info][:3] = np.dot(self.rotation.as_matrix(), obs["state"][info][:3])
+
+        obs["state"]['tcp_pose'][3:] = (self.rotation * R.from_quat(obs["state"]['tcp_pose'][3:])).as_quat()
+        obs["state"]['tcp_vel'][3:] = (self.rotation * R.from_rotvec(obs["state"]['tcp_vel'][3:])).as_rotvec()
+
+        print(f"rotated observation: {obs['state']['tcp_pose']}")
+        return obs, rew, done, truncated, info
+
+    def _rotate_action(self, action: np.ndarray) -> np.ndarray:
+        print(f"action: {action}")
+        new_action = np.zeros_like(action)
+        new_action[:3] = np.dot(self.rotation.as_matrix(), action[:3])
+        new_action[3:] = action[3:]
+        print(f"rotated action {new_action}")
+        return new_action
 
 
 class Quat2EulerWrapper(gym.ObservationWrapper):
