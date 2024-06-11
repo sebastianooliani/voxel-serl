@@ -2,7 +2,7 @@ from scipy.spatial.transform import Rotation as R
 import gymnasium as gym
 import numpy as np
 from gym import Env
-from franka_env.utils.transformations import (
+from robotiq_env.utils.transformations import (
     construct_adjoint_matrix,
     construct_homogeneous_matrix,
 )
@@ -26,7 +26,7 @@ class RelativeFrame(gym.Wrapper):
     }, and at least 6 DoF action space with (x, y, z, rx, ry, rz, ...)
     """
 
-    def __init__(self, env: Env, include_relative_pose=True):
+    def __init__(self, env: Env, include_relative_pose=True, base_frame_rotation=None):
         super().__init__(env)
         self.adjoint_matrix = np.zeros((6, 6))
 
@@ -35,9 +35,12 @@ class RelativeFrame(gym.Wrapper):
             # Homogeneous transformation matrix from reset pose's relative frame to base frame
             self.T_r_o_inv = np.zeros((4, 4))
 
+        base_frame_rotation = base_frame_rotation if base_frame_rotation is not None else [0, 0, 0]
+        self.base_frame_rotation = R.from_euler("xyz", base_frame_rotation)
+
     def step(self, action: np.ndarray):
         # action is assumed to be (x, y, z, rx, ry, rz, gripper)
-        # Transform action from end-effector frame to base frame
+        # Transform action from end-effector frame to desired frame
         transformed_action = self.transform_action(action)
 
         obs, reward, done, truncated, info = self.env.step(transformed_action)
@@ -47,7 +50,7 @@ class RelativeFrame(gym.Wrapper):
             info["intervene_action"] = self.transform_action_inv(info["intervene_action"])
 
         # Update adjoint matrix
-        self.adjoint_matrix = construct_adjoint_matrix(obs["state"]["tcp_pose"])
+        self.adjoint_matrix = construct_adjoint_matrix(obs["state"]["tcp_pose"], self.base_frame_rotation)
 
         # Transform observation to spatial frame
         transformed_obs = self.transform_observation(obs)
@@ -59,11 +62,11 @@ class RelativeFrame(gym.Wrapper):
         # obs['state']['tcp_pose'][:2] -= info['reset_shift']  # set rel pose to original reset pose (no random)
 
         # Update adjoint matrix
-        self.adjoint_matrix = construct_adjoint_matrix(obs["state"]["tcp_pose"])
+        self.adjoint_matrix = construct_adjoint_matrix(obs["state"]["tcp_pose"], self.base_frame_rotation)
         if self.include_relative_pose:
             # Update transformation matrix from the reset pose's relative frame to base frame
             self.T_r_o_inv = np.linalg.inv(
-                construct_homogeneous_matrix(obs["state"]["tcp_pose"])
+                construct_homogeneous_matrix(obs["state"]["tcp_pose"], self.base_frame_rotation)
             )
 
         # Transform observation to spatial frame
@@ -78,13 +81,16 @@ class RelativeFrame(gym.Wrapper):
         obs["state"]["tcp_vel"] = adjoint_inv @ obs["state"]["tcp_vel"]
 
         if self.include_relative_pose:
-            T_b_o = construct_homogeneous_matrix(obs["state"]["tcp_pose"])
+            T_b_o = construct_homogeneous_matrix(obs["state"]["tcp_pose"], self.base_frame_rotation)
             T_b_r = self.T_r_o_inv @ T_b_o
 
             # Reconstruct transformed tcp_pose vector
             p_b_r = T_b_r[:3, 3]
             theta_b_r = R.from_matrix(T_b_r[:3, :3]).as_quat()
             obs["state"]["tcp_pose"] = np.concatenate((p_b_r, theta_b_r))
+
+        obs["state"]["tcp_force"] = self.base_frame_rotation.as_matrix() @ obs["state"]["tcp_force"]
+        obs["state"]["tcp_torque"] = self.base_frame_rotation.as_matrix() @ obs["state"]["tcp_torque"]      # TODO check if this is true
 
         return obs
 

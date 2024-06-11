@@ -13,6 +13,7 @@ class RobotiqBasicEnv(RobotiqEnv):
     def __init__(self, **kwargs):
         super().__init__(**kwargs, config=RobotiqCornerConfigV1)
 
+    # TODO implement it as a Wrapper (easier handling in relative frame)
     def compute_reward(self, obs, action) -> float:
         # huge action gives negative reward (like in mountain car)
         action_cost = 0.1 * np.sum(np.power(action, 2))

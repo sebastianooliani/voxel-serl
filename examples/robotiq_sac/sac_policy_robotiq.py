@@ -33,7 +33,7 @@ from serl_launcher.utils.launcher import (
 )
 
 from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
-from robotiq_env.envs.wrappers import SpacemouseIntervention, Quat2EulerWrapper, ExperimentalFrameRotationWrapper
+from robotiq_env.envs.wrappers import SpacemouseIntervention, Quat2EulerWrapper
 
 import robotiq_env
 
@@ -315,8 +315,7 @@ def main(_):
     if FLAGS.actor:
         # env = SpacemouseIntervention(env)
         pass
-    env = RelativeFrame(env)
-    # env = ExperimentalFrameRotationWrapper(env, [0., -np.pi/4., 0.])
+    env = RelativeFrame(env, base_frame_rotation=[0., np.pi/4., 0.])        # base rot in euler xyz
     env = Quat2EulerWrapper(env)
     env = SerlObsWrapperNoImages(env)
     # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
