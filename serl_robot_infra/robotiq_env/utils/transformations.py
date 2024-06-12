@@ -2,14 +2,12 @@ from scipy.spatial.transform import Rotation as R
 import numpy as np
 
 
-def construct_adjoint_matrix(tcp_pose, base_frame_rotation):
+def construct_adjoint_matrix(tcp_pose):
     """
     Construct the adjoint matrix for a spatial velocity vector
     :args: tcp_pose: (x, y, z, qx, qy, qz, qw)
     """
-    if type(base_frame_rotation) != R:
-        base_frame_rotation = R.from_euler("xyz", base_frame_rotation)
-    rotation = (R.from_quat(tcp_pose[3:]) * base_frame_rotation).as_matrix()
+    rotation = (R.from_quat(tcp_pose[3:])).as_matrix()
     translation = np.array(tcp_pose[:3])
     skew_matrix = np.array(
         [
@@ -25,15 +23,12 @@ def construct_adjoint_matrix(tcp_pose, base_frame_rotation):
     return adjoint_matrix
 
 
-def construct_homogeneous_matrix(tcp_pose, base_frame_rotation):
+def construct_homogeneous_matrix(tcp_pose):
     """
     Construct the homogeneous transformation matrix from given pose.
     args: tcp_pose: (x, y, z, qx, qy, qz, qw)
     """
-    if type(base_frame_rotation) != R:
-        base_frame_rotation = R.from_euler("xyz", base_frame_rotation)
-
-    rotation = (R.from_quat(tcp_pose[3:]) * base_frame_rotation).as_matrix()
+    rotation = (R.from_quat(tcp_pose[3:])).as_matrix()
     translation = np.array(tcp_pose[:3])
     T = np.zeros((4, 4))
     T[:3, :3] = rotation

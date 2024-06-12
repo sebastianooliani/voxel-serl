@@ -20,7 +20,7 @@ from serl_launcher.utils.timer_utils import Timer
 from serl_launcher.data.data_store import populate_data_store
 
 from serl_launcher.wrappers.chunking import ChunkingWrapper
-from robotiq_env.envs.relative_env import RelativeFrame
+from robotiq_env.envs.relative_env import RelativeFrame, BaseFrameRotation
 
 from agentlace.trainer import TrainerServer, TrainerClient
 from agentlace.data.data_store import QueuedDataStore
@@ -312,10 +312,11 @@ def main(_):
         max_episode_length=FLAGS.max_traj_length,
         camera_mode="none",
     )
+    env = BaseFrameRotation(env, base_frame_R=[0., np.pi / 4., 0.])  # base rot in euler xyz
     if FLAGS.actor:
         # env = SpacemouseIntervention(env)
         pass
-    env = RelativeFrame(env, base_frame_rotation=[0., np.pi/4., 0.])        # base rot in euler xyz
+    env = RelativeFrame(env)        # base rot in euler xyz
     env = Quat2EulerWrapper(env)
     env = SerlObsWrapperNoImages(env)
     # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
