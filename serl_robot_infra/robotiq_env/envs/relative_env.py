@@ -52,6 +52,11 @@ class RelativeFrame(gym.Wrapper):
 
         # Transform observation to spatial frame
         transformed_obs = self.transform_observation(obs)
+
+        # s = f"pose: {obs['state']['tcp_pose']} vel: {obs['state']['tcp_vel']} force: {obs['state']['tcp_force']}"
+        # s += f"torque: {obs['state']['tcp_torque']}"
+        # print(s)
+
         return transformed_obs, reward, done, truncated, info
 
     def reset(self, **kwargs):
@@ -111,7 +116,8 @@ class RelativeFrame(gym.Wrapper):
 class BaseFrameRotation(gym.Wrapper):
     def __init__(self, env: Env, base_frame_R=[0., 0., 0.]):
         super().__init__(env)
-        self.base_frame_R = R.from_euler("xyz", base_frame_R)
+        base_frame_rotation_quat = R.from_euler("xyz", base_frame_R).as_quat()
+        self.base_frame_pose = np.array([0., 0., 0., *base_frame_rotation_quat])
         self.adjoint_matrix = np.zeros((6, 6))
 
         self.T_r_o_inv = np.zeros((4, 4))
@@ -124,7 +130,7 @@ class BaseFrameRotation(gym.Wrapper):
         # we skip the intervene action transformation (since we do not want the i-action to be within the base frame)
 
         # Update adjoint matrix
-        self.adjoint_matrix = construct_adjoint_matrix(obs["state"]["tcp_pose"])
+        self.adjoint_matrix = construct_adjoint_matrix(self.base_frame_pose)
 
         # Transform observation to spatial frame
         transformed_obs = self.base_transform_observation(obs)
@@ -134,10 +140,10 @@ class BaseFrameRotation(gym.Wrapper):
         obs, info = self.env.reset(**kwargs)
 
         # Update adjoint matrix
-        self.adjoint_matrix = construct_adjoint_matrix(obs["state"]["tcp_pose"])
+        self.adjoint_matrix = construct_adjoint_matrix(self.base_frame_pose)
         # Update transformation matrix from the reset pose's relative frame to base frame
         self.T_r_o_inv = np.linalg.inv(
-            construct_homogeneous_matrix(obs["state"]["tcp_pose"])
+            construct_homogeneous_matrix(self.base_frame_pose)
         )
 
         # Transform observation to spatial frame
@@ -155,8 +161,13 @@ class BaseFrameRotation(gym.Wrapper):
         theta_b_r = R.from_matrix(T_b_r[:3, :3]).as_quat()
         obs["state"]["tcp_pose"] = np.concatenate((p_b_r, theta_b_r))
 
-        obs["state"]["tcp_force"] = self.base_frame_R.as_matrix() @ obs["state"]["tcp_force"]
-        obs["state"]["tcp_torque"] = self.base_frame_R.as_matrix() @ obs["state"]["tcp_torque"]      # TODO check if this is true
+        force_torque = np.concatenate((obs["state"]["tcp_force"], obs["state"]["tcp_torque"]))
+        force_torque_rotated = np.transpose(self.adjoint_matrix) @ force_torque
+
+        # print(f'force torque rotated: {force_torque_rotated}')
+
+        obs["state"]["tcp_force"] = force_torque_rotated[:3]
+        obs["state"]["tcp_torque"] = force_torque_rotated[3:]      # TODO check if this is true
 
         return obs
 

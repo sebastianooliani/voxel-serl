@@ -312,7 +312,7 @@ def main(_):
         max_episode_length=FLAGS.max_traj_length,
         camera_mode="none",
     )
-    env = BaseFrameRotation(env, base_frame_R=[0., np.pi / 4., 0.])  # base rot in euler xyz
+    env = BaseFrameRotation(env, base_frame_R=[0., -np.pi / 4., 0.])  # base rot in euler xyz
     if FLAGS.actor:
         # env = SpacemouseIntervention(env)
         pass

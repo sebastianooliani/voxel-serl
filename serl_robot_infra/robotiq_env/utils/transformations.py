@@ -16,6 +16,9 @@ def construct_adjoint_matrix(tcp_pose):
             [-translation[1], translation[0], 0],
         ]
     )
+    """
+    
+    """
     adjoint_matrix = np.zeros((6, 6))
     adjoint_matrix[:3, :3] = rotation
     adjoint_matrix[3:, 3:] = rotation

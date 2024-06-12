@@ -281,7 +281,10 @@ class RobotiqImpedanceController(threading.Thread):
             # print("release")
 
     def _truncate_check(self):
-        downward_force = self.curr_force[2] > 20.
+        # downward_force = self.curr_force[2] > 20.     # TODO work this out
+        force_rotated = np.dot(R.from_euler('xyz', [0., -np.pi/4., 0.]).as_matrix(), self.curr_force[:3])
+        downward_force = force_rotated[2] > 20.
+
         if downward_force:  # TODO add better criteria
             self._is_truncated.set()
         else:
