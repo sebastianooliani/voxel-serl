@@ -5,7 +5,7 @@ python sac_policy_robotiq.py "$@" \
     --env robotiq-grip-v1 \
     --exp_name=sac_husky \
     --max_traj_length 300 \
-    --seed 42 \
+    --seed 1 \
     --max_steps 10000 \
     --random_steps 0 \
     --utd_ratio 8 \

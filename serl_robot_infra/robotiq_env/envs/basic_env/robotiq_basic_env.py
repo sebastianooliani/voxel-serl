@@ -23,7 +23,7 @@ class RobotiqBasicEnv(RobotiqEnv):
         suck_cost = 0.1 * float(is_close(gripper_state[0], 0.99))
 
         orientation_cost = 1. - sum(obs["state"]["tcp_pose"][3:] * self.curr_reset_pose[3:]) ** 2
-        orientation_cost *= 25.
+        orientation_cost *= 5.
 
         pose = obs["state"]["tcp_pose"]
         # box_xy = np.array([0.009, -0.5437])     # TODO replace with camera / pointcloud info of box
@@ -31,7 +31,7 @@ class RobotiqBasicEnv(RobotiqEnv):
 
         # print(f"action_cost: {action_cost}, xy_cost: {xy_cost}")
         if self.reached_goal_state(obs):
-            return 10. - action_cost - step_cost - suck_cost - orientation_cost
+            return 50. - action_cost - step_cost - suck_cost - orientation_cost
         else:
             return 0.0 - action_cost - step_cost - suck_cost - orientation_cost
 

@@ -14,7 +14,7 @@ from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 
 from gymnasium.wrappers import TransformReward
-from robotiq_env.envs.relative_env import RelativeFrame
+from robotiq_env.envs.relative_env import RelativeFrame, BaseFrameRotation
 
 exit_program = threading.Event()
 
@@ -38,6 +38,7 @@ if __name__ == "__main__":
         max_episode_length=100,
         camera_mode="none"
         )
+    env = BaseFrameRotation(env, base_frame_R=[0., np.pi/4., 0.]) # base rot in euler xyz
     env = SpacemouseIntervention(env)
     env = RelativeFrame(env)
     env = Quat2EulerWrapper(env)
