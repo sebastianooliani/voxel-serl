@@ -46,7 +46,7 @@ class RobotiqCornerConfigV1(DefaultEnvConfig):
     RANDOM_XY_RANGE = (0.06,)
     RANDOM_RZ_RANGE = (0.0,)
     ABS_POSE_LIMIT_HIGH = np.array([0.3, -0.4, 0.45, 3.2, -1.1, 3.2])
-    ABS_POSE_LIMIT_LOW = np.array([0.15, -0.63, 0.2, 3.0, -1.3, -3.2])
+    ABS_POSE_LIMIT_LOW = np.array([0.125, -0.63, 0.2, 3.0, -1.3, -3.2])
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
     ROBOT_IP: str = "192.168.131.41"
