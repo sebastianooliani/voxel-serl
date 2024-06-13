@@ -318,7 +318,8 @@ def main(_):
         pass
     env = RelativeFrame(env)        # base rot in euler xyz
     env = Quat2EulerWrapper(env)
-    env = ScaleObservationWrapper(env)  # scale obs space (after quat2euler, but before serlobswr)
+    if "0612-11:53" not in FLAGS.eval_checkpoint_path:      # do not use ScaleObsWrapper if we eval on the old policy
+        env = ScaleObservationWrapper(env)  # scale obs space (after quat2euler, but before serlobswr)
     env = SerlObsWrapperNoImages(env)
     # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
     # env = TransformReward(env, lambda r: FLAGS.reward_scale * r)
