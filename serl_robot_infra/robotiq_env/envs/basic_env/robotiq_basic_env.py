@@ -25,6 +25,13 @@ class RobotiqBasicEnv(RobotiqEnv):
         orientation_cost = 1. - sum(obs["state"]["tcp_pose"][3:] * self.curr_reset_pose[3:]) ** 2
         orientation_cost *= 5.
 
+        rot = R.from_euler('xyz', self.frame_rotation)
+        state_roatated = np.dot(rot.as_matrix(), obs["state"]['tcp_pose'][:3])
+        reset_pose_rotated = np.dot(rot.as_matrix(), self.curr_reset_pose[:3])
+
+        position_cost = max(0, np.linalg.norm(state_roatated[1:3] - reset_pose_rotated[1:3], 2) - 0.02)
+        position_cost *= 5.
+
         pose = obs["state"]["tcp_pose"]
         # box_xy = np.array([0.009, -0.5437])     # TODO replace with camera / pointcloud info of box
         # xy_cost = 5 * np.sum(np.power(pose[:2] - box_xy, 2))        # TODO can be ignored
