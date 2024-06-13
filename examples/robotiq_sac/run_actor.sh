@@ -10,7 +10,7 @@ python sac_policy_robotiq.py "$@" \
     --random_steps 0 \
     --utd_ratio 8 \
     --batch_size 2048 \
-    --eval_period 1000 \
+    --eval_period 10000 \
     --reward_scale 1 \
     --checkpoint_path "/home/tuvok/build_playground/real-world-rl/serl/examples/robotiq_sac/checkpoints" \
     --log_rlds_path "/home/tuvok/build_playground/real-world-rl/serl/examples/robotiq_sac/rlds"
