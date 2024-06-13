@@ -10,7 +10,7 @@ from pprint import pprint
 from pynput import keyboard
 
 from robotiq_env.envs.wrappers import SpacemouseIntervention, Quat2EulerWrapper
-from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
+from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, ScaleObservationWrapper
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 
 from gymnasium.wrappers import TransformReward
@@ -42,6 +42,7 @@ if __name__ == "__main__":
     env = SpacemouseIntervention(env)
     env = RelativeFrame(env)
     env = Quat2EulerWrapper(env)
+    env = ScaleObservationWrapper(env)
     env = SerlObsWrapperNoImages(env)
     # env = TransformReward(env, lambda r: 10. * r)
     # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
