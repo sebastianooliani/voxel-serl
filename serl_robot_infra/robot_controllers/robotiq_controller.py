@@ -320,6 +320,7 @@ class RobotiqImpedanceController(threading.Thread):
         success = success and self.robotiq_control.moveJ(self.reset_Q, speed=1., acceleration=0.8)
         self.print(f"[RIC] moving to {self.reset_Q} with moveJ (joint space)", both=self.verbose)
 
+        self.curr_force[:] = 0.     # reset moving average
         await self._update_robot_state()
         with self.lock:
             self.target_pos = self.curr_pos.copy()
