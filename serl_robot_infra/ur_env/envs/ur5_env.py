@@ -104,6 +104,16 @@ class DefaultEnvConfig:
         "wrist": "",
     }
 
+class DualRobotDefaultEnvConfig(DefaultEnvConfig):
+    REALSENSE_CAMERAS = {
+        "shoulder": "",
+        "wrist": "",
+        "shoulder_2": "",
+        "wrist_2": "",
+    }
+    ROBOT_IP_1: str = "localhost_1"
+    ROBOT_IP_2: str = "localhost_2"
+
 
 ##############################################################################
 
@@ -668,4 +678,343 @@ class UR5Env(gym.Env):
     def close(self):
         if self.controller:
             self.controller.stop()
+        super().close()
+
+
+class UR5DualRobotEnv(UR5Env):
+    def __init__(self,
+            hz: int = 10,
+            fake_env=False,
+            config=DualRobotDefaultEnvConfig,
+            max_episode_length: int = 100,
+            save_video: bool = False,
+            camera_mode: str = "rgb",  # one of (rgb, grey, depth, both(rgb depth), pointcloud, none)):
+    ):
+        self.max_episode_length = max_episode_length
+        self.curr_path_length = 0
+        self.action_scale = config.ACTION_SCALE
+
+        self.config = config
+
+        self.resetQ = config.RESET_Q
+        self.curr_reset_pose = np.zeros((14,), dtype=np.float32)
+
+        self.curr_pos = np.zeros((14,), dtype=np.float32)
+        self.curr_vel = np.zeros((12,), dtype=np.float32)
+        self.curr_Q = np.zeros((12,), dtype=np.float32)
+        self.curr_Qd = np.zeros((12,), dtype=np.float32)
+        self.curr_force = np.zeros((6,), dtype=np.float32)
+        self.curr_torque = np.zeros((6,), dtype=np.float32)
+        self.last_action = np.zeros(self.action_space.shape)
+
+        self.gripper_state = np.zeros((4,), dtype=np.float32)
+        self.random_reset = config.RANDOM_RESET
+        self.random_xy_range = config.RANDOM_XY_RANGE
+        self.random_rot_range = config.RANDOM_ROT_RANGE
+        self.hz = hz
+        np.random.seed(0)        # fix seed for fixed (random) initial rotations
+
+        camera_mode = None if camera_mode.lower() == "none" else camera_mode
+        if camera_mode is not None and save_video:
+            print("Saving videos!")
+        self.save_video = save_video
+        self.recording_frames = []
+        self.camera_mode = camera_mode
+
+        self.cost_infos = {}
+
+        self.xyz_bounding_box = gym.spaces.Box(
+            config.ABS_POSE_LIMIT_LOW[:3],
+            config.ABS_POSE_LIMIT_HIGH[:3],
+            dtype=np.float64,
+        )
+        self.xy_range = gym.spaces.Box(
+            config.ABS_POSE_RANGE_LIMITS[0],
+            config.ABS_POSE_RANGE_LIMITS[1],
+            dtype=np.float64,
+        )
+        self.mrp_bounding_box = gym.spaces.Box(
+            config.ABS_POSE_LIMIT_LOW[3:],
+            config.ABS_POSE_LIMIT_HIGH[3:],
+            dtype=np.float64,
+        )
+        
+        #############################
+        # Action Space              #
+        #############################
+        self.action_space = gym.spaces.Box(
+            np.ones((14,), dtype=np.float32) * -1,
+            np.ones((14,), dtype=np.float32),
+        )
+
+        #############################
+        # Image Space               #
+        #############################
+
+        image_space_definition = {}
+        if camera_mode in ["rgb", "grey", "both"]:
+            channel = 1 if camera_mode == "grey" else 3
+            if "wrist" in config.REALSENSE_CAMERAS.keys():
+                image_space_definition["wrist"] = gym.spaces.Box(
+                    0, 255, shape=(128, 128, channel), dtype=np.uint8
+                )
+            if "wrist_2" in config.REALSENSE_CAMERAS.keys():
+                image_space_definition["wrist_2"] = gym.spaces.Box(
+                    0, 255, shape=(128, 128, channel), dtype=np.uint8
+                )
+
+        if camera_mode in ["depth", "both"]:
+            if "wrist" in config.REALSENSE_CAMERAS.keys():
+                image_space_definition["wrist_depth"] = gym.spaces.Box(
+                    0, 255, shape=(128, 128, 1), dtype=np.uint8
+                )
+            if "wrist_2" in config.REALSENSE_CAMERAS.keys():
+                image_space_definition["wrist_2_depth"] = gym.spaces.Box(
+                    0, 255, shape=(128, 128, 1), dtype=np.uint8
+                )
+
+        if camera_mode in ["pointcloud"]:
+            image_space_definition["wrist_pointcloud"] = gym.spaces.Box(
+                0, 255, shape=(50, 50, 40), dtype=np.uint8
+            )
+        if camera_mode is not None and camera_mode not in ["rgb", "both", "depth", "pointcloud", "grey"]:
+            raise NotImplementedError(f"camera mode {camera_mode} not implemented")
+
+        #############################
+        # Observation Space         #
+        #############################
+        state_space = gym.spaces.Dict(
+            {
+                "tcp_pose": gym.spaces.Box(
+                    -np.inf, np.inf, shape=(14,)
+                ),  # xyz + quat
+                "tcp_vel": gym.spaces.Box(-np.inf, np.inf, shape=(12,)),
+                "gripper_state": gym.spaces.Box(-1., 1., shape=(4,)),
+                "tcp_force": gym.spaces.Box(-np.inf, np.inf, shape=(6,)),
+                "tcp_torque": gym.spaces.Box(-np.inf, np.inf, shape=(6,)),
+                "action": gym.spaces.Box(-1., 1., shape=self.action_space.shape),
+                # TODO: add my custom observations here
+            }
+        )
+
+        obs_space_definition = {"state": state_space}
+        if self.camera_mode in ["rgb", "both", "depth", "pointcloud", "grey"]:
+            obs_space_definition["images"] = gym.spaces.Dict(
+                image_space_definition
+            )
+
+        self.observation_space = gym.spaces.Dict(obs_space_definition)
+
+        self.cycle_count = 0
+        self.controller = None
+        self.cap = None
+
+        if fake_env:
+            print("[UR5Env] is fake!")
+            return
+
+        self.controller_1 = UrImpedanceController(
+            robot_ip=config.ROBOT_IP_1,
+            frequency=config.CONTROLLER_HZ,
+            kp=15000,
+            kd=3300,
+            config=config,
+            verbose=False,
+            plot=False,
+        )
+        self.controller_2 = UrImpedanceController(
+            robot_ip=config.ROBOT_IP_2,
+            frequency=config.CONTROLLER_HZ,
+            kp=15000,
+            kd=3300,
+            config=config,
+            verbose=False,
+            plot=False,
+        )
+
+        self.controller_1.start()  # start Thread
+        self.controller_2.start()  # start Thread
+
+        if self.camera_mode is not None:
+            self.init_cameras(config.REALSENSE_CAMERAS)
+            self.img_queue = queue.Queue()
+            if self.camera_mode in ["pointcloud"]:
+                self.displayer = PointCloudDisplayer()  # o3d displayer cannot be threaded :/
+            else:
+                self.displayer = ImageDisplayer(self.img_queue)
+                self.displayer.start()
+            print("[CAM] Cameras are ready!")
+
+        while not self.controller.is_ready():  # wait for controller
+            time.sleep(0.1)
+        print("[RIC] Controller has started and is ready!")
+
+        if self.camera_mode in ["pointcloud"]:
+            voxel_grid_shape = np.array(self.observation_space["images"]["wrist_pointcloud"].shape)
+            # voxel_grid_shape[-1] *= 8     # do not use compacting for now
+            # voxel_grid_shape *= 2
+            print(f"pointcloud resolution set to: {voxel_grid_shape}")
+            self.pointcloud_fusion = PointCloudFusion(angle=31., x_distance=0.205, voxel_grid_shape=voxel_grid_shape)
+
+            # load pre calibrated, else calibrate
+            if not self.pointcloud_fusion.load_finetuned():
+                # TODO make calibration more robust!
+                self.calibration_thread = CalibrationTread(pc_fusion=self.pointcloud_fusion, verbose=True)
+                self.calibration_thread.start()
+
+                self.calibrate_pointcloud_fusion(visualize=True)
+
+    def step(self, action: np.ndarray) -> tuple:
+        """standard gym step function."""
+        start_time = time.time()
+        action = np.clip(action, self.action_space.low, self.action_space.high)
+
+        # position
+        next_pos = self.curr_pos.copy()
+        next_pos[:3] = next_pos[:3] + action[:3] * self.action_scale[0]
+        next_pos[7:10] = next_pos[7:10] + action[7:10] * self.action_scale[0]
+
+        next_pos[3:7] = (
+                R.from_mrp(action[3:6] * self.action_scale[1] / 4.) * R.from_quat(next_pos[3:7])
+        ).as_quat()             # c * r  --> applies c after r
+        next_pos[10:] = (
+                R.from_mrp(action[10:13] * self.action_scale[1] / 4.) * R.from_quat(next_pos[10:])
+        ).as_quat()             # c * r  --> applies c after r
+
+        gripper_1_action = action[6] * self.action_scale[2]
+        gripper_2_action = action[13] * self.action_scale[2]
+        gripper_action = np.array([gripper_1_action, gripper_2_action])
+
+        safe_pos = self.clip_safety_box(next_pos)
+        self._send_pos_command(safe_pos)
+        self._send_gripper_command(gripper_action)
+
+        self.curr_path_length += 1
+
+        obs = self._get_obs(action)
+
+        reward = self.compute_reward(obs, action)
+        truncated = self._is_truncated()
+        reward = reward if not truncated else reward - 10.  # truncation penalty
+        done = self.curr_path_length >= self.max_episode_length or self.reached_goal_state(obs) or truncated
+
+        dt = time.time() - start_time
+        to_sleep = max(0, (1.0 / self.hz) - dt)
+        if to_sleep == 0:
+            warnings.warn(f"environment could not be within {self.hz} Hz, took {dt:.4f}s!")
+        time.sleep(to_sleep)
+
+        return obs, reward, done, truncated, self.get_cost_infos(done)
+    
+    def go_to_rest(self):
+        """
+        The concrete steps to perform reset should be
+        implemented each subclass for the specific task.
+        Should override this method if custom reset procedure is needed.
+        """
+
+        # Perform Carteasian reset
+        reset_Q = np.zeros((12))
+        if self.resetQ.shape == (1, 12):
+            reset_Q[:] = self.resetQ.copy()
+        elif self.resetQ.shape[1] == 12 and self.resetQ.shape[0] > 1:
+            reset_Q[:] = self.resetQ[0, :].copy()  # make random guess
+            self.resetQ[:] = np.roll(self.resetQ, -1, axis=0)  # roll one (not random)
+        else:
+            raise ValueError(f"invalid resetQ dimension: {self.resetQ.shape}")
+
+        self._send_reset_command(reset_Q)
+
+        while not (self.controller_1.is_reset() and self.controller_2.is_reset()):
+            time.sleep(0.1)  # wait for the reset operation
+
+        self._update_currpos()
+        reset_pose = np.concatenate([self.controller_1.get_target_pos(), self.controller_2.get_target_pos()])
+
+        if self.random_reset:  # randomize reset position in xy plane
+            reset_shift = np.random.uniform(np.negative(self.random_xy_range), self.random_xy_range, (4,))
+            reset_pose[:2] += reset_shift
+            reset_pose[7:9] += reset_shift
+
+            if self.random_rot_range[0] > 0.:
+                random_rot = np.random.triangular(np.negative(self.random_rot_range), 0., self.random_rot_range, size=(6,))
+            else:
+                random_rot = np.zeros((6,))
+            reset_pose[3:7][:] = (R.from_quat(reset_pose[3:]) * R.from_mrp(random_rot)).as_quat()
+            reset_pose[9:][:] = (R.from_quat(reset_pose[9:]) * R.from_mrp(random_rot)).as_quat()
+
+            self.curr_reset_pose[:] = reset_pose
+
+            self.controller.set_target_pos(reset_pose)  # random movement after resetting
+            time.sleep(0.1)
+            while self.controller.is_moving():
+                time.sleep(0.1)
+            return reset_shift
+        else:
+            self.curr_reset_pose[:] = reset_pose
+            return np.zeros((4,))
+        
+    def _send_pos_command(self, target_pos: np.ndarray):
+        """Internal function to send force command to the robot."""
+        self.controller_1.set_target_pos(target_pos=target_pos[:7])
+        self.controller_2.set_target_pos(target_pos=target_pos[7:])
+
+    def _send_gripper_command(self, gripper_pos: np.ndarray):
+        self.controller_1.set_gripper_pos(gripper_pos[0])
+        self.controller_2.set_gripper_pos(gripper_pos[1])
+
+    def _send_reset_command(self, reset_Q: np.ndarray):
+        self.controller_1.set_reset_Q(reset_Q[:6])
+        self.controller_2.set_reset_Q(reset_Q[6:])
+
+    def _send_taskspace_command(self, target_pos):
+        self.controller_1.set_reset_pose(target_pos[:7])
+        self.controller_2.set_reset_pose(target_pos[7:])
+
+    def _update_currpos(self):
+        """
+        Internal function to get the latest state of the robot and its gripper.
+        """
+        state = np.concatenate([self.controller_1.get_state(), self.controller_2.get_state()])
+
+        self.curr_pos[:] = state['pos']
+        self.curr_vel[:] = state['vel']
+        self.curr_force[:] = state['force']
+        self.curr_torque[:] = state['torque']
+        self.curr_Q[:] = state['Q']
+        self.curr_Qd[:] = state['Qd']
+        self.gripper_state[:] = state['gripper']
+
+    def _is_truncated(self):
+        return self.controller.is_truncated()
+
+    def _get_obs(self, action) -> dict:
+        # get image before state observation, so they match better in time
+
+        images = None
+        if self.camera_mode is not None:
+            images = self.get_image()
+
+        self._update_currpos()
+        state_observation = {
+            "tcp_pose": self.curr_pos,
+            "tcp_vel": self.curr_vel,
+            "gripper_state": self.gripper_state,
+            "tcp_force": self.curr_force,
+            "tcp_torque": self.curr_torque,
+            "action": action,
+            # TODO: add my custom observations here
+        }
+
+        if images is not None:
+            return copy.deepcopy(dict(images=images, state=state_observation))
+        else:
+            return copy.deepcopy(dict(state=state_observation))
+
+    def close(self):
+        if self.controller_1:
+            self.controller_1.stop()
+        if self.controller_2:
+            self.controller_2.stop()
+
         super().close()
