@@ -74,14 +74,16 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         self.last_action[:] = action
         step_cost = 0.1
 
-        suction_reward = 0.3 * float(obs["state"]["gripper_state"][1] > 0.5)
-        suction_cost = 3. * float(obs["state"]["gripper_state"][1] < -0.5)
+        suction_reward = 0.3 * (float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5))
+        suction_cost = 3. * (float(obs["state"]["gripper_state"][1] < -0.5) + float(obs["state"]["gripper_state"][3] < -0.5))
 
-        orientation_cost = 1. - sum(obs["state"]["tcp_pose"][3:] * self.curr_reset_pose[3:]) ** 2
+        orientation_cost = 0
+        orientation_cost = 0.5 - sum(obs["state"]["tcp_pose"][3:7] * self.curr_reset_pose[3:7]) ** 2
+        orientation_cost += 0.5 - sum(obs["state"]["tcp_pose"][10:] * self.curr_reset_pose[10:]) ** 2
         orientation_cost = max(orientation_cost - 0.005, 0.) * 25.
 
         max_pose_diff = 0.05  # set to 5cm
-        pos_diff = obs["state"]["tcp_pose"][:2] - self.curr_reset_pose[:2]
+        pos_diff = np.concatenate([obs["state"]["tcp_pose"][:2] - self.curr_reset_pose[:2], obs["state"]["tcp_pose"][7:9] - self.curr_reset_pose[7:9]])
         position_cost = 10. * np.sum(
             np.where(np.abs(pos_diff) > max_pose_diff, np.abs(pos_diff - np.sign(pos_diff) * max_pose_diff), 0.0)
         )
