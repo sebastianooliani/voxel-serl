@@ -28,6 +28,8 @@ class UrImpedanceController(threading.Thread):
     def __init__(
             self,
             robot_ip,
+            port=None,
+            gripper=False,
             frequency=100,
             kp=10000,
             kd=2200,
@@ -45,9 +47,11 @@ class UrImpedanceController(threading.Thread):
         self.lock = threading.Lock()
 
         self.robot_ip = robot_ip
+        self.port = port
         self.frequency = frequency
         self.kp = kp
         self.kd = kd
+        self.gripper = gripper
         self.gripper_timeout = {"timeout": config.GRIPPER_TIMEOUT, "last_grip": time.monotonic() - 1e6}
         self.verbose = verbose
         self.do_plot = plot
@@ -97,16 +101,17 @@ class UrImpedanceController(threading.Thread):
         if both:
             print(msg)
 
-    async def start_ur_interfaces(self, gripper=True):
-        self.ur_control = RTDEControlInterface(self.robot_ip)
-        self.ur_receive = RTDEReceiveInterface(self.robot_ip)
+    async def start_ur_interfaces(self, gripper=False):
+        print(f"\n[RTDE] trying to connect to {self.robot_ip}, {self.port}\n")
+        self.ur_control = RTDEControlInterface(self.robot_ip, self.port)
+        self.ur_receive = RTDEReceiveInterface(self.robot_ip, self.port)
         if gripper:
             self.robotiq_gripper = VacuumGripper(self.robot_ip)
             await self.robotiq_gripper.connect()
             await self.robotiq_gripper.activate()
         if self.verbose:
             gr_string = "(with gripper) " if gripper else ""
-            print(f"[RIC] Controller connected to robot {gr_string}at: {self.robot_ip}")
+            print(f"[RIC] Controller connected to robot {gr_string} at: {self.robot_ip}")
 
     async def restart_ur_interface(self):
         self._is_truncated.set()
@@ -179,25 +184,27 @@ class UrImpedanceController(threading.Thread):
         Q = self.ur_receive.getActualQ()
         Qd = self.ur_receive.getActualQd()
         force = self.ur_receive.getActualTCPForce()
-        pressure = await self.robotiq_gripper.get_current_pressure()
-        obj_status = await self.robotiq_gripper.get_object_status()
 
-        # 3-> no object detected, 0-> sucking empty, [1, 2] obj detected
-        grip_status = [-1., 1., 1., 0.][obj_status.value]
+        if self.gripper:
+            pressure = await self.robotiq_gripper.get_current_pressure()
+            obj_status = await self.robotiq_gripper.get_object_status()
 
-        pressure = pressure if pressure < 99 else 0     # 100 no obj, 99 sucking empty, so they are ignored
-        # grip status, 0->neutral, -1->bad (sucking but no obj), 1-> good (sucking and obj)
-        grip_status = 1. if pressure > 0 else grip_status
-        pressure /= 98.  # pressure between [0, 1]
-        with self.lock:
-            self.curr_pos[:] = pose2quat(pos)
-            self.curr_vel[:] = vel
-            self.curr_Q[:] = Q
-            self.curr_Qd[:] = Qd
-            self.curr_force[:] = np.array(force)
-            # use moving average (5), since the force fluctuates heavily
-            self.curr_force_lowpass[:] = 0.1 * np.array(force) + 0.9 * self.curr_force_lowpass[:]
-            self.gripper_state[:] = [pressure, grip_status]
+            # 3-> no object detected, 0-> sucking empty, [1, 2] obj detected
+            grip_status = [-1., 1., 1., 0.][obj_status.value]
+
+            pressure = pressure if pressure < 99 else 0     # 100 no obj, 99 sucking empty, so they are ignored
+            # grip status, 0->neutral, -1->bad (sucking but no obj), 1-> good (sucking and obj)
+            grip_status = 1. if pressure > 0 else grip_status
+            pressure /= 98.  # pressure between [0, 1]
+            with self.lock:
+                self.curr_pos[:] = pose2quat(pos)
+                self.curr_vel[:] = vel
+                self.curr_Q[:] = Q
+                self.curr_Qd[:] = Qd
+                self.curr_force[:] = np.array(force)
+                # use moving average (5), since the force fluctuates heavily
+                self.curr_force_lowpass[:] = 0.1 * np.array(force) + 0.9 * self.curr_force_lowpass[:]
+                self.gripper_state[:] = [pressure, grip_status]
 
     def get_state(self):
         with self.lock:
@@ -232,6 +239,7 @@ class UrImpedanceController(threading.Thread):
         force_pos = kp * diff_p + kd * diff_d
 
         # calc torque
+        breakpoint()
         rot_diff = R.from_quat(target_pos[3:]) * R.from_quat(curr_pos[3:]).inv()
         vel_rot_diff = R.from_rotvec(curr_vel[3:]).inv()
         torque = rot_diff.as_rotvec() * 100 + vel_rot_diff.as_rotvec() * 22  # TODO make customizable
@@ -350,7 +358,7 @@ class UrImpedanceController(threading.Thread):
             self._reset.clear()
 
     async def run_async(self):
-        await self.start_ur_interfaces(gripper=True)
+        await self.start_ur_interfaces(gripper=False)
 
         self.ur_control.forceModeSetDamping(self.fm_damping)  # less damping = Faster
 
