@@ -688,7 +688,7 @@ class UR5DualRobotEnv(UR5Env):
             config=DualRobotDefaultEnvConfig,
             max_episode_length: int = 100,
             save_video: bool = False,
-            camera_mode: str = "rgb",  # one of (rgb, grey, depth, both(rgb depth), pointcloud, none)):
+            camera_mode: str = "none",  # one of (rgb, grey, depth, both(rgb depth), pointcloud, none)):
     ):
         self.max_episode_length = max_episode_length
         self.curr_path_length = 0
@@ -696,9 +696,16 @@ class UR5DualRobotEnv(UR5Env):
 
         self.config = config
 
+        #############################
+        # Action Space              #
+        #############################
+        self.action_space = gym.spaces.Box(
+            np.ones((14,), dtype=np.float32) * -1,
+            np.ones((14,), dtype=np.float32),
+        )
+
         self.resetQ = config.RESET_Q
         self.curr_reset_pose = np.zeros((14,), dtype=np.float32)
-
         self.curr_pos = np.zeros((14,), dtype=np.float32)
         self.curr_vel = np.zeros((12,), dtype=np.float32)
         self.curr_Q = np.zeros((12,), dtype=np.float32)
@@ -737,14 +744,6 @@ class UR5DualRobotEnv(UR5Env):
             config.ABS_POSE_LIMIT_LOW[3:],
             config.ABS_POSE_LIMIT_HIGH[3:],
             dtype=np.float64,
-        )
-        
-        #############################
-        # Action Space              #
-        #############################
-        self.action_space = gym.spaces.Box(
-            np.ones((14,), dtype=np.float32) * -1,
-            np.ones((14,), dtype=np.float32),
         )
 
         #############################
@@ -815,6 +814,8 @@ class UR5DualRobotEnv(UR5Env):
 
         self.controller_1 = UrImpedanceController(
             robot_ip=config.ROBOT_IP_1,
+            port=config.ROBOT_PORT_1,
+            gripper=False,
             frequency=config.CONTROLLER_HZ,
             kp=15000,
             kd=3300,
@@ -824,6 +825,8 @@ class UR5DualRobotEnv(UR5Env):
         )
         self.controller_2 = UrImpedanceController(
             robot_ip=config.ROBOT_IP_2,
+            port=config.ROBOT_PORT_2,
+            gripper=False,
             frequency=config.CONTROLLER_HZ,
             kp=15000,
             kd=3300,
@@ -845,9 +848,13 @@ class UR5DualRobotEnv(UR5Env):
                 self.displayer.start()
             print("[CAM] Cameras are ready!")
 
-        while not self.controller.is_ready():  # wait for controller
+        while not self.controller_1.is_ready():  # wait for controller
             time.sleep(0.1)
-        print("[RIC] Controller has started and is ready!")
+        print("[RIC] Controller 1 has started and is ready!")
+
+        while not self.controller_2.is_ready():  # wait for controller
+            time.sleep(0.1)
+        print("[RIC] Controller 2 has started and is ready!")
 
         if self.camera_mode in ["pointcloud"]:
             voxel_grid_shape = np.array(self.observation_space["images"]["wrist_pointcloud"].shape)
