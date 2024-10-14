@@ -129,7 +129,8 @@ class UR5CameraConfigFinalEvaluation(UR5CameraConfigFinal):
 
 
 class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
-    RESET_Q = np.array([[1.3502, -1.2897, 1.9304, -2.2098, -1.5661, 1.4027]])
+    RESET_Q = np.array([[1.3502, -1.2897, 1.9304, -2.2098, -1.5661, 1.4027,
+                         1.3502, -1.2897, 1.9304, -2.2098, -1.5661, 1.4027]])
     RANDOM_RESET = False
     RANDOM_XY_RANGE = (0.00,)
     RANDOM_ROT_RANGE = (0.0,)
@@ -137,8 +138,10 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     ABS_POSE_LIMIT_LOW = np.array([-0.2, -0.7, - 0.006, 2.8, -0.18, -3.2])
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
-    ROBOT_IP_1: str = "172.22.22.2"
-    ROBOT_IP_2: str = ""
+    ROBOT_IP_1: str = "172.17.0.2"
+    ROBOT_IP_2: str = "172.17.0.3"
+    ROBOT_PORT_1: int = 30004
+    ROBOT_PORT_2: int = 40004
     CONTROLLER_HZ = 100
     GRIPPER_TIMEOUT = 2000  # in milliseconds
     ERROR_DELTA: float = 0.05
