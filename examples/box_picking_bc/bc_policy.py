@@ -8,6 +8,7 @@ import numpy as np
 from copy import deepcopy
 import time
 from datetime import datetime
+import sys
 
 import gymnasium as gym
 from gymnasium.wrappers import RecordEpisodeStatistics
@@ -28,6 +29,8 @@ from serl_launcher.data.data_store import (
 )
 from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
 from serl_launcher.networks.reward_classifier import load_classifier_func
+
+sys.path.append("../../serl_robot_infra")
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper
 from ur_env.envs.relative_env import RelativeFrame
 from serl_launcher.utils.sampling_utils import TemporalActionEnsemble
