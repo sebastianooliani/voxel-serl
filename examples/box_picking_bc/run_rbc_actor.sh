@@ -6,6 +6,6 @@ python bc_policy.py "$@" \
     --exp_name=bc_drq_dual_policy \
     --seed 42 \
     --batch_size 256 \
-    --eval_checkpoint_step 50000 \
-    --camera_mode none
-    --debug True # wandb is disabled when debug
+    --demo_paths "test.pkl" \
+    --eval_checkpoint_step 0 \
+    --debug # wandb is disabled when debug
