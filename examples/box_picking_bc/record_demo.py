@@ -8,7 +8,9 @@ from tqdm import tqdm
 import gymnasium as gym
 from pprint import pprint
 from pynput import keyboard
+import sys
 
+sys.path.append("../../serl_robot_infra")
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper
 from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
 from serl_launcher.wrappers.chunking import ChunkingWrapper
@@ -30,10 +32,13 @@ def on_esc(key):
     if key == keyboard.Key.esc:
         exit_program.set()
 
+# dummy variable for debugging
+SPACEMOUSE = False
 
 if __name__ == "__main__":
-    env = gym.make("box_picking_basic_env")
-    env = SpacemouseIntervention(env)
+    env = gym.make("box_picking_camera_env_dual_robot")
+    if SPACEMOUSE:
+        env = SpacemouseIntervention(env)
     env = RelativeFrame(env)
     env = Quat2MrpWrapper(env)
     env = SerlObsWrapperNoImages(env)
@@ -41,6 +46,8 @@ if __name__ == "__main__":
     # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
 
     obs, _ = env.reset()
+
+    print('\nHere!\n')
 
     transitions = []
     success_count = 0
@@ -66,12 +73,13 @@ if __name__ == "__main__":
 
     try:
         while success_count < success_needed:
+            print('\nHere!\n')
             if exit_program.is_set():
                 raise KeyboardInterrupt  # stop program, but clean up before
-
+            print('\nHere!\n')
             next_obs, rew, done, truncated, info = env.step(action=np.zeros((7,)))
             actions = info["intervene_action"]
-
+            print('\nHere!\n')
             transition = copy.deepcopy(
                 dict(
                     observations=obs,
