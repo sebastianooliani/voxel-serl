@@ -126,13 +126,19 @@ class UR5Env(gym.Env):
             config=DefaultEnvConfig,
             max_episode_length: int = 100,
             save_video: bool = False,
-            camera_mode: str = "rgb",  # one of (rgb, grey, depth, both(rgb depth), pointcloud, none)
+            camera_mode: str = "none",  # one of (rgb, grey, depth, both(rgb depth), pointcloud, none)
     ):
         self.max_episode_length = max_episode_length
         self.curr_path_length = 0
         self.action_scale = config.ACTION_SCALE
 
         self.config = config
+
+        # Action/Observation Space
+        self.action_space = gym.spaces.Box(
+            np.ones((7,), dtype=np.float32) * -1,
+            np.ones((7,), dtype=np.float32),
+        )
 
         self.resetQ = config.RESET_Q
         self.curr_reset_pose = np.zeros((7,), dtype=np.float32)
@@ -176,11 +182,7 @@ class UR5Env(gym.Env):
             config.ABS_POSE_LIMIT_HIGH[3:],
             dtype=np.float64,
         )
-        # Action/Observation Space
-        self.action_space = gym.spaces.Box(
-            np.ones((7,), dtype=np.float32) * -1,
-            np.ones((7,), dtype=np.float32),
-        )
+        
 
         image_space_definition = {}
         if camera_mode in ["rgb", "grey", "both"]:
@@ -246,6 +248,7 @@ class UR5Env(gym.Env):
             kp=15000,
             kd=3300,
             config=config,
+            gripper=True,
             verbose=False,
             plot=False,
         )
@@ -815,7 +818,7 @@ class UR5DualRobotEnv(UR5Env):
         self.controller_1 = UrImpedanceController(
             robot_ip=config.ROBOT_IP_1,
             port=config.ROBOT_PORT_1,
-            gripper=False,
+            gripper=True,
             frequency=config.CONTROLLER_HZ,
             kp=15000,
             kd=3300,
@@ -826,7 +829,7 @@ class UR5DualRobotEnv(UR5Env):
         self.controller_2 = UrImpedanceController(
             robot_ip=config.ROBOT_IP_2,
             port=config.ROBOT_PORT_2,
-            gripper=False,
+            gripper=True,
             frequency=config.CONTROLLER_HZ,
             kp=15000,
             kd=3300,
