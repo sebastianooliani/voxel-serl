@@ -8,7 +8,7 @@ from ur_env.envs.camera_env.config import UR5CameraConfigFinal, UR5CameraConfigF
 class UR5CameraEnv(UR5Env):
     def __init__(self, load_config=True, **kwargs):
         if load_config:
-            super().__init__(**kwargs, config=UR5CameraConfigFinal)
+            super().__init__(**kwargs, config=UR5CameraConfigFinal, camera_mode="none")
         else:
             super().__init__(**kwargs)
 
