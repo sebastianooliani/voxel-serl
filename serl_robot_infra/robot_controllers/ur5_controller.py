@@ -1,5 +1,6 @@
 import datetime
 import time
+import math
 import threading
 import asyncio
 import numpy as np
@@ -66,8 +67,16 @@ class UrImpedanceController(threading.Thread):
         self.curr_force_lowpass = np.zeros((6,), dtype=np.float32)  # force of tool tip
         self.curr_force = np.zeros((6,), dtype=np.float32)
 
-        self.reset_Q = np.array([np.pi / 2., -np.pi / 2., np.pi / 2., -np.pi / 2., -np.pi / 2., 0.], dtype=np.float32)  # reset state in Joint Space
-        self.reset_Pose = np.zeros_like(self.reset_Q)
+        # self.reset_Q = np.array([0., -np.pi / 2., np.pi / 2., -np.pi / 2., -np.pi / 2., 0.], dtype=np.float32)  # reset state in Joint Space
+        if self.robot_ip[-2:] == "66":
+            self.reset_Q = config.RESET_Q[0, :6]
+        elif self.robot_ip[-2:] == "33":
+            self.reset_Q = config.RESET_Q[0, 6:]
+        elif self.robot_ip[:3] == "172":
+            self.reset_Q = config.RESET_Q[0, :6]
+            self.reset_Q[0] = math.pi/4
+
+        self.reset_Pose = np.zeros_like(self.reset_Q[:6])
         self.reset_height = np.array([0.1], dtype=np.float32)  # TODO make customizable
 
         self.delta = config.ERROR_DELTA
@@ -103,8 +112,14 @@ class UrImpedanceController(threading.Thread):
 
     async def start_ur_interfaces(self, gripper=False):
         print(f"\n[RTDE] trying to connect to {self.robot_ip}, {self.port}\n")
-        self.ur_control = RTDEControlInterface(self.robot_ip, self.port)
-        self.ur_receive = RTDEReceiveInterface(self.robot_ip, self.port)
+
+        if not self.port:
+            self.ur_control = RTDEControlInterface(self.robot_ip)
+            self.ur_receive = RTDEReceiveInterface(self.robot_ip)
+        else: 
+            self.ur_control = RTDEControlInterface(self.robot_ip, self.port)
+            self.ur_receive = RTDEReceiveInterface(self.robot_ip, self.port)
+
         if gripper:
             self.robotiq_gripper = VacuumGripper(self.robot_ip)
             await self.robotiq_gripper.connect()
@@ -184,7 +199,7 @@ class UrImpedanceController(threading.Thread):
         Q = self.ur_receive.getActualQ()
         Qd = self.ur_receive.getActualQd()
         force = self.ur_receive.getActualTCPForce()
-
+        
         if self.gripper:
             pressure = await self.robotiq_gripper.get_current_pressure()
             obj_status = await self.robotiq_gripper.get_object_status()
@@ -239,7 +254,6 @@ class UrImpedanceController(threading.Thread):
         force_pos = kp * diff_p + kd * diff_d
 
         # calc torque
-        breakpoint()
         rot_diff = R.from_quat(target_pos[3:]) * R.from_quat(curr_pos[3:]).inv()
         vel_rot_diff = R.from_rotvec(curr_vel[3:]).inv()
         torque = rot_diff.as_rotvec() * 100 + vel_rot_diff.as_rotvec() * 22  # TODO make customizable
@@ -320,9 +334,9 @@ class UrImpedanceController(threading.Thread):
         self.ur_control.forceModeStop()
 
         # first disable vaccum gripper
-        # if self.robotiq_gripper:
-        #     await self.send_gripper_command(force_release=True)
-        #     time.sleep(0.01)
+        if self.robotiq_gripper:
+            await self.send_gripper_command(force_release=True)
+            time.sleep(0.01)
 
         # then move up (so no boxes are moved)
         success = True
@@ -358,7 +372,7 @@ class UrImpedanceController(threading.Thread):
             self._reset.clear()
 
     async def run_async(self):
-        await self.start_ur_interfaces(gripper=False)
+        await self.start_ur_interfaces(gripper=self.gripper)
 
         self.ur_control.forceModeSetDamping(self.fm_damping)  # less damping = Faster
 
