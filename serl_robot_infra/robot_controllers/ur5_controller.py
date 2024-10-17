@@ -70,8 +70,10 @@ class UrImpedanceController(threading.Thread):
         # self.reset_Q = np.array([0., -np.pi / 2., np.pi / 2., -np.pi / 2., -np.pi / 2., 0.], dtype=np.float32)  # reset state in Joint Space
         if self.robot_ip[-2:] == "66":
             self.reset_Q = config.RESET_Q[0, :6]
+            self.reset_Q = np.array([0, -math.pi/2, math.pi/2, -math.pi/2, -math.pi/2, 0.])
         elif self.robot_ip[-2:] == "33":
             self.reset_Q = config.RESET_Q[0, 6:]
+            self.reset_Q = np.array([0, -math.pi/2, math.pi/2, -math.pi/2, -math.pi/2, 0.])
         elif self.robot_ip[:3] == "172":
             self.reset_Q = config.RESET_Q[0, :6]
             self.reset_Q[0] = math.pi/4
@@ -414,6 +416,11 @@ class UrImpedanceController(threading.Thread):
                     2,
                     self.fm_limits
                 )
+                """fm_successful = self.ur_control.freedriveMode(
+                    self.fm_selection_vector, 
+                    self.fm_task_frame
+                    )"""
+                
                 if not fm_successful:  # truncate if the robot ends up in a singularity
                     await self.restart_ur_interface()
                     await self._go_to_reset_pose()
@@ -434,6 +441,7 @@ class UrImpedanceController(threading.Thread):
                 print(f"[RTDEPositionalController] >dt: {self.err}     <dt (good): {self.noerr}")
             # mandatory cleanup
             self.ur_control.forceModeStop()
+            # self.ur_control.endFreedriveMode()
 
             # release gripper
             if self.robotiq_gripper:
