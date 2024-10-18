@@ -3,7 +3,9 @@ import threading
 import pickle as pkl
 import gymnasium as gym
 from pynput import keyboard
+import sys
 
+sys.path.append("../../serl_robot_infra")
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper
 from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
 
@@ -27,7 +29,7 @@ def on_esc(key):
 
 
 if __name__ == "__main__":
-    env = gym.make("box_picking_basic_env")
+    env = gym.make("box_picking_camera_env")
     env = SpacemouseIntervention(env)
     # env = RelativeFrame(env)
     env = Quat2MrpWrapper(env)
@@ -44,7 +46,7 @@ if __name__ == "__main__":
     listener_2 = keyboard.Listener(on_press=on_esc, daemon=True)
     listener_2.start()
 
-    file_path = "robotiq_test_20_demos_mar26_rew1.pkl.old"
+    file_path = "ur5_test_20_demos_2024-10-17_10-26-15.pkl"
 
     with open(file_path, "rb") as f:
         transitions = pkl.load(f)
