@@ -1,6 +1,7 @@
 import gymnasium as gym
 import numpy as np
 from agentlace import action
+import pygame
 
 from ur_env.spacemouse.spacemouse_expert import SpaceMouseExpert
 import time
@@ -59,7 +60,7 @@ class SpacemouseIntervention(gym.ActionWrapper):
         self.left, self.right = np.roll(self.left, -1), np.roll(self.right, -1)  # shift them one to the left
         self.left[-1], self.right[-1] = tuple(buttons)
 
-        return np.array(expert_a, dtype=np.float32)
+        return np.array(expert_a, dtype=np.float64)
 
     def adapt_spacemouse_output(self, action: np.ndarray) -> np.ndarray:
         """
@@ -192,3 +193,89 @@ class ObservationRotationWrapper(gym.Wrapper):
         rotated_action = action.copy()
         rotated_action[:6] = rotate_state(action[:6], 4 - self.num_rot_quadrant)  # rotate
         return rotated_action
+    
+
+class KeyboardInterventionWrapper(gym.Wrapper):
+    """
+    Not working at the moment.
+    """
+    def __init__(self, env):
+        super().__init__(env)
+        print("Keyboard Intervention Wrapper enabled!")
+        pygame.init()
+        self.action = np.zeros(self.env.action_space.shape)  # Default action (no movement)
+
+    def process_keys(self, action):
+        """ Map keyboard inputs to environment actions. """
+        keys = pygame.key.get_pressed()
+
+        # Modify the action vector based on key presses
+        if keys[pygame.K_LEFT]:
+            action[0] = -0.5  # Move left
+        elif keys[pygame.K_RIGHT]:
+            action[0] = 0.5   # Move right
+        else:
+            action[0] = 0   # Stop horizontal movement
+
+        if keys[pygame.K_UP]:
+            action[1] = 0.5   # Move up
+        elif keys[pygame.K_DOWN]:
+            action[1] = -0.5  # Move down
+        else:
+            action[1] = 0   # Stop vertical movement
+
+        if keys[pygame.K_w]:
+            action[2] = 0.5   # Move forward
+        elif keys[pygame.K_s]:
+            action[2] = -0.5  # Move backward
+        else:
+            action[2] = 0   # Stop forward/backward movement 
+
+        return action
+    
+    def close(self):
+        """Close the environment and pygame."""
+        pygame.quit()
+        self.env.close()
+
+    def step(self, action):
+        pygame.event.pump()
+        new_action = self.process_keys(action)
+        print(f"new action: {new_action}")
+        obs, rew, done, truncated, info = self.env.step(new_action)
+        info["intervene_action"] = new_action
+        return obs, rew, done, truncated, info
+
+
+class FreeDriveWrapper(gym.ActionWrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        print("\nFree Drive Wrapper enabled!\n")
+
+        # self.activate_free_drive()
+
+    def activate_free_drive(self):
+        self.env.env.env.env.controller.ur_control.freedriveMode(free_axes=[1,1,1,1,1,1], feature=[0,0,0,0,0,0])
+
+    def deactivate_free_drive(self):
+        self.env.env.env.env.controller.ur_control.endFreedriveMode()
+
+    def action(self, action):
+        pose = np.array(self.env.env.env.env.controller.ur_receive.getActualTCPPose())
+        action[:3] = pose[:3]
+        action[3:] = R.from_rotvec(pose[3:]).as_quat()
+
+        return action
+
+    def step(self, action):
+        # self.action = action
+        new_action = self.action(action)
+
+        obs, rew, done, truncated, info = self.env.step(new_action)
+        info["intervene_action"] = new_action
+        # self.deactivate_free_drive()
+        return obs, rew, done, truncated, info
+    
+    def close(self):
+        pass
+        self.deactivate_free_drive()
