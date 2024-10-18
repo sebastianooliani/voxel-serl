@@ -11,7 +11,7 @@ from pynput import keyboard
 import sys
 
 sys.path.append("../../serl_robot_infra")
-from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, KeyboardInterventionWrapper
+from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, KeyboardInterventionWrapper, FreeDriveWrapper
 from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 
@@ -33,16 +33,11 @@ def on_esc(key):
         exit_program.set()
 
 # dummy variable for debugging
-SPACEMOUSE = True
+SPACEMOUSE = False
 
 if __name__ == "__main__":
     env = gym.make("box_picking_camera_env")
-    if SPACEMOUSE:
-        env = SpacemouseIntervention(env)
-    else:
-        # TODO: add a wrapper to use the keyboard for intervention or free-drive mode
-        env = KeyboardInterventionWrapper(env) 
-        pass
+    env = SpacemouseIntervention(env) if SPACEMOUSE else FreeDriveWrapper(env)
     env = RelativeFrame(env)
     env = Quat2MrpWrapper(env)
     env = SerlObsWrapperNoImages(env)
