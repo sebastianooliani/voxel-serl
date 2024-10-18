@@ -52,7 +52,7 @@ flags.DEFINE_integer("max_steps", 100000, "Maximum number of training steps.")
 flags.DEFINE_integer("replay_buffer_capacity", 100000, "Replay buffer capacity.")
 
 flags.DEFINE_multi_string("demo_paths", None, "paths to demos")
-flags.DEFINE_string("checkpoint_path", None, "Path to save checkpoints.")
+flags.DEFINE_string("checkpoint_path", "/home/sebastiano/voxel-serl/examples/box_picking_bc/" , "Path to save checkpoints.")
 flags.DEFINE_integer("checkpoint_period", 10000, "Period to save checkpoints.")
 
 flags.DEFINE_integer(
@@ -82,7 +82,6 @@ def main(_):
     env = gym.make(
         FLAGS.env,
         fake_env=not FLAGS.eval_checkpoint_step,
-        camera_mode="none",
         max_episode_length=100,
     )
     # env = SpacemouseIntervention(env)
