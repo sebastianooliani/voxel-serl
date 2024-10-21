@@ -11,12 +11,12 @@ from pynput import keyboard
 import sys
 
 sys.path.append("../../serl_robot_infra")
-from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, KeyboardInterventionWrapper, FreeDriveWrapper
+from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, KeyboardInterventionWrapper, FreeDriveWrapper, TwoSpacemiceIntervention
 from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 
 from gymnasium.wrappers import TransformReward
-from ur_env.envs.relative_env import RelativeFrame
+from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
 
 exit_program = threading.Event()
 
@@ -33,12 +33,12 @@ def on_esc(key):
         exit_program.set()
 
 # dummy variable for debugging
-SPACEMOUSE = False
+DUAL_SPACEMOUSE = True
 
 if __name__ == "__main__":
-    env = gym.make("box_picking_camera_env")
-    env = SpacemouseIntervention(env) if SPACEMOUSE else FreeDriveWrapper(env)
-    env = RelativeFrame(env)
+    env = gym.make("box_picking_camera_env_dual_robot") if DUAL_SPACEMOUSE else gym.make("box_picking_camera_env")
+    env = TwoSpacemiceIntervention(env) if DUAL_SPACEMOUSE else SpacemouseIntervention(env)
+    env = DualRelativeFrame(env) if DUAL_SPACEMOUSE else RelativeFrame(env)
     env = Quat2MrpWrapper(env)
     env = SerlObsWrapperNoImages(env)
     # env = TransformReward(env, lambda r: 10. * r)
