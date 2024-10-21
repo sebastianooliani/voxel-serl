@@ -3,7 +3,7 @@ import numpy as np
 from agentlace import action
 import pygame
 
-from ur_env.spacemouse.spacemouse_expert import SpaceMouseExpert
+from ur_env.spacemouse.spacemouse_expert import SpaceMouseExpert, TwoSpaceMiceExperts
 import time
 from scipy.spatial.transform import Rotation as R
 
@@ -91,6 +91,30 @@ class SpacemouseIntervention(gym.ActionWrapper):
         info["left"] = self.left.any()
         info["right"] = self.right.any()
         return obs, rew, done, truncated, info
+    
+
+class TwoSpacemiceIntervention(SpacemouseIntervention):
+    def __init__(self, env, gripper_action_span=6):
+        super().__init__(env, gripper_action_span)
+        self.expert = TwoSpaceMiceExperts()
+
+    def get_deadspace_action(self) -> np.ndarray:
+        expert_a, buttons_a, expert_b, buttons_b = self.expert.get_action()
+
+        positive = np.clip((expert_a - self.deadspace) / (1. - self.deadspace), a_min=0.0, a_max=1.0)
+        negative = np.clip((expert_a + self.deadspace) / (1. - self.deadspace), a_min=-1.0, a_max=0.0)
+        expert_a = positive + negative
+
+        positive = np.clip((expert_b - self.deadspace) / (1. - self.deadspace), a_min=0.0, a_max=1.0)
+        negative = np.clip((expert_b + self.deadspace) / (1. - self.deadspace), a_min=-1.0, a_max=0.0)
+        expert_b = positive + negative
+
+        self.left, self.right = np.roll(self.left, -2), np.roll(self.right, -2)
+        self.left[-2], self.right[-2] = tuple(buttons_a)
+        self.left[-1], self.right[-1] = tuple(buttons_b)
+
+        return np.concatenate((expert_a, expert_b), axis=0)
+
 
 
 class Quat2EulerWrapper(gym.ObservationWrapper):  # not used anymore (stay away from euler angles!)
