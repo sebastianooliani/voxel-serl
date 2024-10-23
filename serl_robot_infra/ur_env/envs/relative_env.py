@@ -133,7 +133,7 @@ class DualRelativeFrame(RelativeFrame):
             }
         ),
         ......
-    }, and at least 6 DoF action space with (x, y, z, rx, ry, rz, ...)
+    }, and at least 14 DoF action space with (x, y, z, rx, ry, rz, gripper, x, y, z, rx, ry, rz, gripper).
     """
     def __init__(self, env: Env):
         super().__init__(env, include_relative_pose=True)
@@ -143,9 +143,6 @@ class DualRelativeFrame(RelativeFrame):
 
         self.rotation_matrix_1 = construct_rotation_matrix(obs["state"]["tcp_pose"][:7])
         self.rotation_matrix_2 = construct_rotation_matrix(obs["state"]["tcp_pose"][7:])
-
-        # assert self.rotation_matrix_1.T @ self.rotation_matrix_1 == np.identity(3)
-        # assert self.rotation_matrix_2.T @ self.rotation_matrix_2 == np.identity(3)
 
         self.rotation_matrix_reset_1 = self.rotation_matrix_1.copy()
         self.rotation_matrix_reset_2 = self.rotation_matrix_2.copy()
