@@ -11,7 +11,7 @@ from pynput import keyboard
 import sys
 
 sys.path.append("../../serl_robot_infra")
-from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, KeyboardInterventionWrapper, FreeDriveWrapper, TwoSpacemiceIntervention
+from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention
 from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     env = gym.make("box_picking_camera_env_dual_robot") if DUAL_SPACEMOUSE else gym.make("box_picking_camera_env")
     env = TwoSpacemiceIntervention(env) if DUAL_SPACEMOUSE else SpacemouseIntervention(env)
     env = DualRelativeFrame(env) if DUAL_SPACEMOUSE else RelativeFrame(env)
-    env = Quat2MrpWrapper(env)
+    env = DualQuat2MrpWrapper(env) if DUAL_SPACEMOUSE else Quat2MrpWrapper(env)
     env = SerlObsWrapperNoImages(env)
     # env = TransformReward(env, lambda r: 10. * r)
     # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
@@ -72,7 +72,8 @@ if __name__ == "__main__":
         while success_count < success_needed:
             if exit_program.is_set():
                 raise KeyboardInterrupt  # stop program, but clean up before
-            next_obs, rew, done, truncated, info = env.step(action=np.zeros((7,)))
+            action = np.zeros((14,)) if DUAL_SPACEMOUSE else np.zeros((7,))
+            next_obs, rew, done, truncated, info = env.step(action=action)
             actions = info["intervene_action"]
             transition = copy.deepcopy(
                 dict(
@@ -103,10 +104,17 @@ if __name__ == "__main__":
             print(f"saved {success_needed} demos to {file_path}")
 
     except KeyboardInterrupt as e:
-        print(f'\nProgram was interrupted, cleaning up...  ', e.__str__())
+        print(f'\nProgram was interrupted from keyboard, cleaning up...  ', e.__str__())
+
+    # except ValueError as e:
+        # print(f'\nValue Error! Program was interrupted, cleaning up...  ', e.__str__())
 
     finally:
-        pbar.close()
+        if 'pbar' in locals() and not pbar.disable:
+            pbar.close()
         env.close()
+        env.env.env.env.env.close()
+        print("Environment closed.")
         listener_1.stop()
         listener_2.stop()
+        print("Program ended.")
