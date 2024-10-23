@@ -66,14 +66,13 @@ class UrImpedanceController(threading.Thread):
         self.curr_Qd = np.zeros((6,), dtype=np.float32)
         self.curr_force_lowpass = np.zeros((6,), dtype=np.float32)  # force of tool tip
         self.curr_force = np.zeros((6,), dtype=np.float32)
+        self.old_force = np.zeros((6,), dtype=np.float32)
 
         # self.reset_Q = np.array([0., -np.pi / 2., np.pi / 2., -np.pi / 2., -np.pi / 2., 0.], dtype=np.float32)  # reset state in Joint Space
         if self.robot_ip[-2:] == "66":
             self.reset_Q = config.RESET_Q[0, :6]
-            self.reset_Q = np.array([0, -math.pi/2, math.pi/2, -math.pi/2, -math.pi/2, 0.])
         elif self.robot_ip[-2:] == "33":
             self.reset_Q = config.RESET_Q[0, 6:]
-            self.reset_Q = np.array([0, -math.pi/2, math.pi/2, -math.pi/2, -math.pi/2, 0.])
         elif self.robot_ip[:3] == "172":
             self.reset_Q = config.RESET_Q[0, :6]
             self.reset_Q[0] = math.pi/4
@@ -248,22 +247,24 @@ class UrImpedanceController(threading.Thread):
             curr_pos = self.curr_pos
             curr_vel = self.curr_vel
 
-        # calc position for
-        kp, kd = self.kp, self.kd
-        diff_p = np.clip(target_pos[:3] - curr_pos[:3], a_min=-self.delta, a_max=self.delta)
-        vel_delta = 2 * self.delta * self.frequency
-        diff_d = np.clip(- curr_vel[:3], a_min=-vel_delta, a_max=vel_delta)
-        force_pos = kp * diff_p + kd * diff_d
+            # calc position for
+            kp, kd = self.kp, self.kd
+            diff_p = np.clip(target_pos[:3] - curr_pos[:3], a_min=-self.delta, a_max=self.delta)
+            vel_delta = 2 * self.delta * self.frequency
+            diff_d = np.clip(- curr_vel[:3], a_min=-vel_delta, a_max=vel_delta)
+            force_pos = kp * diff_p + kd * diff_d
 
-        # calc torque
-        rot_diff = R.from_quat(target_pos[3:]) * R.from_quat(curr_pos[3:]).inv()
-        vel_rot_diff = R.from_rotvec(curr_vel[3:]).inv()
-        torque = rot_diff.as_rotvec() * 100 + vel_rot_diff.as_rotvec() * 22  # TODO make customizable
+            if np.linalg.norm(target_pos[3:]) < 1e-3 or np.linalg.norm(curr_pos[3:]) < 1e-3:
+                return self.old_force
+            rot_diff = R.from_quat(target_pos[3:]) * R.from_quat(curr_pos[3:]).inv()
+            vel_rot_diff = R.from_rotvec(curr_vel[3:]).inv()
+            torque = rot_diff.as_rotvec() * 100 + vel_rot_diff.as_rotvec() * 22  # TODO make customizable
 
-        # check for big downward tcp force and adapt accordingly
-        if self.curr_force[2] > 3.5 and force_pos[2] < 0.:
-            force_pos[2] = max((1.5 - self.curr_force_lowpass[2]), 0.) * force_pos[2] + min(self.curr_force_lowpass[2] - 0.5, 1.) * 20.
+            # check for big downward tcp force and adapt accordingly
+            if self.curr_force[2] > 3.5 and force_pos[2] < 0.:
+                force_pos[2] = max((1.5 - self.curr_force_lowpass[2]), 0.) * force_pos[2] + min(self.curr_force_lowpass[2] - 0.5, 1.) * 20.
 
+            self.old_force = np.concatenate((force_pos, torque))
         return np.concatenate((force_pos, torque))
 
     def plot(self):
@@ -450,7 +451,7 @@ class UrImpedanceController(threading.Thread):
 
             # move to real home
             pi = 3.1415
-            reset_Q = [0, -pi / 2., pi / 2., -pi / 2., -pi / 2., 0.]
+            reset_Q = self.reset_Q
             self.ur_control.moveJ(reset_Q, speed=1., acceleration=0.8)
 
             # terminate
