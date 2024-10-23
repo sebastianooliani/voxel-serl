@@ -143,6 +143,10 @@ class DualRelativeFrame(RelativeFrame):
 
         self.rotation_matrix_1 = construct_rotation_matrix(obs["state"]["tcp_pose"][:7])
         self.rotation_matrix_2 = construct_rotation_matrix(obs["state"]["tcp_pose"][7:])
+
+        # assert self.rotation_matrix_1.T @ self.rotation_matrix_1 == np.identity(3)
+        # assert self.rotation_matrix_2.T @ self.rotation_matrix_2 == np.identity(3)
+
         self.rotation_matrix_reset_1 = self.rotation_matrix_1.copy()
         self.rotation_matrix_reset_2 = self.rotation_matrix_2.copy()
 
@@ -201,8 +205,9 @@ class DualRelativeFrame(RelativeFrame):
         action = np.array(action)  # in case action is a jax read-only array
         action[:3] = self.rotation_matrix_reset_1 @ action[:3]
         action[3:6] = self.rotation_matrix_reset_1 @ action[3:6]
-        action[6:9] = self.rotation_matrix_reset_2 @ action[6:9]
-        action[9:12] = self.rotation_matrix_reset_2 @ action[9:12]
+        # skip the gripper action
+        action[7:10] = self.rotation_matrix_reset_2 @ action[7:10]
+        action[10:13] = self.rotation_matrix_reset_2 @ action[10:13]
         return action
 
     def transform_action_inv(self, action: np.ndarray):
@@ -213,6 +218,26 @@ class DualRelativeFrame(RelativeFrame):
         action = np.array(action)
         action[:3] = self.rotation_matrix_reset_1.transpose() @ action[:3]
         action[3:6] = self.rotation_matrix_reset_1.transpose() @ action[3:6]
-        action[6:9] = self.rotation_matrix_reset_2.transpose() @ action[6:9]
-        action[9:12] = self.rotation_matrix_reset_2.transpose() @ action[9:12]
+        # skip the gripper action
+        action[7:10] = self.rotation_matrix_reset_2.transpose() @ action[7:10]
+        action[10:13] = self.rotation_matrix_reset_2.transpose() @ action[10:13]
         return action
+    
+    def step(self, action: np.ndarray):
+        # action is assumed to be (x, y, z, rx, ry, rz, gripper)
+        # Transform action from end-effector frame to base frame
+        transformed_action = self.transform_action(action)
+
+        obs, reward, done, truncated, info = self.env.step(transformed_action)
+
+        # this is to convert the spacemouse intervention action
+        if "intervene_action" in info:
+            info["intervene_action"] = self.transform_action_inv(info["intervene_action"])
+
+        # Update rotation matrix
+        self.rotation_matrix_1 = construct_rotation_matrix(obs["state"]["tcp_pose"][:7])
+        self.rotation_matrix_2 = construct_rotation_matrix(obs["state"]["tcp_pose"][7:])
+
+        # Transform observation to spatial frame
+        transformed_obs = self.transform_observation(obs)
+        return transformed_obs, reward, done, truncated, info
