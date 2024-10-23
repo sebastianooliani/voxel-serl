@@ -745,8 +745,8 @@ class UR5DualRobotEnv(UR5Env):
             dtype=np.float64,
         )
         self.xy_range_1 = gym.spaces.Box(
-            config.ABS_POSE_RANGE_LIMITS_ROBOT_1[0],
-            config.ABS_POSE_RANGE_LIMITS_ROBOT_1[1],
+            config.ABS_POSE_RANGE_LIMITS[0],
+            config.ABS_POSE_RANGE_LIMITS[1],
             dtype=np.float64,
         )
         self.mrp_bounding_box_1 = gym.spaces.Box(
@@ -761,8 +761,8 @@ class UR5DualRobotEnv(UR5Env):
             dtype=np.float64,
         )
         self.xy_range_2 = gym.spaces.Box(
-            config.ABS_POSE_RANGE_LIMITS_ROBOT_2[0],
-            config.ABS_POSE_RANGE_LIMITS_ROBOT_2[1],
+            config.ABS_POSE_RANGE_LIMITS[0],
+            config.ABS_POSE_RANGE_LIMITS[1],
             dtype=np.float64,
         )
         self.mrp_bounding_box_2 = gym.spaces.Box(
