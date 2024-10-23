@@ -136,10 +136,10 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     RANDOM_RESET = False
     RANDOM_XY_RANGE = (0.00,)
     RANDOM_ROT_RANGE = (0.0,)
-    ABS_POSE_LIMIT_HIGH_ROBOT_1 = np.array([-0.464, -0.103, 0.566, 3.2, 0.18, 3.2])
-    ABS_POSE_LIMIT_LOW_ROBOT_1 = np.array([-0.517, -0.082, - 0.003, 2.8, -0.18, -3.2])
-    ABS_POSE_LIMIT_HIGH_ROBOT_2 = np.array([0.464, 0.103, 0.566, 3.2, 0.18, 3.2])
-    ABS_POSE_LIMIT_LOW_ROBOT_2 = np.array([0.517, 0.082, - 0.003, 2.8, -0.18, -3.2])
+    ABS_POSE_LIMIT_HIGH_ROBOT_1 = np.array([-0.226, 0.443, 0.503, 3.2, 0.18, 3.2])
+    ABS_POSE_LIMIT_LOW_ROBOT_1 = np.array([-0.558, -0.418, 0.008, 2.8, -0.18, -3.2])
+    ABS_POSE_LIMIT_HIGH_ROBOT_2 = np.array([0.145, 0.649, 0.617, 3.2, 0.18, 3.2])
+    ABS_POSE_LIMIT_LOW_ROBOT_2 = np.array([-0.596, 0.200, 0.107, 2.8, -0.18, -3.2])
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
     ROBOT_IP_1: str = "192.168.1.66" # docker "172.17.0.2"
