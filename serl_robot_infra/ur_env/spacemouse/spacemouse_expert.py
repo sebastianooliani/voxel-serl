@@ -12,7 +12,8 @@ class SpaceMouseExpert:
     """
 
     def __init__(self):
-        pyspacemouse.open()
+        # open() returns a device object if the device was opened successfully
+        self.mouse = pyspacemouse.open()
 
         self.state_lock = threading.Lock()
         self.latest_data = {"action": np.zeros(6), "buttons": [0, 0]}
@@ -23,7 +24,7 @@ class SpaceMouseExpert:
 
     def _read_spacemouse(self):
         while True:
-            state = pyspacemouse.read()
+            state = self.mouse.read()
             with self.state_lock:
                 self.latest_data["action"] = np.array(
                     [-state.y, state.x, state.z, -state.roll, -state.pitch, -state.yaw]
@@ -36,21 +37,41 @@ class SpaceMouseExpert:
             return self.latest_data["action"], self.latest_data["buttons"]
         
 
-class TwoSpaceMiceExperts(SpaceMouseExpert):
+class TwoSpaceMiceExperts():
     """
     This class provides an interface to connect and read the inputs from two SpaceMice.
+    If you have multiple 3Dconnexion devices, you can use the object-oriented API to access them individually. 
+
+    Each object has the following API, which functions exactly as the above API, but on a per-device basis:
+        dev.open()          Opens the connection (this is always called by the module-level open command, 
+                            so you should not need to use it unless you have called close())
+        dev.read()          Return the state of the device as namedtuple [t,x,y,z,roll,pitch,yaw,button]
+        dev.close()         Close this device
+        dev.set_led(state)  Set the state of the LED on the device to on (True) or off (False)
     """
     def __init__(self):
-        super().__init__()
+        self.left_arm = pyspacemouse.open(DeviceNumber=1)
+        # print(self.left_arm.device, self.left_arm.name)
+        self.right_arm = pyspacemouse.open(DeviceNumber=2)
+        # print(self.right_arm.device, self.right_arm.name)
+        
+        self.state_lock = threading.Lock()
+        self.latest_data = {"action_1": np.zeros(6), "buttons_1": [0, 0],
+                            "action_2": np.zeros(6), "buttons_2": [0, 0]}
+        # Start a thread to continuously read the SpaceMouse state
+        self.thread = threading.Thread(target=self._read_spacemouse)
+        self.thread.daemon = True
+        self.thread.start()
+        
 
     def _read_spacemouse(self):
-
         while True:
             # IP: "...66"
-            state_1 = pyspacemouse.read()
+            state_1 = self.left_arm.read()
             # IP: "...33"
-            breakpoint()
-            state_2 = pyspacemouse.read()
+            # breakpoint()
+            state_2 = self.right_arm.read()
+
             with self.state_lock:
                 self.latest_data["action_1"] = np.array(
                     [-state_1.y, state_1.x, state_1.z, -state_1.roll, -state_1.pitch, -state_1.yaw]
