@@ -170,19 +170,18 @@ class UR5Env(gym.Env):
         self.xyz_bounding_box = gym.spaces.Box(
             config.ABS_POSE_LIMIT_LOW[:3],
             config.ABS_POSE_LIMIT_HIGH[:3],
-            dtype=np.float64,
+            dtype=np.float32,
         )
         self.xy_range = gym.spaces.Box(
             config.ABS_POSE_RANGE_LIMITS[0],
             config.ABS_POSE_RANGE_LIMITS[1],
-            dtype=np.float64,
+            dtype=np.float32,
         )
         self.mrp_bounding_box = gym.spaces.Box(
             config.ABS_POSE_LIMIT_LOW[3:],
             config.ABS_POSE_LIMIT_HIGH[3:],
-            dtype=np.float64,
+            dtype=np.float32,
         )
-        
 
         image_space_definition = {}
         if camera_mode in ["rgb", "grey", "both"]:
@@ -306,7 +305,7 @@ class UR5Env(gym.Env):
     def step(self, action: np.ndarray) -> tuple:
         """standard gym step function."""
         start_time = time.time()
-        action = np.clip(action, self.action_space.low, self.action_space.high)
+        action = np.clip(action, self.action_space.low[:6], self.action_space.high[:6])
 
         # position
         next_pos = self.curr_pos.copy()
@@ -712,6 +711,7 @@ class UR5DualRobotEnv(UR5Env):
             np.ones((14,), dtype=np.float32) * -1,
             np.ones((14,), dtype=np.float32),
         )
+        print(self.action_space.shape)
 
         self.resetQ = config.RESET_Q
         self.curr_reset_pose = np.zeros((14,), dtype=np.float32)
@@ -739,19 +739,35 @@ class UR5DualRobotEnv(UR5Env):
 
         self.cost_infos = {}
 
-        self.xyz_bounding_box = gym.spaces.Box(
-            config.ABS_POSE_LIMIT_LOW[:3],
-            config.ABS_POSE_LIMIT_HIGH[:3],
+        self.xyz_bounding_box_1 = gym.spaces.Box(
+            config.ABS_POSE_LIMIT_LOW_ROBOT_1[:3],
+            config.ABS_POSE_LIMIT_HIGH_ROBOT_1[:3],
             dtype=np.float64,
         )
-        self.xy_range = gym.spaces.Box(
-            config.ABS_POSE_RANGE_LIMITS[0],
-            config.ABS_POSE_RANGE_LIMITS[1],
+        self.xy_range_1 = gym.spaces.Box(
+            config.ABS_POSE_RANGE_LIMITS_ROBOT_1[0],
+            config.ABS_POSE_RANGE_LIMITS_ROBOT_1[1],
             dtype=np.float64,
         )
-        self.mrp_bounding_box = gym.spaces.Box(
-            config.ABS_POSE_LIMIT_LOW[3:],
-            config.ABS_POSE_LIMIT_HIGH[3:],
+        self.mrp_bounding_box_1 = gym.spaces.Box(
+            config.ABS_POSE_LIMIT_LOW_ROBOT_1[3:],
+            config.ABS_POSE_LIMIT_HIGH_ROBOT_1[3:],
+            dtype=np.float64,
+        )
+
+        self.xyz_bounding_box_2 = gym.spaces.Box(
+            config.ABS_POSE_LIMIT_LOW_ROBOT_2[:3],
+            config.ABS_POSE_LIMIT_HIGH_ROBOT_2[:3],
+            dtype=np.float64,
+        )
+        self.xy_range_2 = gym.spaces.Box(
+            config.ABS_POSE_RANGE_LIMITS_ROBOT_2[0],
+            config.ABS_POSE_RANGE_LIMITS_ROBOT_2[1],
+            dtype=np.float64,
+        )
+        self.mrp_bounding_box_2 = gym.spaces.Box(
+            config.ABS_POSE_LIMIT_LOW_ROBOT_2[3:],
+            config.ABS_POSE_LIMIT_HIGH_ROBOT_2[3:],
             dtype=np.float64,
         )
 
@@ -795,13 +811,21 @@ class UR5DualRobotEnv(UR5Env):
             {
                 "tcp_pose": gym.spaces.Box(
                     -np.inf, np.inf, shape=(14,)
-                ),  # xyz + quat
+                ),  # xyz + quat *2
                 "tcp_vel": gym.spaces.Box(-np.inf, np.inf, shape=(12,)),
                 "gripper_state": gym.spaces.Box(-1., 1., shape=(4,)),
                 "tcp_force": gym.spaces.Box(-np.inf, np.inf, shape=(6,)),
                 "tcp_torque": gym.spaces.Box(-np.inf, np.inf, shape=(6,)),
                 "action": gym.spaces.Box(-1., 1., shape=self.action_space.shape),
                 # TODO: add my custom observations here
+                # the paper "A Comparison of Imitation Learning Algorithms for Bimanual Manipulation" uses:
+                # - the difference between the two robots end effector poses,
+                # - the cube root distance between the two end effectors and the "goal",
+                # - forces and torques acting on the grippers
+                # I would personally add one of the followings: 
+                # - joint positions , so that the network learns where to move to avoid collisions
+                # - relative eef positions, for same reason as above
+                # no object position in the beginnig (blind agent)
             }
         )
 
@@ -823,7 +847,7 @@ class UR5DualRobotEnv(UR5Env):
 
         self.controller_1 = UrImpedanceController(
             robot_ip=config.ROBOT_IP_1,
-            port=config.ROBOT_PORT_1,
+            port=None,
             gripper=True,
             frequency=config.CONTROLLER_HZ,
             kp=15000,
@@ -834,7 +858,7 @@ class UR5DualRobotEnv(UR5Env):
         )
         self.controller_2 = UrImpedanceController(
             robot_ip=config.ROBOT_IP_2,
-            port=config.ROBOT_PORT_2,
+            port=None,
             gripper=True,
             frequency=config.CONTROLLER_HZ,
             kp=15000,
@@ -991,18 +1015,28 @@ class UR5DualRobotEnv(UR5Env):
         """
         Internal function to get the latest state of the robot and its gripper.
         """
-        state = np.concatenate([self.controller_1.get_state(), self.controller_2.get_state()])
+        state = self.controller_1.get_state()
 
-        self.curr_pos[:] = state['pos']
-        self.curr_vel[:] = state['vel']
-        self.curr_force[:] = state['force']
-        self.curr_torque[:] = state['torque']
-        self.curr_Q[:] = state['Q']
-        self.curr_Qd[:] = state['Qd']
-        self.gripper_state[:] = state['gripper']
+        self.curr_pos[:7] = state['pos']
+        self.curr_vel[:6] = state['vel']
+        self.curr_force[:3] = state['force']
+        self.curr_torque[:3] = state['torque']
+        self.curr_Q[:6] = state['Q']
+        self.curr_Qd[:6] = state['Qd']
+        self.gripper_state[:2] = state['gripper']
+
+        state = self.controller_2.get_state()
+
+        self.curr_pos[7:] = state['pos']
+        self.curr_vel[6:] = state['vel']
+        self.curr_force[3:] = state['force']
+        self.curr_torque[3:] = state['torque']
+        self.curr_Q[6:] = state['Q']
+        self.curr_Qd[6:] = state['Qd']
+        self.gripper_state[2:] = state['gripper']
 
     def _is_truncated(self):
-        return self.controller.is_truncated()
+        return self.controller_1.is_truncated() or self.controller_2.is_truncated()
 
     def _get_obs(self, action) -> dict:
         # get image before state observation, so they match better in time
@@ -1026,6 +1060,28 @@ class UR5DualRobotEnv(UR5Env):
             return copy.deepcopy(dict(images=images, state=state_observation))
         else:
             return copy.deepcopy(dict(state=state_observation))
+        
+    def clip_safety_box(self, next_pos: np.ndarray) -> np.ndarray:
+        """Clip the pose to be within the safety box."""
+        next_pos[:3] = np.clip(
+            next_pos[:3], self.xyz_bounding_box_1.low, self.xyz_bounding_box_1.high
+        )
+        orientation_diff = (R.from_quat(next_pos[3:7]) * R.from_quat(self.curr_reset_pose[3:7]).inv()).as_mrp()
+        orientation_diff = np.clip(
+            orientation_diff, self.mrp_bounding_box_1.low, self.mrp_bounding_box_1.high
+        )
+        next_pos[3:7] = (R.from_mrp(orientation_diff) * R.from_quat(self.curr_reset_pose[3:7])).as_quat()
+
+        next_pos[7:10] = np.clip(
+            next_pos[7:10], self.xyz_bounding_box_2.low, self.xyz_bounding_box_2.high
+        )
+        orientation_diff = (R.from_quat(next_pos[10:]) * R.from_quat(self.curr_reset_pose[10:]).inv()).as_mrp()
+        orientation_diff = np.clip(
+            orientation_diff, self.mrp_bounding_box_2.low, self.mrp_bounding_box_2.high
+        )
+        next_pos[10:] = (R.from_mrp(orientation_diff) * R.from_quat(self.curr_reset_pose[10:])).as_quat()
+
+        return next_pos
 
     def close(self):
         if self.controller_1:
