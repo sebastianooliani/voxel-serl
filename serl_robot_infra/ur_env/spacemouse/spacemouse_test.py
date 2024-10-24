@@ -3,6 +3,7 @@ import time
 import numpy as np
 from ur_env.spacemouse.spacemouse_expert import SpaceMouseExpert, TwoSpaceMiceExperts
 from ur_env.envs.wrappers import TwoSpacemiceIntervention
+import pyspacemouse
 
 
 
@@ -29,22 +30,21 @@ def test_two_spacemice():
     It keeps running until the user stops it.
 
     """
-    spacemice = TwoSpaceMiceExperts()
+    spacemouse_1 = SpaceMouseExpert(DeviceNumber=0)
+    spacemouse_2 = SpaceMouseExpert(DeviceNumber=3)
     with np.printoptions(precision=3, suppress=True):
         while True:
-            action_1, buttons_1, action_2, buttons_2 = spacemice.get_action()
+            action_1, buttons_1 = spacemouse_1.get_action()
+            action_2, buttons_2 = spacemouse_2.get_action()
             
             print(f"Left arm action: {action_1}, buttons: {buttons_1}")
             print(f"Right arm action: {action_2}, buttons: {buttons_2}")
             time.sleep(0.1)
 
-
-
 def main():
     """Call spacemouse test."""
-    # test_spacemouse()
-    test_two_spacemice()
-
+    test_spacemouse()
+    # test_two_spacemice()
 
 if __name__ == "__main__":
     main()
