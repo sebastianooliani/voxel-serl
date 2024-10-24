@@ -11,9 +11,9 @@ class SpaceMouseExpert:
     a "get_action" method to get the latest action and button state.
     """
 
-    def __init__(self):
+    def __init__(self, DeviceNumber: int = 0):
         # open() returns a device object if the device was opened successfully
-        self.mouse = pyspacemouse.open()
+        self.mouse = pyspacemouse.open(DeviceNumber=DeviceNumber)
 
         self.state_lock = threading.Lock()
         self.latest_data = {"action": np.zeros(6), "buttons": [0, 0]}
@@ -52,19 +52,22 @@ class TwoSpaceMiceExperts():
     def __init__(self):
         self.left_arm = pyspacemouse.open(DeviceNumber=1)
         # print(self.left_arm.device, self.left_arm.name)
-        self.right_arm = pyspacemouse.open(DeviceNumber=2)
+        self.right_arm = pyspacemouse.open(DeviceNumber=1)
         # print(self.right_arm.device, self.right_arm.name)
         
         self.state_lock = threading.Lock()
         self.latest_data = {"action_1": np.zeros(6), "buttons_1": [0, 0],
                             "action_2": np.zeros(6), "buttons_2": [0, 0]}
         # Start a thread to continuously read the SpaceMouse state
-        self.thread = threading.Thread(target=self._read_spacemouse)
-        self.thread.daemon = True
-        self.thread.start()
+        self.thread_left = threading.Thread(target=self._read_spacemouse_left)
+        self.thread_left.daemon = True
+        self.thread_left.start()
+        self.thread_right = threading.Thread(target=self._read_spacemouse_right)
+        self.thread_right.daemon = True
+        self.thread_right.start()
         
 
-    def _read_spacemouse(self):
+    def _read_spacemouse_left(self):
         while True:
             # IP: "...66"
             state_1 = self.left_arm.read()
@@ -77,6 +80,16 @@ class TwoSpaceMiceExperts():
                     [-state_1.y, state_1.x, state_1.z, -state_1.roll, -state_1.pitch, -state_1.yaw]
                 )
                 self.latest_data["buttons_1"] = state_1.buttons
+
+    def _read_spacemouse_right(self):
+        while True:
+            # IP: "...66"
+            state_1 = self.left_arm.read()
+            # IP: "...33"
+            # breakpoint()
+            state_2 = self.right_arm.read()
+
+            with self.state_lock:
                 self.latest_data["action_2"] = np.array(
                     [-state_2.y, state_2.x, state_2.z, -state_2.roll, -state_2.pitch, -state_2.yaw]
                 )
