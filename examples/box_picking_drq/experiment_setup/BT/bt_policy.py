@@ -15,7 +15,7 @@ from flax.training import checkpoints
 from datetime import datetime
 
 import gymnasium as gym
-from gymnasium.wrappers.record_episode_statistics import RecordEpisodeStatistics
+from gym.wrappers.record_episode_statistics import RecordEpisodeStatistics
 
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper, ScaleObservationWrapper
@@ -56,7 +56,7 @@ def main(_):
     wandb_logger = make_wandb_logger(
         project="paper_evaluation_unseen",
         description=FLAGS.exp_name or FLAGS.env,
-        debug=False,
+        debug=True,
     )
     action_ensemble = TemporalActionEnsemble(activated=False)
     success_counter = 0
@@ -73,6 +73,16 @@ def main(_):
             input("ready? record robot view as well!")
 
         start_time = time.time()
+        # Dict('state': Dict('action': Box(-1.0, 1.0, (7,), float32), 'gripper_state': Box(-1.0, 1.0, (2,), float32), 'tcp_force': Box(-inf, inf, (3,), float32), 'tcp_pose': Box(-inf, inf, (6,), float32), 'tcp_torque': Box(-inf, inf, (3,), float32), 'tcp_vel': Box(-inf, inf, (6,), float32)))
+        # {'state': {'tcp_pose': array([-0.,  0., -0.,  0., -0.,  0.]), 'tcp_vel': array([ 0.0056, -0.0106,  0.0379,  0.0096,  0.0681,  0.0503],
+        #       dtype=float32), 'gripper_state': array([0., 0.], dtype=float32), 'tcp_force': array([-1.0511,  0.1372,  0.1787]), 'tcp_torque': array([ 0.2035,  0.4531, -1.7272]), 'action': array([0., 0., 0., 0., 0., 0., 0.])}}
+
+
+        # {'state': array([[ 0.    ,  0.    ,  0.    ,  0.    ,  0.    ,  0.    ,  0.    ,
+        #  0.    ,  0.    , -0.8965, -0.1579, -0.3137, -0.    ,  0.    ,
+        #  0.    ,  0.    ,  0.    ,  0.    ,  0.1384,  0.291 , -1.2326,
+        # -0.0092,  0.0156,  0.0035,  0.0107,  0.0706,  0.0444]],
+        #   dtype=float32)}
 
         while not done:
             actions = agent.sample_actions(
