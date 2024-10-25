@@ -30,8 +30,8 @@ def test_two_spacemice():
     It keeps running until the user stops it.
 
     """
-    spacemouse_1 = SpaceMouseExpert(DeviceNumber=0)
-    spacemouse_2 = SpaceMouseExpert(DeviceNumber=3)
+    spacemouse_1 = SpaceMouseExpert(DeviceNumber=1)
+    spacemouse_2 = SpaceMouseExpert(DeviceNumber=4)
     with np.printoptions(precision=3, suppress=True):
         while True:
             action_1, buttons_1 = spacemouse_1.get_action()
@@ -43,8 +43,8 @@ def test_two_spacemice():
 
 def main():
     """Call spacemouse test."""
-    test_spacemouse()
-    # test_two_spacemice()
+    # test_spacemouse()
+    test_two_spacemice()
 
 if __name__ == "__main__":
     main()

@@ -14,7 +14,7 @@ ROT_GENERAL = np.array([np.eye(3), ROT90, ROT90 @ ROT90, ROT90.transpose()])
 
 
 class SpacemouseIntervention(gym.ActionWrapper):
-    def __init__(self, env, gripper_action_span=3, DeviceNumber: int=0):
+    def __init__(self, env, gripper_action_span=3, DeviceNumber=1):
         # Initialize the base class with the provided environment.
         super().__init__(env)
 
@@ -224,15 +224,15 @@ class TwoSpacemiceIntervention(gym.Wrapper):
         super().__init__(env)
 
         self.expert_left = SpacemouseIntervention(env, DeviceNumber=0)
-        self.expert_right = SpacemouseIntervention(env, DeviceNumber=3)
+        self.expert_right = SpacemouseIntervention(env, DeviceNumber=12)
 
     def step(self, action):
         action_left = action[:7]
         action_right = action[7:]
 
         new_action_left = self.expert_left.action(action_left)
-        new_action_left = self.expert_right.action(action_right)
-        new_action = np.concatenate((new_action_left, new_action_left), axis=0)
+        new_action_right = self.expert_right.action(action_right)
+        new_action = np.concatenate((new_action_left, new_action_right), axis=0)
 
         obs, rew, done, truncated, info = self.env.step(new_action)
 
