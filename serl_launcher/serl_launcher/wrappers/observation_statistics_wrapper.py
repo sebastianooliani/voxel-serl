@@ -16,7 +16,9 @@ class ObservationStatisticsWrapper(gym.Wrapper, gym.utils.RecordConstructorArgs)
         gym.Wrapper.__init__(self, env)
 
         self.buffer = {}
-
+        # things I needed to add
+        self.curr_path_length = 1
+        self.max_episode_length = 1000
         # make buffer
         for name, space in self.env.observation_space["state"].items():
             self.buffer[name] = np.zeros(shape=(self.max_episode_length, space.shape[0]))

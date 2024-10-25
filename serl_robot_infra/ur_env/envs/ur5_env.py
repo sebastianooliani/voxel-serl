@@ -305,7 +305,7 @@ class UR5Env(gym.Env):
     def step(self, action: np.ndarray) -> tuple:
         """standard gym step function."""
         start_time = time.time()
-        action = np.clip(action, self.action_space.low[:6], self.action_space.high[:6])
+        action = np.clip(action, self.action_space.low, self.action_space.high)
 
         # position
         next_pos = self.curr_pos.copy()
