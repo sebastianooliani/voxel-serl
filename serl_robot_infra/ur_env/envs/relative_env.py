@@ -43,7 +43,7 @@ class RelativeFrame(gym.Wrapper):
         # action is assumed to be (x, y, z, rx, ry, rz, gripper)
         # Transform action from end-effector frame to base frame
         transformed_action = self.transform_action(action)
-
+        # breakpoint()
         obs, reward, done, truncated, info = self.env.step(transformed_action)
 
         # this is to convert the spacemouse intervention action
@@ -115,7 +115,7 @@ class RelativeFrame(gym.Wrapper):
         return action
 
 
-class DualRelativeFrame(RelativeFrame):
+class DualRelativeFrame(gym.Wrapper):
     """
     This wrapper transforms the observation and action to be expressed in the end-effector frame.
     Optionally, it can transform the tcp_pose into a relative frame defined as the reset pose.
@@ -135,12 +135,24 @@ class DualRelativeFrame(RelativeFrame):
         ......
     }, and at least 14 DoF action space with (x, y, z, rx, ry, rz, gripper, x, y, z, rx, ry, rz, gripper).
     """
-    def __init__(self, env: Env):
-        super().__init__(env, include_relative_pose=True)
+    def __init__(self, env: Env, include_relative_pose=True):
+        super().__init__(env)
+        self.include_relative_pose = include_relative_pose
+
+        self.rotation_matrix_1 = np.eye((3))
+        self.rotation_matrix_2 = np.eye((3))
+
+        self.rotation_matrix_reset_1 = np.eye((3))
+        self.rotation_matrix_reset_2 = np.eye((3))
+
+        if self.include_relative_pose:
+            # Homogeneous transformation matrix from reset pose's relative frame to base frame
+            self.T_r_o_inv_1 = np.eye((4))
+            self.T_r_o_inv_2 = np.eye((4))
 
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
-
+        breakpoint()
         self.rotation_matrix_1 = construct_rotation_matrix(obs["state"]["tcp_pose"][:7])
         self.rotation_matrix_2 = construct_rotation_matrix(obs["state"]["tcp_pose"][7:])
 
@@ -155,6 +167,13 @@ class DualRelativeFrame(RelativeFrame):
             self.T_r_o_inv_2 = np.linalg.inv(
                 construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
             )
+
+        assert self.rotation_matrix_1.shape == (3, 3)
+        assert self.rotation_matrix_2.shape == (3, 3)
+        assert self.rotation_matrix_reset_1.shape == (3, 3)
+        assert self.rotation_matrix_reset_2.shape == (3, 3)
+        assert self.T_r_o_inv_1.shape == (4, 4)
+        assert self.T_r_o_inv_2.shape == (4, 4)
         
         # Transform observation to spatial frame
         return self.transform_observation(obs), info
@@ -172,24 +191,37 @@ class DualRelativeFrame(RelativeFrame):
 
         obs["state"]["tcp_force"][:3] = self.rotation_matrix_1.transpose() @ obs["state"]["tcp_force"][:3]
         obs["state"]["tcp_force"][3:6] = self.rotation_matrix_2.transpose() @ obs["state"]["tcp_force"][3:6]
+
         obs["state"]["tcp_torque"][:3] = self.rotation_matrix_1.transpose() @ obs["state"]["tcp_torque"][:3]
         obs["state"]["tcp_torque"][3:6] = self.rotation_matrix_2.transpose() @ obs["state"]["tcp_torque"][3:6]
 
         if self.include_relative_pose:
+            # first arm
             T_b_o = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
-            T_b_r = self.T_r_o_inv @ T_b_o
+            T_b_r = self.T_r_o_inv_1 @ T_b_o
 
             # Reconstruct transformed tcp_pose vector
             p_b_r = T_b_r[:3, 3]
             theta_b_r = R.from_matrix(T_b_r[:3, :3]).as_quat()
+
+            assert theta_b_r.shape == (4,)
+            assert p_b_r.shape == (3,)
+            assert np.linalg.norm(theta_b_r) > 0.99 and np.linalg.norm(theta_b_r) < 1.01
+            
             obs["state"]["tcp_pose"][:7] = np.concatenate((p_b_r, theta_b_r))
 
+            # second arm
             T_b_o = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
-            T_b_r = self.T_r_o_inv @ T_b_o
+            T_b_r = self.T_r_o_inv_2 @ T_b_o
 
             # Reconstruct transformed tcp_pose vector
             p_b_r = T_b_r[:3, 3]
             theta_b_r = R.from_matrix(T_b_r[:3, :3]).as_quat()
+
+            assert theta_b_r.shape == (4,)
+            assert p_b_r.shape == (3,)
+            assert np.linalg.norm(theta_b_r) > 0.99 and np.linalg.norm(theta_b_r) < 1.01
+
             obs["state"]["tcp_pose"][7:] = np.concatenate((p_b_r, theta_b_r))
 
         return obs
@@ -224,7 +256,7 @@ class DualRelativeFrame(RelativeFrame):
         # action is assumed to be (x, y, z, rx, ry, rz, gripper)
         # Transform action from end-effector frame to base frame
         transformed_action = self.transform_action(action)
-
+        # breakpoint()
         obs, reward, done, truncated, info = self.env.step(transformed_action)
 
         # this is to convert the spacemouse intervention action
@@ -237,4 +269,5 @@ class DualRelativeFrame(RelativeFrame):
 
         # Transform observation to spatial frame
         transformed_obs = self.transform_observation(obs)
+        # breakpoint()
         return transformed_obs, reward, done, truncated, info
