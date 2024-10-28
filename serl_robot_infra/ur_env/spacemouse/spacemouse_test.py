@@ -41,10 +41,28 @@ def test_two_spacemice():
             print(f"Right arm action: {action_2}, buttons: {buttons_2}")
             time.sleep(0.1)
 
+def test_two_spacemice_experts():
+    """Test the TwoSpaceMiceExperts class.
+
+    This interactive test prints the actions and buttons of the two spacemice at a rate of 10Hz.
+    The user is expected to move the spacemice and press their buttons while the test is running.
+    It keeps running until the user stops it.
+
+    """
+    spacemice = TwoSpaceMiceExperts(DeviceNumber_1=1, DeviceNumber_2=4)
+    with np.printoptions(precision=3, suppress=True):
+        while True:
+            action_1, buttons_1, action_2, buttons_2 = spacemice.get_action()
+            
+            print(f"Left arm action: {action_1}, buttons: {buttons_1}")
+            print(f"Right arm action: {action_2}, buttons: {buttons_2}")
+            time.sleep(0.1)
+
 def main():
     """Call spacemouse test."""
     # test_spacemouse()
-    test_two_spacemice()
+    # test_two_spacemice()
+    test_two_spacemice_experts()
 
 if __name__ == "__main__":
     main()
