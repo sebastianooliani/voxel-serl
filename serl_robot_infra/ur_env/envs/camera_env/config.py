@@ -138,6 +138,10 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     RANDOM_RESET = False
     RANDOM_XY_RANGE = (0.00,)
     RANDOM_ROT_RANGE = (0.0,)
+    ###########################################################################
+    # pay attention that you are not clipping the single value of the angles, # 
+    # but the orientation difference                                          #
+    ###########################################################################
     ABS_POSE_LIMIT_HIGH_ROBOT_1 = np.array([-0.276, 0.329, 0.503, 0.05, 0.05, 0.2])
     ABS_POSE_LIMIT_LOW_ROBOT_1 = np.array([-0.558, -0.418, 0.008, -0.05, -0.05, -0.2])
     ABS_POSE_LIMIT_HIGH_ROBOT_2 = np.array([0.119, 0.511, 0.470, 0.05, 0.05, 0.2])

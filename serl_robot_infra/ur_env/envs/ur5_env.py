@@ -749,6 +749,10 @@ class UR5DualRobotEnv(UR5Env):
             config.ABS_POSE_RANGE_LIMITS[1],
             dtype=np.float64,
         )
+        ###########################################################################
+        # pay attention that you are not clipping the single value of the angles, 
+        # but the orientation difference
+        ###########################################################################
         self.mrp_bounding_box_1 = gym.spaces.Box(
             config.ABS_POSE_LIMIT_LOW_ROBOT_1[3:],
             config.ABS_POSE_LIMIT_HIGH_ROBOT_1[3:],
