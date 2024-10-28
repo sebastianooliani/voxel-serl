@@ -75,7 +75,6 @@ class UrImpedanceController(threading.Thread):
             self.reset_Q = config.RESET_Q[0, 6:]
         elif self.robot_ip[:3] == "172":
             self.reset_Q = config.RESET_Q[0, :6]
-            self.reset_Q[0] = math.pi/4
 
         self.reset_Pose = np.zeros_like(self.reset_Q[:6])
         self.reset_height = np.array([0.1], dtype=np.float32)  # TODO make customizable
@@ -254,8 +253,6 @@ class UrImpedanceController(threading.Thread):
             diff_d = np.clip(- curr_vel[:3], a_min=-vel_delta, a_max=vel_delta)
             force_pos = kp * diff_p + kd * diff_d
 
-            if np.linalg.norm(target_pos[3:]) < 1e-3 or np.linalg.norm(curr_pos[3:]) < 1e-3:
-                return self.old_force
             rot_diff = R.from_quat(target_pos[3:]) * R.from_quat(curr_pos[3:]).inv()
             vel_rot_diff = R.from_rotvec(curr_vel[3:]).inv()
             torque = rot_diff.as_rotvec() * 100 + vel_rot_diff.as_rotvec() * 22  # TODO make customizable
@@ -264,7 +261,6 @@ class UrImpedanceController(threading.Thread):
             if self.curr_force[2] > 3.5 and force_pos[2] < 0.:
                 force_pos[2] = max((1.5 - self.curr_force_lowpass[2]), 0.) * force_pos[2] + min(self.curr_force_lowpass[2] - 0.5, 1.) * 20.
 
-            self.old_force = np.concatenate((force_pos, torque))
         return np.concatenate((force_pos, torque))
 
     def plot(self):
