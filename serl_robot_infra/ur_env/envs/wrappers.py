@@ -133,22 +133,24 @@ class SpacemouseIntervention(gym.ActionWrapper):
         return obs, rew, done, truncated, info
     
 
-class TwoSpacemiceIntervention_old(SpacemouseIntervention):
-    def __init__(self, env, gripper_action_span=6):
-        super(gym.Wrapper).__init__(env)
+class TwoSpacemiceIntervention_new(gym.Wrapper):
+    def __init__(self, env, gripper_action_span=3):
+        super().__init__(env)
 
         self.gripper_enabled = True
 
         self.last_intervene = 0
-        self.left = np.array([False] * gripper_action_span, dtype=np.bool_)
-        self.right = self.left.copy()
+        self.left_left = np.array([False] * gripper_action_span, dtype=np.bool_)
+        self.right_left = self.left_left.copy()
+        self.left_right = self.left_left.copy()
+        self.right_right = self.left_left.copy()
 
         self.invert_axes = [-1, -1, 1, -1, -1, 1]
         self.deadspace = 0.15
-        self.expert = TwoSpaceMiceExperts()
+        self.experts = TwoSpaceMiceExperts(DeviceNumber_1=12, DeviceNumber_2=0)
 
     def get_deadspace_action(self) -> np.ndarray:
-        expert_a, buttons_a, expert_b, buttons_b = self.expert.get_action()
+        expert_a, buttons_a, expert_b, buttons_b = self.experts.get_action()
 
         positive = np.clip((expert_a - self.deadspace) / (1. - self.deadspace), a_min=0.0, a_max=1.0)
         negative = np.clip((expert_a + self.deadspace) / (1. - self.deadspace), a_min=-1.0, a_max=0.0)
@@ -158,9 +160,10 @@ class TwoSpacemiceIntervention_old(SpacemouseIntervention):
         negative = np.clip((expert_b + self.deadspace) / (1. - self.deadspace), a_min=-1.0, a_max=0.0)
         expert_b = positive + negative
 
-        self.left, self.right = np.roll(self.left, -2), np.roll(self.right, -2)
-        self.left[-2], self.right[-2] = tuple(buttons_a)
-        self.left[-1], self.right[-1] = tuple(buttons_b)
+        self.left_left, self.right_left = np.roll(self.left_left, -1), np.roll(self.right_left, -1)
+        self.left_right, self.right_right = np.roll(self.left_right, -1), np.roll(self.right_right, -1)
+        self.left_left[-1], self.right_left[-1] = tuple(buttons_a)
+        self.left_right[-1], self.right_right[-1] = tuple(buttons_b)
 
         return np.array(expert_a, dtype=np.float32), np.array(expert_b, dtype=np.float32)
     
@@ -171,50 +174,55 @@ class TwoSpacemiceIntervention_old(SpacemouseIntervention):
         Output:
         - action: spacemouse action if nonezero; else, policy action
         """
-        expert_a, expert_b = self.get_deadspace_action()
+        expert_a, expert_b = self.experts.get_deadspace_action()
         policy_a = action[:6]
         policy_b = action[6:]
 
         if np.linalg.norm(
-                expert_a) > 0.001 or self.left.any() or self.right.any():  # also read buttons with no movement
+                expert_a) > 0.001 or np.linalg.norm(
+                    expert_b) > 0.001 or self.left.any() or self.right.any():  # also read buttons with no movement
             self.last_intervene = time.time()
 
         if self.gripper_enabled:
-            gripper_action = np.zeros((1,)) + int(self.left.any()) - int(self.right.any())
+            gripper_action = np.zeros((1,)) + int(self.left_left.any()) - int(self.right_left.any())
             expert_a = np.concatenate((expert_a, gripper_action), axis=0)
+
+            gripper_action = np.zeros((1,)) + int(self.left_right.any()) - int(self.right_right.any())
+            expert_b = np.concatenate((expert_b, gripper_action), axis=0)
 
         if time.time() - self.last_intervene < 0.5:
             expert_a = self.adapt_spacemouse_output(expert_a)
-            return expert_a
+            expert_b = self.adapt_spacemouse_output(expert_b)
+            return np.concatenate((expert_a, expert_b), axis=0)
 
         return action
     
     def adapt_spacemouse_output(self, action: np.ndarray) -> np.ndarray:
         """
+        Adjust the SpaceMouse output to align with the robot's action space, considering rotations.
         Input:
-        - expert_a: spacemouse raw output
+        - action: raw SpaceMouse output (position and orientation changes)
         Output:
-        - expert_a: spacemouse output adapted to force space (action)
+        - action: transformed action for the robot's coordinate space
         """
 
-        # position = super().get_wrapper_attr("curr_pos")  # get position from ur_env
+        # Get the current position of the robot (e.g., end-effector).
         position = self.unwrapped.curr_pos
-        z_angle_1 = np.arctan2(position[1], position[0])  # get first joint angle
-        z_angle_2 = np.arctan2(position[7], position[6])
 
-        z_rot = R.from_rotvec(np.array([0, 0, z_angle_1]))
-        action[:6] *= self.invert_axes  # if some want to be inverted
-        action[:3] = z_rot.apply(action[:3])  # z rotation invariant translation
+        # Calculate the z-axis rotation angle based on the robot's current position.
+        z_angle = np.arctan2(position[1], position[0])
 
-        # TODO add tcp orientation to the equation (extract z rotation from tcp pose)
-        action[3:6] = z_rot.apply(action[3:6])  # z rotation invariant rotation
+        # Create a rotation object for the z-axis.
+        z_rot = R.from_rotvec(np.array([0, 0, z_angle]))
 
-        z_rot = R.from_rotvec(np.array([0, 0, z_angle_2]))
-        action[6:] *= self.invert_axes  # if some want to be inverted
-        action[6:9] = z_rot.apply(action[6:9])  # z rotation invariant translation
+        # Invert certain axes of the SpaceMouse output, based on the configured axis inversions.
+        action[:6] *= self.invert_axes
 
-        # TODO add tcp orientation to the equation (extract z rotation from tcp pose)
-        action[9:] = z_rot.apply(action[8:])  # z rotation invariant rotation
+        # Apply the z-axis rotation to the translation components (first three values).
+        action[:3] = z_rot.apply(action[:3])
+
+        # Optionally: apply the z-axis rotation to the rotational components (next three values).
+        action[3:6] = z_rot.apply(action[3:6])
 
         return action
     
@@ -223,8 +231,8 @@ class TwoSpacemiceIntervention(gym.Wrapper):
     def __init__(self, env):
         super().__init__(env)
 
-        self.expert_left = SpacemouseIntervention(env, DeviceNumber=0)
-        self.expert_right = SpacemouseIntervention(env, DeviceNumber=12)
+        self.expert_left = SpacemouseIntervention(env, DeviceNumber=1)
+        self.expert_right = SpacemouseIntervention(env, DeviceNumber=4)
 
     def step(self, action):
         action_left = action[:7]
@@ -233,7 +241,7 @@ class TwoSpacemiceIntervention(gym.Wrapper):
         new_action_left = self.expert_left.action(action_left)
         new_action_right = self.expert_right.action(action_right)
         new_action = np.concatenate((new_action_left, new_action_right), axis=0)
-
+ 
         obs, rew, done, truncated, info = self.env.step(new_action)
 
         info["intervene_action"] = new_action
@@ -294,7 +302,7 @@ class DualQuat2MrpWrapper(gym.ObservationWrapper):
         super().__init__(env)
         # from xyz + quat to xyz + euler
         self.observation_space["state"]["tcp_pose"] = gym.spaces.Box(
-            -np.inf, np.inf, shape=(14,)
+            -np.inf, np.inf, shape=(12,)
         )
 
     def observation(self, observation):

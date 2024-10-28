@@ -99,6 +99,7 @@ class RelativeFrame(gym.Wrapper):
         Transform action from body(end-effector) frame into spatial(base) frame
         using the rotation matrix
         """
+        # print(self.rotation_matrix_reset)
         action = np.array(action)  # in case action is a jax read-only array
         action[:3] = self.rotation_matrix_reset @ action[:3]
         action[3:6] = self.rotation_matrix_reset @ action[3:6]
@@ -152,7 +153,7 @@ class DualRelativeFrame(gym.Wrapper):
 
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
-        breakpoint()
+
         self.rotation_matrix_1 = construct_rotation_matrix(obs["state"]["tcp_pose"][:7])
         self.rotation_matrix_2 = construct_rotation_matrix(obs["state"]["tcp_pose"][7:])
 
@@ -256,7 +257,6 @@ class DualRelativeFrame(gym.Wrapper):
         # action is assumed to be (x, y, z, rx, ry, rz, gripper)
         # Transform action from end-effector frame to base frame
         transformed_action = self.transform_action(action)
-        # breakpoint()
         obs, reward, done, truncated, info = self.env.step(transformed_action)
 
         # this is to convert the spacemouse intervention action
@@ -269,5 +269,5 @@ class DualRelativeFrame(gym.Wrapper):
 
         # Transform observation to spatial frame
         transformed_obs = self.transform_observation(obs)
-        # breakpoint()
+
         return transformed_obs, reward, done, truncated, info
