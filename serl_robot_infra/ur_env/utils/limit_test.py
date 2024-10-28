@@ -11,11 +11,14 @@ receive = RTDEReceiveInterface(config.ROBOT_IP_2)
 
 orientation = receive.getActualTCPPose()[3:]
 
+high = config.ABS_POSE_LIMIT_HIGH_ROBOT_2
+low = config.ABS_POSE_LIMIT_LOW_ROBOT_2
+
 commands = []
 
-for x in [config.ABS_POSE_LIMIT_HIGH[0], config.ABS_POSE_LIMIT_LOW[0]]:
-    for y in [config.ABS_POSE_LIMIT_HIGH[1], config.ABS_POSE_LIMIT_LOW[1]]:
-        for z in [config.ABS_POSE_LIMIT_HIGH[2], config.ABS_POSE_LIMIT_LOW[2]]:
+for x in [high[0], low[0]]:
+    for y in [high[1], low[1]]:
+        for z in [high[2], low[2]]:
             commands.append([x, y, z, *orientation])
 
 converged = False
