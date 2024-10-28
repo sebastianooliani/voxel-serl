@@ -59,7 +59,7 @@ class UR5CameraConfigBox5(DefaultEnvConfig):
 
 class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
     RESET_Q = np.array([
-        [2.6331, -1.5022, 2.1151, -2.183, -1.5664, -0.4762],
+        [0.6331, -1.5022, 2.1151, -2.183, -1.5664, -0.4762],
         [1.983, -1.2533, 1.9069, -2.2314, -1.5495, 0.4462],
         [1.8937, -0.8273, 1.2339, -1.9765, -1.5651, 0.3666],
         [1.4174, -1.6403, 2.2494, -2.179, -1.5666, -0.1286],
@@ -70,16 +70,18 @@ class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
         [0.4391, - 1.5926, 2.3356, - 2.3129, - 1.5668, - 1.1115],
         [0.1815, - 1.2945, 1.8964, - 2.1719, - 1.5658, - 1.3841],
     ])
-
+    # RESET_Q = np.array([[- math.pi / 12, -math.pi/2 + math.pi/12, math.pi/2 + math.pi/12, -math.pi/2 - math.pi/6, -math.pi/2, 0.]])
     RANDOM_RESET = True
     RANDOM_XY_RANGE = (0.0,)
     RANDOM_ROT_RANGE = (0.04,)
+    # ABS_POSE_LIMIT_HIGH = np.array([-0.276, 0.329, 0.503, 0.05, 0.05, 0.2])
+    # ABS_POSE_LIMIT_LOW = np.array([-0.590, -0.418, 0.008, -0.05, -0.05, -0.2])
     ABS_POSE_LIMIT_HIGH = np.array([0.6, 0.1, 0.25, 0.05, 0.05, 0.2])
     ABS_POSE_LIMIT_LOW = np.array([-0.7, -0.85, -0.006, -0.05, -0.05, -0.2])
     ABS_POSE_RANGE_LIMITS = np.array([0.36, 0.83])
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
-    ROBOT_IP: str = "192.168.1.66" #"172.22.22.2" # "192.168.1.66"
+    ROBOT_IP: str = "172.22.22.2" #"172.22.22.2" # "192.168.1.66"
     CONTROLLER_HZ = 100
     GRIPPER_TIMEOUT = 2000  # in milliseconds
     ERROR_DELTA: float = 0.05
@@ -131,15 +133,15 @@ class UR5CameraConfigFinalEvaluation(UR5CameraConfigFinal):
 
 
 class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
-    RESET_Q = np.array([[- math.pi / 6, -math.pi/2, math.pi/2, -math.pi/2, -math.pi/2, 0.,
-                         math.pi * 3 / 2, -math.pi/2, math.pi/2, -math.pi/2, -math.pi/2, 0.]])
+    RESET_Q = np.array([[- math.pi / 12, -math.pi/2 + math.pi/12, math.pi/2 + math.pi/12, -math.pi/2 - math.pi/6, -math.pi/2, 0.,
+                        math.pi * 3 / 2, -math.pi/2 + math.pi/12, math.pi/2 + math.pi/12, -math.pi/2 - math.pi/6, -math.pi/2, 0.]])
     RANDOM_RESET = False
     RANDOM_XY_RANGE = (0.00,)
     RANDOM_ROT_RANGE = (0.0,)
-    ABS_POSE_LIMIT_HIGH_ROBOT_1 = np.array([-0.226, 0.443, 0.503, 3.2, 0.18, 3.2])
-    ABS_POSE_LIMIT_LOW_ROBOT_1 = np.array([-0.558, -0.418, 0.008, 2.8, -0.18, -3.2])
-    ABS_POSE_LIMIT_HIGH_ROBOT_2 = np.array([0.145, 0.649, 0.617, 3.2, 0.18, 3.2])
-    ABS_POSE_LIMIT_LOW_ROBOT_2 = np.array([-0.596, 0.200, 0.107, 2.8, -0.18, -3.2])
+    ABS_POSE_LIMIT_HIGH_ROBOT_1 = np.array([-0.276, 0.329, 0.503, 0.05, 0.05, 0.2])
+    ABS_POSE_LIMIT_LOW_ROBOT_1 = np.array([-0.558, -0.418, 0.008, -0.05, -0.05, -0.2])
+    ABS_POSE_LIMIT_HIGH_ROBOT_2 = np.array([0.119, 0.511, 0.470, 0.05, 0.05, 0.2])
+    ABS_POSE_LIMIT_LOW_ROBOT_2 = np.array([-0.476, 0.240, 0.100, -0.05, -0.05, -0.2])
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
     ROBOT_IP_1: str = "192.168.1.66" # docker "172.17.0.2"
@@ -149,7 +151,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     CONTROLLER_HZ = 100
     GRIPPER_TIMEOUT = 2000  # in milliseconds
     ERROR_DELTA: float = 0.05
-    FORCEMODE_DAMPING: float = 0.05  # faster
+    FORCEMODE_DAMPING: float = 0.05
     FORCEMODE_TASK_FRAME = np.zeros(6)
     FORCEMODE_SELECTION_VECTOR = np.ones(6, dtype=np.int8)
     FORCEMODE_LIMITS = np.array([0.5, 0.5, 0.1, 1., 1., 1.])
