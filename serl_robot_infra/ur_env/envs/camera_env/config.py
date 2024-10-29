@@ -133,8 +133,8 @@ class UR5CameraConfigFinalEvaluation(UR5CameraConfigFinal):
 
 
 class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
-    RESET_Q = np.array([[- math.pi / 12, -math.pi/2 + math.pi/12, math.pi/2 + math.pi/12, -math.pi/2 - math.pi/6, -math.pi/2, 0.,
-                        math.pi * 3 / 2, -math.pi/2 + math.pi/12, math.pi/2 + math.pi/12, -math.pi/2 - math.pi/6, -math.pi/2, 0.]])
+    RESET_Q = np.array([[- math.pi / 12, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
+                        math.pi * 3 / 2, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]])
     RANDOM_RESET = False
     RANDOM_XY_RANGE = (0.00,)
     RANDOM_ROT_RANGE = (0.0,)

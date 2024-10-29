@@ -140,6 +140,8 @@ class DualBehaviorTree():
         if not self.queue.empty():
             return self.queue.get()
 
+        # observation order in the dictionary
+        # action, gripper, joint pos, force, pos diff, pose, torque, vel
         if obs[15] > 0.5 and obs[17] > 0.5:
             if np.all(self.tree_state.current == self.tree_state.up):
                 pass
@@ -147,7 +149,7 @@ class DualBehaviorTree():
                 print("go up")
                 self.tree_state.current = self.tree_state.up
 
-        elif obs[20] < -2. and obs[23] < -2.:  # force check
+        elif obs[32] < -1. and obs[35] < -1.:  # force check
             if obs[15] < -0.5 and obs[17] < -0.5:  # if sucking
                 print("do random direction")
                 return self._fill_random_xy_queue()
