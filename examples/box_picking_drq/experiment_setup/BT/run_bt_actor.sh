@@ -4,5 +4,5 @@ which python && \
 python bt_policy.py "$@" \
     --env box_picking_camera_env_dual_robot \
     --exp_name=bt_drq_policy \
-    --max_traj_length 1000 \
-    --eval_n_trajs 30 \
+    --max_traj_length 50 \
+    --eval_n_trajs 20 \
