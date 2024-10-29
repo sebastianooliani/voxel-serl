@@ -829,11 +829,18 @@ class UR5DualRobotEnv(UR5Env):
                 # I would personally add one of the followings: 
                 # - joint positions , so that the network learns where to move to avoid collisions
                 # - relative eef positions, for same reason as above
-                # no object position in the beginnig (blind agent)
+                # no object position in the beginning (blind agent)
+                "tcp_pos_diff": gym.spaces.Box(
+                    -np.inf, np.inf, shape=(3,)
+                ),  # xyz + quat
+                "joint_positions": gym.spaces.Box(
+                    -np.inf, np.inf, shape=(12,)
+                ),  # joint positions
             }
         )
 
         obs_space_definition = {"state": state_space}
+
         if self.camera_mode in ["rgb", "both", "depth", "pointcloud", "grey"]:
             obs_space_definition["images"] = gym.spaces.Dict(
                 image_space_definition
@@ -1058,6 +1065,8 @@ class UR5DualRobotEnv(UR5Env):
             "tcp_torque": self.curr_torque,
             "action": action,
             # TODO: add my custom observations here
+            "tcp_pos_diff": self.curr_pos[:3] - self.curr_pos[7:10],
+            "joint_positions": self.curr_Q,
         }
 
         if images is not None:
