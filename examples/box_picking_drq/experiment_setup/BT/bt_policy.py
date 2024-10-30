@@ -36,6 +36,7 @@ flags.DEFINE_integer("max_traj_length", 100, "Maximum length of trajectory.")
 flags.DEFINE_integer("eval_n_trajs", 10, "Number of trajectories for evaluation.")
 
 DUAL = True
+OPPOSITE_GRASP = True
 
 def main(_):
     env = gym.make(
@@ -52,7 +53,7 @@ def main(_):
     env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
     env = RecordEpisodeStatistics(env)
 
-    agent = DualBehaviorTree() if DUAL else BehaviorTree()
+    agent = DualBehaviorTree(opposite_grasp=OPPOSITE_GRASP) if DUAL else BehaviorTree()
 
     wandb_logger = make_wandb_logger(
         project="dual_robot",

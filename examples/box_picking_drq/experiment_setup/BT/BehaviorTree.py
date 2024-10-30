@@ -31,11 +31,11 @@ class DualTreeState():
     """
     Commands for the dual robot are written in the tcp frame of the robot
     """
-    def __init__(self, grasp=False):
+    def __init__(self, opposite_grasp=False):
         self.down = np.array([0., 0., 1., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0.])
         self.up = -self.down
         self.suck_old = np.array([0., 0., 1., 0., 0., 0., 1., 0., 0., 1., 0., 0., 0., 1.])
-        self.suck = np.array([0., 1., 0., 0., 0., 0., 1., 0., 1., 0., 0., 0., 0., 1.]) if grasp else self.suck_old
+        self.suck = np.array([0., 1., 0., 0., 0., 0., 1., 0., 1., 0., 0., 0., 0., 1.]) if opposite_grasp else self.suck_old
         self.random_direction = np.zeros_like(self.down)
         self.random_orientation = np.zeros_like(self.down)
         self.re_sample_xy()
@@ -155,8 +155,8 @@ class DualBehaviorTree():
             move up, wait for end
     """
 
-    def __init__(self, grasp=False):
-        self.tree_state: DualTreeState = DualTreeState(grasp=grasp)
+    def __init__(self, opposite_grasp=False):
+        self.tree_state: DualTreeState = DualTreeState(opposite_grasp=opposite_grasp)
         self.queue = Queue()
 
     def reset(self):
@@ -201,6 +201,6 @@ class DualBehaviorTree():
         return self.queue.get()
 
     def _fill_suck_queue(self):
-        for _ in range(3):
+        for _ in range(6):
             self.queue.put(self.tree_state.suck)
         return self.queue.get()
