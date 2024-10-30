@@ -3,6 +3,9 @@ from queue import Queue
 
 
 class TreeState():
+    """
+    Commands for the robot are written in the tcp frame of the robot
+    """
     def __init__(self):
         self.down = np.array([0., 0., 1., 0., 0., 0., 0.])
         self.up = -self.down
@@ -25,17 +28,27 @@ class TreeState():
         return self.current.copy()
     
 class DualTreeState():
-    def __init__(self):
+    """
+    Commands for the dual robot are written in the tcp frame of the robot
+    """
+    def __init__(self, grasp=False):
         self.down = np.array([0., 0., 1., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0.])
         self.up = -self.down
-        self.suck = np.array([0., 0., 1., 0., 0., 0., 1., 0., 0., 1., 0., 0., 0., 1.])
+        self.suck_old = np.array([0., 0., 1., 0., 0., 0., 1., 0., 0., 1., 0., 0., 0., 1.])
+        self.suck = np.array([0., 1., 0., 0., 0., 0., 1., 0., 1., 0., 0., 0., 0., 1.]) if grasp else self.suck_old
         self.random_direction = np.zeros_like(self.down)
         self.random_orientation = np.zeros_like(self.down)
-        self.re_sample()
+        self.re_sample_xy()
+        self.re_sample_xz()
 
         self.current = np.zeros_like(self.down)
 
-    def re_sample(self):
+        # new commands
+        self.right = np.array([0., 1., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0.])
+        self.left = -self.right
+        # self.change_orientation = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
+
+    def re_sample_xy(self):
         rand = np.random.rand(2, 2) - 0.5
         self.random_direction[0:2] = rand[0] / np.linalg.norm(rand[0])
         self.random_orientation[3:5] = rand[1] / np.linalg.norm(rand[1])
@@ -44,8 +57,24 @@ class DualTreeState():
         self.random_direction[7:9] = rand[0] / np.linalg.norm(rand[0])
         self.random_orientation[10:12] = rand[1] / np.linalg.norm(rand[1])
 
-    def reset(self):
+    def re_sample_xz(self):
+        rand = np.random.rand(2, 2) - 0.5
+        self.random_direction[0] = rand[0][0] / np.linalg.norm(rand[0])
+        self.random_direction[2] = rand[0][1] / np.linalg.norm(rand[0])
+        self.random_orientation[3] = rand[1][0] / np.linalg.norm(rand[1])
+        self.random_orientation[5] = rand[1][1] / np.linalg.norm(rand[1])
+
+        rand = np.random.rand(2, 2) - 0.5
+        self.random_direction[7] = rand[0][0] / np.linalg.norm(rand[0])
+        self.random_direction[9] = rand[0][1] / np.linalg.norm(rand[0])
+        self.random_orientation[10] = rand[1][0] / np.linalg.norm(rand[1])
+        self.random_orientation[12] = rand[1][1] / np.linalg.norm(rand[1])
+
+    def vert_reset(self):
         self.current = self.down
+
+    def oriz_reset(self):
+        self.current = self.left
 
     def __call__(self, *args, **kwargs):
         return self.current.copy()
@@ -115,7 +144,7 @@ class BehaviorTree():
 
 class DualBehaviorTree():
     """
-    simple behavior tree for picking boxes
+    simple behavior tree for picking boxes from the upper side
 
     start: move down
     if force in z: suck
@@ -126,12 +155,12 @@ class DualBehaviorTree():
             move up, wait for end
     """
 
-    def __init__(self):
-        self.tree_state: DualTreeState = DualTreeState()
+    def __init__(self, grasp=False):
+        self.tree_state: DualTreeState = DualTreeState(grasp=grasp)
         self.queue = Queue()
 
     def reset(self):
-        self.tree_state.reset()
+        self.tree_state.vert_reset()
         print("down")
         return self.tree_state()
 
@@ -158,14 +187,14 @@ class DualBehaviorTree():
                 self.tree_state.current = self.tree_state.suck
                 return self._fill_suck_queue()
         else:
-            self.tree_state.reset()
+            self.tree_state.vert_reset()
 
         return self.tree_state()
 
     def _fill_random_xy_queue(self):
         for _ in range(4):
             self.queue.put(self.tree_state.up)
-        self.tree_state.re_sample()
+        self.tree_state.re_sample_xy()
         for _ in range(6):
             self.queue.put(self.tree_state.random_direction)
 
