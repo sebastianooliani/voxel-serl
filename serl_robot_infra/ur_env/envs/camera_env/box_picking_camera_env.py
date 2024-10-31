@@ -53,7 +53,8 @@ class UR5CameraEnv(UR5Env):
     def reached_goal_state(self, obs) -> bool:
         # obs[0] == gripper pressure, obs[4] == force in Z-axis
         state = obs["state"]
-        return 0.1 < state['gripper_state'][0] < 1. and state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.01  # +1cm
+        # print(state['tcp_pose'][2] - self.curr_reset_pose[2])
+        return 0.1 < state['gripper_state'][0] < 1. and state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.05 # +1cm
 
     def close(self):
         super().close()
@@ -125,7 +126,8 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         # obs[0] == gripper pressure, obs[4] == force in Z-axis
         state = obs["state"]
         # add condition for second robot
-        return 0.1 < state['gripper_state'][0] < 1. and state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.01 and 0.1 < state['gripper_state'][2] < 1. and state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.01 # +1cm
+        print(f"{state['tcp_pose'][2] - self.curr_reset_pose[2]}, {state['tcp_pose'][9] - self.curr_reset_pose[9]}")
+        return 0.1 < state['gripper_state'][0] < 1. and state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.05 and 0.1 < state['gripper_state'][2] < 1. and state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.05 # +1cm for success
 
     def close(self):
         super().close()
