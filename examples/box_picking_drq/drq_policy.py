@@ -13,7 +13,7 @@ from flax.training import checkpoints
 from datetime import datetime
 
 import gymnasium as gym
-from gymnasium.wrappers.record_episode_statistics import RecordEpisodeStatistics
+from gym.wrappers.record_episode_statistics import RecordEpisodeStatistics
 
 from serl_launcher.agents.continuous.drq import DrQAgent
 from serl_launcher.common.evaluation import evaluate
@@ -150,7 +150,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng):
 
     if FLAGS.eval_checkpoint_step:
         wandb_logger = make_wandb_logger(
-            project="paper_evaluation_unseen" if "eval" in FLAGS.env else "paper_evaluation",
+            project="test_drq_one_arm",  # TODO only temporary
             description=FLAGS.exp_name or FLAGS.env,
             debug=FLAGS.debug,
         )
@@ -494,8 +494,8 @@ def main(_):
     # create env and load dataset
     env = gym.make(
         FLAGS.env,
-        camera_mode=FLAGS.camera_mode,
-        fake_env=FLAGS.learner,
+        # camera_mode=FLAGS.camera_mode,
+        # fake_env=FLAGS.learner,
         max_episode_length=FLAGS.max_traj_length,
     )
     # if FLAGS.actor:
@@ -558,7 +558,7 @@ def main(_):
         )
         # set up wandb and logging
         wandb_logger = make_wandb_logger(
-            project="paper_experiments",
+            project="test_drq_one_arm",  # TODO only temporary
             description=FLAGS.exp_name or FLAGS.env,
             debug=FLAGS.debug,
         )

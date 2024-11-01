@@ -8,8 +8,8 @@ import os
 import threading
 from pynput import keyboard
 
-from ur_env.envs.relative_env import RelativeFrame
-from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, ObservationRotationWrapper
+from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
+from ur_env.envs.wrappers import SpacemouseIntervention, TwoSpacemiceIntervention, DualQuat2MrpWrapper, Quat2MrpWrapper, ObservationRotationWrapper
 
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper, ScaleObservationWrapper
 from serl_launcher.wrappers.chunking import ChunkingWrapper
@@ -30,15 +30,16 @@ def on_esc(key):
     if key == keyboard.Key.esc:
         exit_program.set()
 
+DUAL = False
 
 if __name__ == "__main__":
     env = gym.make("box_picking_camera_env",
-                   camera_mode="pointcloud",
+                   #camera_mode="pointcloud",
                    max_episode_length=100,
                    )
-    env = SpacemouseIntervention(env)
-    env = RelativeFrame(env)
-    env = Quat2MrpWrapper(env)
+    env = SpacemouseIntervention(env) if not DUAL else TwoSpacemiceIntervention(env)
+    env = RelativeFrame(env) if not DUAL else DualRelativeFrame(env)
+    env = Quat2MrpWrapper(env) if not DUAL else DualQuat2MrpWrapper(env)
     env = ScaleObservationWrapper(env)
     # env = ObservationRotationWrapper(env)       # if it should be enabled
     env = SERLObsWrapper(env)
@@ -115,3 +116,4 @@ if __name__ == "__main__":
         env.close()
         listener_1.stop()
         listener_2.stop()
+        print("Program ended.")

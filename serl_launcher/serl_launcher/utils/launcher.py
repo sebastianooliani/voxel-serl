@@ -147,13 +147,12 @@ def make_drq_agent(
         backup_entropy=True,  # default: False
         critic_ensemble_size=10,
         critic_subsample_size=2,
-        encoder_kwargs=encoder_kwargs,
-        # dict(
-        #     # pooling_method="spatial_softmax",        # default "spatial_learned_embeddings"
-        #     bottleneck_dim=128,
-        #     # num_spatial_blocks=8,
-        #     # num_kp=64,
-        # ),
+        encoder_kwargs=dict(
+            # pooling_method="spatial_softmax",        # default "spatial_learned_embeddings"
+            bottleneck_dim=128,
+            # num_spatial_blocks=8,
+            # num_kp=64,
+        ),
         actor_optimizer_kwargs={
             "learning_rate": 3e-3,  # 3e-4
         },
