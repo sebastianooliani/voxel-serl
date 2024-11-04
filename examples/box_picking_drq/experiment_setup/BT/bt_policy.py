@@ -35,13 +35,13 @@ flags.DEFINE_string("exp_name", "BT agent", "Name of the experiment for wandb lo
 flags.DEFINE_integer("max_traj_length", 100, "Maximum length of trajectory.")
 flags.DEFINE_integer("eval_n_trajs", 10, "Number of trajectories for evaluation.")
 
-DUAL = True
+DUAL = False
 OPPOSITE_GRASP = True
 
 def main(_):
     env = gym.make(
         FLAGS.env,
-        # camera_mode="none",
+        camera_mode="none",
         fake_env=False,
         max_episode_length=FLAGS.max_traj_length,
     )

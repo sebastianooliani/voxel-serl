@@ -83,6 +83,7 @@ def main(_):
         FLAGS.env,
         fake_env=not FLAGS.eval_checkpoint_step,
         max_episode_length=100,
+        camera_mode="none"
     )
     # env = SpacemouseIntervention(env)
     env = RelativeFrame(env)
