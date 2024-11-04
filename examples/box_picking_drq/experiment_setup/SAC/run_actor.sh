@@ -1,6 +1,6 @@
 export XLA_PYTHON_CLIENT_PREALLOCATE=false && \
 export XLA_PYTHON_CLIENT_MEM_FRACTION=.1 && \
-python /home/nico/real-world-rl/serl/examples/box_picking_drq/drq_policy.py "$@" \
+python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy.py "$@" \
     --actor \
     --env box_picking_camera_env \
     --exp_name="SAC no images" \
@@ -16,4 +16,4 @@ python /home/nico/real-world-rl/serl/examples/box_picking_drq/drq_policy.py "$@"
     \
     --encoder_type none \
     --state_mask all \
-#    --debug
+    --debug
