@@ -263,9 +263,9 @@ def make_replay_buffer(
     - image_keys: list of image keys, used only "memory_efficient_replay_buffer"
     - preload_rlds_path: path to preloaded RLDS trajectories
     """
-    print("shape of observation space and action space")
-    print(env.observation_space)
-    print(env.action_space)
+    # print("shape of observation space and action space")
+    # print(env.observation_space)
+    # print(env.action_space)
 
     # init logger for RLDS
     if rlds_logger_path:
