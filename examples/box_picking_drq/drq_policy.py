@@ -494,8 +494,8 @@ def main(_):
     # create env and load dataset
     env = gym.make(
         FLAGS.env,
-        # camera_mode=FLAGS.camera_mode,
-        # fake_env=FLAGS.learner,
+        camera_mode=FLAGS.camera_mode,
+        fake_env=FLAGS.learner,
         max_episode_length=FLAGS.max_traj_length,
     )
     # if FLAGS.actor:
@@ -536,7 +536,7 @@ def main(_):
     # replicate agent across devices
     # need the jnp.array to avoid a bug where device_put doesn't recognize primitives
     agent: DrQAgent = jax.device_put(
-        jax.tree_map(jnp.array, agent), sharding.replicate()
+        jax.tree.map(jnp.array, agent), sharding.replicate()
     )
 
     # print useful info

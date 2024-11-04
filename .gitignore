@@ -173,4 +173,6 @@ _METADATA
 checkpoint
 wandb/
 *.h5
-*npy
+*.npy
+*.json
+*tfrecord*

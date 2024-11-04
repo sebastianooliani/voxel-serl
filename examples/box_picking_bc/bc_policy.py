@@ -83,6 +83,7 @@ def main(_):
         FLAGS.env,
         fake_env=not FLAGS.eval_checkpoint_step,
         max_episode_length=100,
+        camera_mode="none"
     )
     # env = SpacemouseIntervention(env)
     env = RelativeFrame(env)
@@ -99,7 +100,7 @@ def main(_):
     )
 
     wandb_logger = make_wandb_logger(
-        project="paper_experiments",  # TODO only temporary
+        project="test_one_arm",  # TODO only temporary
         description=FLAGS.exp_name or FLAGS.env,
         debug=FLAGS.debug,
     )

@@ -126,7 +126,7 @@ class UR5Env(gym.Env):
             config=DefaultEnvConfig,
             max_episode_length: int = 100,
             save_video: bool = False,
-            camera_mode: str = "none",  # one of (rgb, grey, depth, both(rgb depth), pointcloud, none)
+            camera_mode: str = "rgb",  # one of (rgb, grey, depth, both(rgb depth), pointcloud, none)
     ):
         self.max_episode_length = max_episode_length
         self.curr_path_length = 0

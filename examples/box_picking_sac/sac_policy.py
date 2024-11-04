@@ -11,8 +11,8 @@ from flax.training import checkpoints
 from datetime import datetime
 
 import gymnasium as gym
-from gymnasium.wrappers.record_episode_statistics import RecordEpisodeStatistics
-from gymnasium.wrappers import TransformReward
+from gym.wrappers.record_episode_statistics import RecordEpisodeStatistics
+from gym.wrappers import TransformReward
 
 from serl_launcher.agents.continuous.sac import SACAgent
 from serl_launcher.common.evaluation import evaluate
@@ -67,13 +67,13 @@ flags.DEFINE_boolean("learner", False, "Is this a learner or a trainer.")
 flags.DEFINE_boolean("actor", False, "Is this a learner or a trainer.")
 flags.DEFINE_string("ip", "localhost", "IP address of the learner.")
 flags.DEFINE_integer("checkpoint_period", 10000, "Period to save checkpoints.")
-flags.DEFINE_string("checkpoint_path", '/home/nico/real-world-rl/serl/examples/box_picking_sac/checkpoints',
+flags.DEFINE_string("checkpoint_path", '/home/sebastiano/voxel-serl/examples/box_picking_sac/checkpoints',
                     "Path to save checkpoints.")
 
 flags.DEFINE_integer("eval_checkpoint_step", 0, "evaluate the policy from ckpt at this step")
 flags.DEFINE_string("eval_checkpoint_path", None, "evaluate the policy from ckpt from this path")
 
-flags.DEFINE_string("log_rlds_path", '/home/nico/real-world-rl/serl/examples/box_picking_sac/rlds',
+flags.DEFINE_string("log_rlds_path", '/home/sebastiano/voxel-serl/examples/box_picking_sac/rlds',
                     "Path to save RLDS logs.")
 flags.DEFINE_string("preload_rlds_path", None, "Path to preload RLDS data.")
 
@@ -149,7 +149,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
     client.recv_network_callback(update_params)
 
     obs, _ = env.reset()
-    print(f"obs:  {obs}")
+    # print(f"obs:  {obs}")
     done = False
 
     # training loop
@@ -332,7 +332,7 @@ def main(_):
     # replicate agent across devices
     # need the jnp.array to avoid a bug where device_put doesn't recognize primitives
     agent: SACAgent = jax.device_put(
-        jax.tree_map(jnp.array, agent), sharding.replicate()
+        jax.tree.map(jnp.array, agent), sharding.replicate()
     )
 
     def create_replay_buffer_and_wandb_logger():
