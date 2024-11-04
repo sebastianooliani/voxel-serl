@@ -168,8 +168,8 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     FORCEMODE_LIMITS = np.array([0.5, 0.5, 0.1, 1., 1., 1.])
 
     REALSENSE_CAMERAS = {
-        "shoulder": "",
-        "wrist": "218622277164",
-        "shoulder_2": "",
-        "wrist_2": "218622279756"
+        "wrist_ROBOT_1": "",
+        "wrist_2__ROBOT_1": "218622277164",
+        "wrist_ROBOT_2": "",
+        "wrist_2__ROBOT_2": "218622279756"
     }
