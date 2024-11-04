@@ -134,14 +134,14 @@ class UR5CameraConfigFinalEvaluation(UR5CameraConfigFinal):
 
 class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     # box in horizontal position
-    # RESET_Q = np.array([[- math.pi / 12, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
-    #                     math.pi * 3 / 2, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]])
+    RESET_Q = np.array([[- math.pi / 12, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
+                        math.pi * 3 / 2, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]])
     
     # box in vertical position
     RESET_Q = np.array([[math.radians(-43.80), math.radians(-55.76), math.radians(102.76), math.radians(-45.15), math.radians(-37.34), math.radians(1.50),
                          math.radians(245.43), math.radians(-57.40), math.radians(102.00), math.radians(-48.73), math.radians(-28.71), math.radians(32.72)]])
     
-    ANDOM_RESET = False
+    RANDOM_RESET = False
     RANDOM_XY_RANGE = (0.00,)
     RANDOM_ROT_RANGE = (0.0,)
     
