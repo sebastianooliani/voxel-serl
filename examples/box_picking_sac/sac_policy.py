@@ -20,7 +20,7 @@ from serl_launcher.utils.timer_utils import Timer
 from serl_launcher.data.data_store import populate_data_store
 
 from serl_launcher.wrappers.chunking import ChunkingWrapper
-from ur_env.envs.relative_env import RelativeFrame
+from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
 
 from agentlace.trainer import TrainerServer, TrainerClient
 from agentlace.data.data_store import QueuedDataStore
@@ -33,7 +33,7 @@ from serl_launcher.utils.launcher import (
 )
 
 from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
-from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper
+from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention
 
 import ur_env
 
@@ -294,6 +294,7 @@ def learner(rng, agent: SACAgent, replay_buffer, replay_iterator, wandb_logger=N
 
 ##############################################################################
 
+DUAL_SPACEMOUSE = True
 
 def main(_):
     devices = jax.local_devices()
@@ -313,9 +314,9 @@ def main(_):
         camera_mode="none",
     )
     if FLAGS.actor:
-        env = SpacemouseIntervention(env)
-    env = RelativeFrame(env)
-    env = Quat2MrpWrapper(env)
+        env = SpacemouseIntervention(env) if not DUAL_SPACEMOUSE else TwoSpacemiceIntervention(env)
+    env = RelativeFrame(env) if not DUAL_SPACEMOUSE else DualRelativeFrame(env)
+    env = Quat2MrpWrapper(env) if not DUAL_SPACEMOUSE else DualQuat2MrpWrapper(env)
     env = SerlObsWrapperNoImages(env)
     # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
     # env = TransformReward(env, lambda r: FLAGS.reward_scale * r)
@@ -346,7 +347,7 @@ def main(_):
 
         # set up wandb and logging
         wandb_logger = make_wandb_logger(
-            project="serl_dev",
+            project="dual_robot_first_sac",
             description=FLAGS.exp_name or FLAGS.env,
             debug=FLAGS.debug,
         )

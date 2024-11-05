@@ -594,7 +594,7 @@ class UR5Env(gym.Env):
             #           -.3 * np.cos(i * np.pi / 10.), 0., 0.]
             action = [-1. if i % 4 < 2 else 1, -1. if i % 4 in [1, 2] else 1, 0., 0., 0., 1., 0.]
 
-            print(action)
+            # print(action)
             obs, reward, done, truncated, _ = self.step(np.array(action))
             time.sleep(0.1)
 
@@ -711,7 +711,7 @@ class UR5DualRobotEnv(UR5Env):
             np.ones((14,), dtype=np.float32) * -1,
             np.ones((14,), dtype=np.float32),
         )
-        print(self.action_space.shape)
+        # print(self.action_space.shape)
 
         self.resetQ = config.RESET_Q
         self.curr_reset_pose = np.zeros((14,), dtype=np.float32)
@@ -1102,4 +1102,4 @@ class UR5DualRobotEnv(UR5Env):
         if self.controller_2:
             self.controller_2.stop()
 
-        super().close()
+        super(gym.Env).close()

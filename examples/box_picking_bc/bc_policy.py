@@ -31,8 +31,8 @@ from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
 from serl_launcher.networks.reward_classifier import load_classifier_func
 
 sys.path.append("../../serl_robot_infra")
-from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper
-from ur_env.envs.relative_env import RelativeFrame
+from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention
+from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
 from serl_launcher.utils.sampling_utils import TemporalActionEnsemble
 
 
@@ -73,6 +73,7 @@ devices = jax.local_devices()
 num_devices = len(devices)
 sharding = jax.sharding.PositionalSharding(devices)
 
+DUAL_SPACEMOUSE = True
 
 def main(_):
     assert FLAGS.batch_size % num_devices == 0
@@ -86,8 +87,8 @@ def main(_):
         camera_mode="none"
     )
     # env = SpacemouseIntervention(env)
-    env = RelativeFrame(env)
-    env = Quat2MrpWrapper(env)
+    env = DualRelativeFrame(env) if DUAL_SPACEMOUSE else RelativeFrame(env)
+    env = DualQuat2MrpWrapper(env) if DUAL_SPACEMOUSE else Quat2MrpWrapper(env)
     env = SerlObsWrapperNoImages(env)
     # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
     env = RecordEpisodeStatistics(env)
@@ -100,7 +101,7 @@ def main(_):
     )
 
     wandb_logger = make_wandb_logger(
-        project="test_one_arm",  # TODO only temporary
+        project="dual_robot_first_bc",  # TODO only temporary
         description=FLAGS.exp_name or FLAGS.env,
         debug=FLAGS.debug,
     )
@@ -177,7 +178,7 @@ def main(_):
         agent = agent.replace(state=ckpt)
 
         wandb_logger = make_wandb_logger(
-            project="paper_evaluation_unseen",
+            project="dual_robot_first_bc",
             description=FLAGS.exp_name or FLAGS.env,
             debug=False,
         )
@@ -206,6 +207,7 @@ def main(_):
                 actions = np.asarray(actions)
 
                 ensembled_action = action_ensemble.sample(actions)  # will return actions if not activated
+
                 next_obs, reward, done, truncated, info = env.step(ensembled_action)
                 transition = dict(
                     observations=obs.copy(),  # do not save voxel grid or images
