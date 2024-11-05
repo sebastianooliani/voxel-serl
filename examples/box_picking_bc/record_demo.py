@@ -36,7 +36,8 @@ def on_esc(key):
 DUAL_SPACEMOUSE = True
 
 if __name__ == "__main__":
-    env = gym.make("box_picking_camera_env_dual_robot") if DUAL_SPACEMOUSE else gym.make("box_picking_camera_env")
+    env = gym.make("box_picking_camera_env_dual_robot",
+                   camera_mode="none") if DUAL_SPACEMOUSE else gym.make("box_picking_camera_env", camera_mode="none")
     env = TwoSpacemiceIntervention(env) if DUAL_SPACEMOUSE else SpacemouseIntervention(env)
     env = DualRelativeFrame(env) if DUAL_SPACEMOUSE else RelativeFrame(env)
     env = DualQuat2MrpWrapper(env) if DUAL_SPACEMOUSE else Quat2MrpWrapper(env)
@@ -106,8 +107,8 @@ if __name__ == "__main__":
     except KeyboardInterrupt as e:
         print(f'\nProgram was interrupted from keyboard, cleaning up...  ', e.__str__())
 
-    # except ValueError as e:
-        # print(f'\nValue Error! Program was interrupted, cleaning up...  ', e.__str__())
+    except ValueError as e:
+        print(f'\nValue Error! Program was interrupted, cleaning up...  ', e.__str__())
 
     finally:
         if 'pbar' in locals() and not pbar.disable:
