@@ -1,6 +1,6 @@
 export XLA_PYTHON_CLIENT_PREALLOCATE=false && \
 export XLA_PYTHON_CLIENT_MEM_FRACTION=.1 && \
-python /home/nico/real-world-rl/serl/examples/box_picking_drq/drq_policy.py "$@" \
+python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy.py "$@" \
     --actor \
     --env box_picking_camera_env \
     --exp_name="voxnet pretrained" \
@@ -17,4 +17,4 @@ python /home/nico/real-world-rl/serl/examples/box_picking_drq/drq_policy.py "$@"
     --encoder_type voxnet-pretrained \
     --state_mask all \
     --encoder_bottleneck_dim 128 \
-#    --debug
+    --debug

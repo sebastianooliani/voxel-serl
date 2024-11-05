@@ -34,7 +34,7 @@ DUAL = False
 
 if __name__ == "__main__":
     env = gym.make("box_picking_camera_env",
-                   #camera_mode="pointcloud",
+                   camera_mode="pointcloud",
                    max_episode_length=100,
                    )
     env = SpacemouseIntervention(env) if not DUAL else TwoSpacemiceIntervention(env)

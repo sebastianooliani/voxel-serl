@@ -176,3 +176,4 @@ wandb/
 *.npy
 *.json
 *tfrecord*
+*.npz

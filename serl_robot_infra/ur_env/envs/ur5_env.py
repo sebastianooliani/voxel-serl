@@ -52,10 +52,10 @@ class PointCloudDisplayer:
 
         self.pc = o3d.geometry.PointCloud()
         self.window.get_render_option().load_from_json(
-            "/home/nico/.config/JetBrains/PyCharm2024.1/scratches/render_options.json")
+            "/home/sebastiano/.config/nico_PyCharm2024.1/scratches/render_options.json")
 
         self.param = o3d.io.read_pinhole_camera_parameters(
-            "/home/nico/.config/JetBrains/PyCharm2024.1/scratches/camera_parameters.json")
+            "/home/sebastiano/.config/nico_PyCharm2024.1/scratches/camera_parameters.json")
         self.ctr = self.window.get_view_control()
         self.coord_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.01, origin=[0, 0, 0])
 
