@@ -4,6 +4,11 @@ from typing import Tuple
 from ur_env.envs.ur5_env import UR5Env, UR5DualRobotEnv
 from ur_env.envs.camera_env.config import UR5CameraConfigFinal, UR5CameraConfigFinalTests, UR5CameraConfigFinalEvaluation, UR5CameraConfigDemo, UR5CameraConfigDualRobot
 
+from franka_env.utils.transformations import (
+    construct_homogeneous_matrix
+)
+from scipy.spatial.transform import Rotation as R
+
 
 class UR5CameraEnv(UR5Env):
     def __init__(self, load_config=True, **kwargs):
@@ -96,7 +101,12 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         )
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
-        distance_cost = 0.2 * np.sum(np.power(obs["state"]["tcp_pose"][:3] - obs["state"]["tcp_pose"][7:10], 2))
+        # TODO: adjust reference frames and relative base positions
+        T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
+        T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
+        T_O1_O2 = np.eye(4)
+        T_O1_E2 = T_O1_O2 @ T_O2_E2
+        distance_cost = 1. * np.sum(np.power(T_O1_E1[:3, 3] - T_O1_E2[:3, 3], 2))
 
         # TOTAL COST
         cost_info = dict(

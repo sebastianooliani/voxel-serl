@@ -23,6 +23,10 @@ from ur_env.camera.utils import PointCloudFusion, CalibrationTread
 
 from robot_controllers.ur5_controller import UrImpedanceController
 
+from franka_env.utils.transformations import (
+    construct_homogeneous_matrix
+)
+
 
 class ImageDisplayer(threading.Thread):
     def __init__(self, queue):
@@ -1007,6 +1011,18 @@ class UR5DualRobotEnv(UR5Env):
         
     def _send_pos_command(self, target_pos: np.ndarray):
         """Internal function to send force command to the robot."""
+        # Calculate the distance between the two end effectors
+        T_O1_E1 = construct_homogeneous_matrix(target_pos[:7])
+        T_O2_E2 = construct_homogeneous_matrix(target_pos[7:])
+        T_O1_O2 = np.eye(4) # TODO: Add the transformation between the two robots
+        T_O1_E2 = T_O1_O2 @ T_O2_E2
+        ee_distance = np.sum(np.power(T_O1_E1[:3, 3] - T_O1_E2[:3, 3], 2))
+
+        # Check if the distance is less than 2 cm (0.02 meters)
+        if ee_distance < 0.02: # TODO: adjust this param because it depends on the box size too
+            print("\nDistance between end effectors is less than 2 cm. Resetting episode.\n")
+            self.reset()
+
         self.controller_1.set_target_pos(target_pos=target_pos[:7])
         self.controller_2.set_target_pos(target_pos=target_pos[7:])
 
