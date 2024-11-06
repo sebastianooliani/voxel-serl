@@ -1,41 +1,67 @@
-import math
+import numpy as np
 import torch
 import pytorch_kinematics as pk
 
-file_name = "ur5.urdf"
+def evaluate_jacobian_determinant(file_name="/home/sebastiano/voxel-serl/serl_robot_infra/robot_controllers/ur5.urdf", link="ee_link", joint_pos=np.zeros(6)):
+    """
+    Evaluate the determinant of the Jacobian of a URDF file at a given link and joint position using
+    the pytorch_kinematics library.    
 
-# can convert Chain to SerialChain by choosing end effector frame
-chain = pk.build_chain_from_urdf(open(file_name).read())
-# print(chain) to see the available links for use as end effector
-print(f"\n{chain}\n")
-# note that any link can be chosen; it doesn't have to be a link with no children
-chain = pk.SerialChain(chain, "wrist_3_link")
+    Args:
+        file_name (str): URDF file name
+        link (str): link name, note that any link can be chosen; it doesn't have to be a link with no children
+        joint_pos (np.array): joint positions
 
-chain = pk.build_serial_chain_from_urdf(open(file_name).read(), "wrist_3_link")
-th = torch.tensor([0.0, -math.pi / 4.0, 0.0, math.pi / 2.0, 0.0, math.pi / 4.0])
-# (1,6,7) tensor, with 7 corresponding to the DOF of the robot
-J = chain.jacobian(th)
-print(f"\n{J}\n")
+    Returns:
+        det (float): determinant of Jacobian
+    """
 
-# get Jacobian in parallel and use CUDA if available
-N = 1000
-d = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"\nUsing device: {d}\n")
-dtype = torch.float64
+    chain = pk.build_serial_chain_from_urdf(open(file_name).read(), link)
+    J = chain.jacobian(joint_pos)
+    det = torch.det(J).item()
 
-chain = chain.to(dtype=dtype, device=d)
-# Jacobian calculation is differentiable
-# th = torch.rand(N, 6, dtype=dtype, device=d, requires_grad=True)
-th = th.to(d)
-# (N,6,7)
-J = chain.jacobian(th)
+    return det
 
-print(f"\n{J}\n")
+# if __name__ == "__main__":
+#     print(evaluate_jacobian_determinant())
 
-# can get Jacobian at a point offset from the end effector (location is specified in EE link frame)
-# by default location is at the origin of the EE frame
-loc = torch.rand(N, 3, dtype=dtype, device=d)
-th = th.to(d)
-loc = loc.to(d)
-# J = chain.jacobian(th, locations=loc, device=d)
+# file_name = "ur5.urdf"
+
+# # can convert Chain to SerialChain by choosing end effector frame
+# chain = pk.build_chain_from_urdf(open(file_name).read())
+# # print(chain) to see the available links for use as end effector
+# print(f"\n{chain}\n")
+# # note that any link can be chosen; it doesn't have to be a link with no children
+# chain = pk.SerialChain(chain, "ee_link")
+
+# chain = pk.build_serial_chain_from_urdf(open(file_name).read(), "ee_link")
+# th = torch.tensor([math.radians(-43.80), math.radians(-55.76), math.radians(102.76), math.radians(-45.15), math.radians(-37.34), math.radians(1.50)])
+# # (1,6,7) tensor, with 7 corresponding to the DOF of the robot
+# J = chain.jacobian(th)
+# print(f"Jacobian: \n{J}\n")
+# # determinant of Jacobian
+# det = torch.det(J)
+# print(f"\nDeterminant: {det}\n")
+
+# # get Jacobian in parallel and use CUDA if available
+# N = 1000
+# d = "cuda" if torch.cuda.is_available() else "cpu"
+# print(f"\nUsing device: {d}\n")
+# dtype = torch.float64
+
+# chain = chain.to(dtype=dtype, device=d)
+# # Jacobian calculation is differentiable
+# # th = torch.rand(N, 6, dtype=dtype, device=d, requires_grad=True)
+# th = th.to(d)
+# # (N,6,7)
+# J = chain.jacobian(th)
+
 # print(f"\n{J}\n")
+
+# # can get Jacobian at a point offset from the end effector (location is specified in EE link frame)
+# # by default location is at the origin of the EE frame
+# loc = torch.rand(N, 3, dtype=dtype, device=d)
+# th = th.to(d)
+# loc = loc.to(d)
+# # J = chain.jacobian(th, locations=loc, device=d)
+# # print(f"\n{J}\n")

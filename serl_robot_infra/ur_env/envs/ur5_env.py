@@ -22,6 +22,7 @@ from ur_env.camera.rs_capture import RSCapture
 from ur_env.camera.utils import PointCloudFusion, CalibrationTread
 
 from robot_controllers.ur5_controller import UrImpedanceController
+from robot_controllers.ur_kinematics import evaluate_jacobian_determinant
 
 from franka_env.utils.transformations import (
     construct_homogeneous_matrix
@@ -654,6 +655,11 @@ class UR5Env(gym.Env):
         """
         state = self.controller.get_state()
 
+        # move to singularity free configurations only
+        if evaluate_jacobian_determinant(joint_pos=state['Q']) < 0.001:
+            print("\nSingularity detected! Reset the agent!\n")
+            self.reset()
+
         self.curr_pos[:] = state['pos']
         self.curr_vel[:] = state['vel']
         self.curr_force[:] = state['force']
@@ -1044,6 +1050,11 @@ class UR5DualRobotEnv(UR5Env):
         """
         state = self.controller_1.get_state()
 
+        # move to singularity free configurations only
+        if evaluate_jacobian_determinant(joint_pos=state['Q']) < 0.001:
+            print("\nSingularity detected! Reset the agent!\n")
+            self.reset()
+
         self.curr_pos[:7] = state['pos']
         self.curr_vel[:6] = state['vel']
         self.curr_force[:3] = state['force']
@@ -1053,6 +1064,11 @@ class UR5DualRobotEnv(UR5Env):
         self.gripper_state[:2] = state['gripper']
 
         state = self.controller_2.get_state()
+
+        # move to singularity free configurations only
+        if evaluate_jacobian_determinant(joint_pos=state['Q']) < 0.001:
+            print("\nSingularity detected! Reset the agent!\n")
+            self.reset()
 
         self.curr_pos[7:] = state['pos']
         self.curr_vel[6:] = state['vel']
