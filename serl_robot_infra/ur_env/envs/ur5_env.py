@@ -656,8 +656,8 @@ class UR5Env(gym.Env):
         state = self.controller.get_state()
 
         # move to singularity free configurations only
-        if evaluate_jacobian_determinant(joint_pos=state['Q']) < 0.001:
-            print("\nSingularity detected! Reset the agent!\n")
+        if abs(evaluate_jacobian_determinant(joint_pos=state['Q'])) < 0.001:
+            print(f"\nSingularity detected! Reset the agent!\n")
             self.reset()
 
         self.curr_pos[:] = state['pos']
@@ -1051,7 +1051,7 @@ class UR5DualRobotEnv(UR5Env):
         state = self.controller_1.get_state()
 
         # move to singularity free configurations only
-        if evaluate_jacobian_determinant(joint_pos=state['Q']) < 0.001:
+        if abs(evaluate_jacobian_determinant(joint_pos=state['Q'])) < 0.001:
             print("\nSingularity detected! Reset the agent!\n")
             self.reset()
 
@@ -1066,7 +1066,7 @@ class UR5DualRobotEnv(UR5Env):
         state = self.controller_2.get_state()
 
         # move to singularity free configurations only
-        if evaluate_jacobian_determinant(joint_pos=state['Q']) < 0.001:
+        if abs(evaluate_jacobian_determinant(joint_pos=state['Q'])) < 0.001:
             print("\nSingularity detected! Reset the agent!\n")
             self.reset()
 
