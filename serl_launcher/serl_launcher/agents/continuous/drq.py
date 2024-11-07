@@ -267,6 +267,14 @@ class DrQAgent(SACAgent):
                 )
                 for image_key in image_keys
             }
+        elif encoder_type == "dinov2":
+            # TODO: not tested yet
+            from serl_launcher.vision.dinov2 import Dinov2ImageEncoder
+
+            encoders = {
+                image_key: Dinov2ImageEncoder(pooling_method="max")
+                for image_key in image_keys
+            }
         elif encoder_type.lower() == "none":
             encoders = None
         else:
