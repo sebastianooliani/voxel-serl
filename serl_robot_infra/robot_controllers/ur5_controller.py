@@ -9,6 +9,8 @@ from responses import target
 from scipy.spatial.transform import Rotation as R
 from rtde_control import RTDEControlInterface
 from rtde_receive import RTDEReceiveInterface
+import torch
+import pytorch_kinematics as pk
 
 from ur_env.utils.vacuum_gripper import VacuumGripper
 from ur_env.utils.rotations import rotvec_2_quat, quat_2_rotvec, pose2rotvec, pose2quat
@@ -56,6 +58,11 @@ class UrImpedanceController(threading.Thread):
         self.gripper_timeout = {"timeout": config.GRIPPER_TIMEOUT, "last_grip": time.monotonic() - 1e6}
         self.verbose = verbose
         self.do_plot = plot
+
+        # kinematic chain
+        self.xml_file_path = "/home/sebastiano/voxel-serl/serl_robot_infra/robot_controllers/ur5.urdf"
+        self.last_link = "ee_link"
+        self.chain = pk.build_serial_chain_from_urdf(open(self.xml_file_path), self.last_link)
 
         self.target_pos = np.zeros((7,), dtype=np.float32)  # new as quat to avoid +- problems with axis angle repr.
         self.target_grip = np.zeros((1,), dtype=np.float32)
@@ -328,6 +335,24 @@ class UrImpedanceController(threading.Thread):
             asyncio.run(self.run_async())  # gripper has to be awaited, both init and commands
         finally:
             self.stop()
+
+    def evaluate_manipulability(self, joint_pos=np.zeros(6)):
+        """
+        Evaluate the determinant of the Jacobian of a URDF file at a given link and joint position using
+        the pytorch_kinematics library.    
+
+        Args:
+            file_name (str): URDF file name
+            link (str): link name, note that any link can be chosen; it doesn't have to be a link with no children
+            joint_pos (np.array): joint positions
+
+        Returns:
+            det (float): determinant of Jacobian
+        """
+        J = self.chain.jacobian(joint_pos)
+        det = torch.det(J).item()
+
+        return det
 
     async def _go_to_reset_pose(self):
         self.ur_control.forceModeStop()
