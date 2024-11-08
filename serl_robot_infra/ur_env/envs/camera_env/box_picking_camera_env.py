@@ -104,8 +104,12 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         # TODO: adjust reference frames and relative base positions
         T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
         T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
-        T_O1_O2 = np.eye(4)
+        T_O1_O2 = np.array([[0., 1., 0., -0.340], 
+                            [-1., 0., 0., -0.980], 
+                            [0., 0., 1., 0.815 - 0.700], 
+                            [0., 0., 0., 1.]])
         T_O1_E2 = T_O1_O2 @ T_O2_E2
+        print(T_O1_E2)
         distance_cost = 1. * np.sum(np.power(T_O1_E1[:3, 3] - T_O1_E2[:3, 3], 2))
 
         # TOTAL COST

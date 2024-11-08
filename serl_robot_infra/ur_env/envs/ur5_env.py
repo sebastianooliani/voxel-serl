@@ -1019,7 +1019,10 @@ class UR5DualRobotEnv(UR5Env):
         # Calculate the distance between the two end effectors
         T_O1_E1 = construct_homogeneous_matrix(target_pos[:7])
         T_O2_E2 = construct_homogeneous_matrix(target_pos[7:])
-        T_O1_O2 = np.eye(4) # TODO: Add the transformation between the two robots
+        T_O1_O2 = np.array([[0., 1., 0., -0.340], 
+                            [-1., 0., 0., -0.980], 
+                            [0., 0., 1., 0.815 - 0.700], 
+                            [0., 0., 0., 1.]])
         T_O1_E2 = T_O1_O2 @ T_O2_E2
         ee_distance = np.sum(np.power(T_O1_E1[:3, 3] - T_O1_E2[:3, 3], 2))
 
@@ -1050,9 +1053,9 @@ class UR5DualRobotEnv(UR5Env):
         state = self.controller_1.get_state()
 
         # move to singularity free configurations only
-        if abs(self.controller_1.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
-            print("\nSingularity detected! Reset the agent!\n")
-            self.reset()
+        # if abs(self.controller_1.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
+        #     print("\nSingularity detected! Reset the agent!\n")
+        #     self.reset()
 
         self.curr_pos[:7] = state['pos']
         self.curr_vel[:6] = state['vel']
@@ -1065,9 +1068,9 @@ class UR5DualRobotEnv(UR5Env):
         state = self.controller_2.get_state()
 
         # move to singularity free configurations only
-        if abs(self.controller_2.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
-            print("\nSingularity detected! Reset the agent!\n")
-            self.reset()
+        # if abs(self.controller_2.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
+        #     print("\nSingularity detected! Reset the agent!\n")
+        #     self.reset()
 
         self.curr_pos[7:] = state['pos']
         self.curr_vel[6:] = state['vel']
