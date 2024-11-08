@@ -60,9 +60,13 @@ class UrImpedanceController(threading.Thread):
         self.do_plot = plot
 
         # kinematic chain
-        self.xml_file_path = "/home/sebastiano/voxel-serl/serl_robot_infra/robot_controllers/ur5.urdf"
+        self.urdf_file_path = "/home/sebastiano/voxel-serl/serl_robot_infra/robot_controllers/ur5.urdf"
         self.last_link = "ee_link"
-        self.chain = pk.build_serial_chain_from_urdf(open(self.xml_file_path), self.last_link)
+
+        # Open the file, read its contents as a string, and close it
+        # with open(self.urdf_file_path, "r") as file:
+        #     urdf_data = file.read()
+        # self.chain = pk.build_serial_chain_from_urdf(urdf_data, self.last_link)
 
         self.target_pos = np.zeros((7,), dtype=np.float32)  # new as quat to avoid +- problems with axis angle repr.
         self.target_grip = np.zeros((1,), dtype=np.float32)

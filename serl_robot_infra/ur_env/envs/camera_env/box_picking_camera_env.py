@@ -102,15 +102,15 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
-        T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
-        T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
-        T_O1_O2 = np.array([[0., 1., 0., -0.340], 
-                            [-1., 0., 0., -0.980], 
-                            [0., 0., 1., 0.815 - 0.700], 
-                            [0., 0., 0., 1.]])
-        T_O1_E2 = T_O1_O2 @ T_O2_E2
-        print(T_O1_E2)
-        distance_cost = 1. * np.sum(np.power(T_O1_E1[:3, 3] - T_O1_E2[:3, 3], 2))
+        # T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
+        # T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
+        # T_O1_O2 = np.array([[0., 1., 0., -0.340], 
+        #                     [-1., 0., 0., -0.980], 
+        #                     [0., 0., 1., 0.815 - 0.700], 
+        #                     [0., 0., 0., 1.]])
+        # T_O1_E2 = T_O1_O2 @ T_O2_E2
+        # # print(T_O1_E2)
+        # distance_cost = 1. * np.sum(np.power(T_O1_E1[:3, 3] - T_O1_E2[:3, 3], 2))
 
         # TOTAL COST
         cost_info = dict(
@@ -122,7 +122,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
             position_cost=position_cost,
             action_diff_cost=action_diff_cost,
             total_cost=-(-action_cost - step_cost + suction_reward - suction_cost - orientation_cost - position_cost - action_diff_cost),
-            distance_cost=distance_cost
+            # distance_cost=distance_cost
         )
         for key, info in cost_info.items():
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])
@@ -130,10 +130,10 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         if self.reached_goal_state(obs):
             self.last_action[:] = 0.
             R_goal = 100.
-            return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
+            return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost #- distance_cost
         else:
             return 0. + suction_reward - action_cost - orientation_cost - position_cost - \
-                suction_cost - step_cost - action_diff_cost - distance_cost
+                suction_cost - step_cost - action_diff_cost# - distance_cost
 
     def reached_goal_state(self, obs) -> bool:
         # TODO: adjust this to dual robot

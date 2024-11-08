@@ -22,8 +22,8 @@ def evaluate_jacobian_determinant(file_name="/home/sebastiano/voxel-serl/serl_ro
 
     return det
 
-# if __name__ == "__main__":
-#     print(evaluate_jacobian_determinant())
+if __name__ == "__main__":
+    print(evaluate_jacobian_determinant())
 
 # file_name = "ur5.urdf"
 

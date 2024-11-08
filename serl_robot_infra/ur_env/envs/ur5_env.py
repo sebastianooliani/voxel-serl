@@ -655,9 +655,9 @@ class UR5Env(gym.Env):
         state = self.controller.get_state()
 
         # move to singularity free configurations only
-        if abs(self.controller.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
-            print("\nSingularity detected! Reset the agent!\n")
-            self.reset()
+        # if abs(self.controller.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
+        #     print("\nSingularity detected! Reset the agent!\n")
+        #     self.reset()
 
         self.curr_pos[:] = state['pos']
         self.curr_vel[:] = state['vel']
@@ -1017,19 +1017,19 @@ class UR5DualRobotEnv(UR5Env):
     def _send_pos_command(self, target_pos: np.ndarray):
         """Internal function to send force command to the robot."""
         # Calculate the distance between the two end effectors
-        T_O1_E1 = construct_homogeneous_matrix(target_pos[:7])
-        T_O2_E2 = construct_homogeneous_matrix(target_pos[7:])
-        T_O1_O2 = np.array([[0., 1., 0., -0.340], 
-                            [-1., 0., 0., -0.980], 
-                            [0., 0., 1., 0.815 - 0.700], 
-                            [0., 0., 0., 1.]])
-        T_O1_E2 = T_O1_O2 @ T_O2_E2
-        ee_distance = np.sum(np.power(T_O1_E1[:3, 3] - T_O1_E2[:3, 3], 2))
+        # T_O1_E1 = construct_homogeneous_matrix(target_pos[:7])
+        # T_O2_E2 = construct_homogeneous_matrix(target_pos[7:])
+        # T_O1_O2 = np.array([[0., 1., 0., -0.340], 
+        #                     [-1., 0., 0., -0.980], 
+        #                     [0., 0., 1., 0.815 - 0.700], 
+        #                     [0., 0., 0., 1.]])
+        # T_O1_E2 = T_O1_O2 @ T_O2_E2
+        # ee_distance = np.sum(np.power(T_O1_E1[:3, 3] - T_O1_E2[:3, 3], 2))
 
-        # Check if the distance is less than 2 cm (0.02 meters)
-        if ee_distance < 0.02: # TODO: adjust this param because it depends on the box size too
-            print("\nDistance between end effectors is less than 2 cm. Resetting episode.\n")
-            self.reset()
+        # # Check if the distance is less than 2 cm (0.02 meters)
+        # if ee_distance < 0.02: # TODO: adjust this param because it depends on the box size too
+        #     print("\nDistance between end effectors is less than 2 cm. Resetting episode.\n")
+        #     self.reset()
 
         self.controller_1.set_target_pos(target_pos=target_pos[:7])
         self.controller_2.set_target_pos(target_pos=target_pos[7:])
@@ -1135,5 +1135,3 @@ class UR5DualRobotEnv(UR5Env):
             self.controller_1.stop()
         if self.controller_2:
             self.controller_2.stop()
-
-        super(gym.Env).close()
