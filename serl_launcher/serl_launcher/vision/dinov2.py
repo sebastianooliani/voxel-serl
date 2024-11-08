@@ -1,4 +1,3 @@
-import jax.example_libraries
 from transformers import AutoImageProcessor, FlaxDinov2ForImageClassification
 from PIL import Image
 import jax
@@ -33,6 +32,8 @@ def test_dinov2():
 
     print(last_hidden_state.shape)
 
+if __name__ == "__main__":
+    test_dinov2()
 
 class Dinov2ImageEncoder():
     def __init__(self, 
