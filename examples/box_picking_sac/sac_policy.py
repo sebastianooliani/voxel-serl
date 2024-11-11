@@ -301,7 +301,7 @@ def main(_):
     num_devices = len(devices)
     sharding = jax.sharding.PositionalSharding(devices)
     assert FLAGS.batch_size % num_devices == 0
-    FLAGS.checkpoint_path = FLAGS.checkpoint_path + " " + datetime.now().strftime("%m%d-%H:%M")
+    FLAGS.checkpoint_path = FLAGS.checkpoint_path + "_" + datetime.now().strftime("%m%d-%H:%M")
 
     # seed
     rng = jax.random.PRNGKey(FLAGS.seed)
@@ -323,7 +323,6 @@ def main(_):
     env = RecordEpisodeStatistics(env)
 
     rng, sampling_rng = jax.random.split(rng)
-    print(f"obs shape: {env.observation_space.sample().shape}")
     agent: SACAgent = make_sac_agent(
         seed=FLAGS.seed,
         sample_obs=env.observation_space.sample(),

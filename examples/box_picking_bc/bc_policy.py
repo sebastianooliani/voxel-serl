@@ -137,7 +137,7 @@ def main(_):
 
                 if step and step % FLAGS.checkpoint_period == 0 and FLAGS.save_model:
                     checkpoints.save_checkpoint(
-                        FLAGS.checkpoint_path,
+                        f"{FLAGS.checkpoint_path}/checkpoint_{datetime.now().strftime("%m%d-%H:%M")}",
                         agent.state,
                         step=step,
                         keep=100,
