@@ -7,8 +7,6 @@ from franka_env.utils.transformations import (
     construct_rotation_matrix
 )
 
-import jax.numpy as jnp
-import jax
 
 
 class RelativeFrame(gym.Wrapper):
@@ -102,7 +100,6 @@ class RelativeFrame(gym.Wrapper):
         Transform action from body(end-effector) frame into spatial(base) frame
         using the rotation matrix
         """
-        # print(self.rotation_matrix_reset)
         action = np.array(action)  # in case action is a jax read-only array
         action[:3] = self.rotation_matrix_reset @ action[:3]
         action[3:6] = self.rotation_matrix_reset @ action[3:6]
@@ -143,55 +140,33 @@ class DualRelativeFrame(gym.Wrapper):
         super().__init__(env)
         self.include_relative_pose = include_relative_pose
 
-        self.rotation_matrix_1 = jnp.eye((3))
-        self.rotation_matrix_2 = jnp.eye((3))
+        self.rotation_matrix_1 = np.eye((3))
+        self.rotation_matrix_2 = np.eye((3))
 
-        self.rotation_matrix_reset_1 = jnp.eye((3))
-        self.rotation_matrix_reset_2 = jnp.eye((3))
+        self.rotation_matrix_reset_1 = np.eye((3))
+        self.rotation_matrix_reset_2 = np.eye((3))
 
         if self.include_relative_pose:
             # Homogeneous transformation matrix from reset pose's relative frame to base frame
-            self.T_r_o_inv_1 = jnp.eye((4))
-            self.T_r_o_inv_2 = jnp.eye((4))
-
-        self._construct_rotation_matrix = jax.jit(self._construct_rotation_matrix_jax)
-        self._construct_homogeneous_matrix = jax.jit(self._construct_homogeneous_matrix_jax)
-
-    def _construct_rotation_matrix_jax(self, tcp_pose):
-        """
-        Construct the adjoint matrix for a spatial velocity vector
-        :args: tcp_pose: (x, y, z, qx, qy, qz, qw)
-        """
-        return R.from_quat(tcp_pose[3:]).as_matrix()
-    
-    def _construct_homogeneous_matrix_jax(self, tcp_pose):
-        """
-        Construct the homogeneous transformation matrix from given pose.
-        args: tcp_pose: (x, y, z, qx, qy, qz, qw)
-        """
-        rotation = R.from_quat(tcp_pose[3:]).as_matrix()
-        translation = jnp.array(tcp_pose[:3])
-        T = jnp.eye(4)
-        T[:3, :3] = rotation
-        T[:3, 3] = translation
-        return T
+            self.T_r_o_inv_1 = np.eye((4))
+            self.T_r_o_inv_2 = np.eye((4))
 
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
 
-        self.rotation_matrix_1 = self._construct_rotation_matrix(obs["state"]["tcp_pose"][:7])
-        self.rotation_matrix_2 = self._construct_rotation_matrix(obs["state"]["tcp_pose"][7:])
+        self.rotation_matrix_1 = construct_rotation_matrix(obs["state"]["tcp_pose"][:7])
+        self.rotation_matrix_2 = construct_rotation_matrix(obs["state"]["tcp_pose"][7:])
 
         self.rotation_matrix_reset_1 = self.rotation_matrix_1.copy()
         self.rotation_matrix_reset_2 = self.rotation_matrix_2.copy()
 
         if self.include_relative_pose:
             # Update transformation matrix from the reset pose's relative frame to base frame
-            self.T_r_o_inv_1 = jnp.linalg.inv(
-                self._construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
+            self.T_r_o_inv_1 = np.linalg.inv(
+                construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
             )
-            self.T_r_o_inv_2 = jnp.linalg.inv(
-                self._construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
+            self.T_r_o_inv_2 = np.linalg.inv(
+                construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
             )
 
         assert self.rotation_matrix_1.shape == (3, 3)
@@ -223,7 +198,7 @@ class DualRelativeFrame(gym.Wrapper):
 
         if self.include_relative_pose:
             # first arm
-            T_b_o = self._construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
+            T_b_o = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
             T_b_r = self.T_r_o_inv_1 @ T_b_o
 
             # Reconstruct transformed tcp_pose vector
@@ -232,12 +207,12 @@ class DualRelativeFrame(gym.Wrapper):
 
             assert theta_b_r.shape == (4,)
             assert p_b_r.shape == (3,)
-            assert jnp.linalg.norm(theta_b_r) > 0.99 and jnp.linalg.norm(theta_b_r) < 1.01
+            assert np.linalg.norm(theta_b_r) > 0.99 and np.linalg.norm(theta_b_r) < 1.01
             
-            obs["state"]["tcp_pose"][:7] = jnp.concatenate((p_b_r, theta_b_r))
+            obs["state"]["tcp_pose"][:7] = np.concatenate((p_b_r, theta_b_r))
 
             # second arm
-            T_b_o = self._construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
+            T_b_o = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
             T_b_r = self.T_r_o_inv_2 @ T_b_o
 
             # Reconstruct transformed tcp_pose vector
@@ -246,18 +221,18 @@ class DualRelativeFrame(gym.Wrapper):
 
             assert theta_b_r.shape == (4,)
             assert p_b_r.shape == (3,)
-            assert jnp.linalg.norm(theta_b_r) > 0.99 and jnp.linalg.norm(theta_b_r) < 1.01
+            assert np.linalg.norm(theta_b_r) > 0.99 and np.linalg.norm(theta_b_r) < 1.01
 
-            obs["state"]["tcp_pose"][7:] = jnp.concatenate((p_b_r, theta_b_r))
+            obs["state"]["tcp_pose"][7:] = np.concatenate((p_b_r, theta_b_r))
 
         return obs
     
-    def transform_action(self, action: jnp.ndarray):
+    def transform_action(self, action: np.ndarray):
         """
         Transform action from body(end-effector) frame into spatial(base) frame
         using the rotation matrix
         """
-        action = jnp.array(action)  # in case action is a jax read-only array
+        action = np.array(action)  # in case action is a jax read-only array
         action[:3] = self.rotation_matrix_reset_1 @ action[:3]
         action[3:6] = self.rotation_matrix_reset_1 @ action[3:6]
         # skip the gripper action
@@ -265,12 +240,12 @@ class DualRelativeFrame(gym.Wrapper):
         action[10:13] = self.rotation_matrix_reset_2 @ action[10:13]
         return action
 
-    def transform_action_inv(self, action: jnp.ndarray):
+    def transform_action_inv(self, action: np.ndarray):
         """
         Transform action from spatial(base) frame into body(end-effector) frame
         using the rotation matrix.
         """
-        action = jnp.array(action)
+        action = np.array(action)
         action[:3] = self.rotation_matrix_reset_1.transpose() @ action[:3]
         action[3:6] = self.rotation_matrix_reset_1.transpose() @ action[3:6]
         # skip the gripper action
@@ -278,7 +253,7 @@ class DualRelativeFrame(gym.Wrapper):
         action[10:13] = self.rotation_matrix_reset_2.transpose() @ action[10:13]
         return action
     
-    def step(self, action: jnp.ndarray):
+    def step(self, action: np.ndarray):
         # action is assumed to be (x, y, z, rx, ry, rz, gripper)
         # Transform action from end-effector frame to base frame
         transformed_action = self.transform_action(action)
@@ -289,8 +264,8 @@ class DualRelativeFrame(gym.Wrapper):
             info["intervene_action"] = self.transform_action_inv(info["intervene_action"])
 
         # Update rotation matrix
-        self.rotation_matrix_1 = self._construct_rotation_matrix(obs["state"]["tcp_pose"][:7])
-        self.rotation_matrix_2 = self._construct_rotation_matrix(obs["state"]["tcp_pose"][7:])
+        self.rotation_matrix_1 = construct_rotation_matrix(obs["state"]["tcp_pose"][:7])
+        self.rotation_matrix_2 = construct_rotation_matrix(obs["state"]["tcp_pose"][7:])
 
         # Transform observation to spatial frame
         transformed_obs = self.transform_observation(obs)
