@@ -637,6 +637,12 @@ class UR5Env(gym.Env):
 
     def _send_pos_command(self, target_pos: np.ndarray):
         """Internal function to send force command to the robot."""
+        # move to singularity free configurations only
+        state = self.controller.get_state()
+        if np.abs(self.controller.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
+            print("\nSingularity detected! Reset the agent!\n")
+            self.reset()
+
         self.controller.set_target_pos(target_pos=target_pos)
 
     def _send_gripper_command(self, gripper_pos: np.ndarray):
@@ -653,11 +659,6 @@ class UR5Env(gym.Env):
         Internal function to get the latest state of the robot and its gripper.
         """
         state = self.controller.get_state()
-
-        # move to singularity free configurations only
-        # if abs(self.controller.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
-        #     print("\nSingularity detected! Reset the agent!\n")
-        #     self.reset()
 
         self.curr_pos[:] = state['pos']
         self.curr_vel[:] = state['vel']
@@ -731,6 +732,9 @@ class UR5DualRobotEnv(UR5Env):
         self.curr_force = np.zeros((6,), dtype=np.float32)
         self.curr_torque = np.zeros((6,), dtype=np.float32)
         self.last_action = np.zeros(self.action_space.shape)
+
+        self.T_O1_O2 = config.T_O1_O2
+        self.T_EE_SC = config.T_EE_SC
 
         self.gripper_state = np.zeros((4,), dtype=np.float32)
         self.random_reset = config.RANDOM_RESET
@@ -862,7 +866,7 @@ class UR5DualRobotEnv(UR5Env):
         self.cap = None
 
         if fake_env:
-            print("[UR5Env] is fake!")
+            print("\n[UR5Env] is fake!\n")
             return
 
         self.controller_1 = UrImpedanceController(
@@ -903,17 +907,17 @@ class UR5DualRobotEnv(UR5Env):
 
         while not self.controller_1.is_ready():  # wait for controller
             time.sleep(0.1)
-        print("[RIC] Controller 1 has started and is ready!")
+        print("\n[RIC] Controller 1 has started and is ready!\n")
 
         while not self.controller_2.is_ready():  # wait for controller
             time.sleep(0.1)
-        print("[RIC] Controller 2 has started and is ready!")
+        print("\n[RIC] Controller 2 has started and is ready!\n")
 
         if self.camera_mode in ["pointcloud"]:
             voxel_grid_shape = np.array(self.observation_space["images"]["wrist_pointcloud"].shape)
             # voxel_grid_shape[-1] *= 8     # do not use compacting for now
             # voxel_grid_shape *= 2
-            print(f"pointcloud resolution set to: {voxel_grid_shape}")
+            print(f"\npointcloud resolution set to: {voxel_grid_shape}\n")
             self.pointcloud_fusion = PointCloudFusion(angle=31., x_distance=0.205, voxel_grid_shape=voxel_grid_shape)
 
             # load pre calibrated, else calibrate
@@ -1016,20 +1020,32 @@ class UR5DualRobotEnv(UR5Env):
         
     def _send_pos_command(self, target_pos: np.ndarray):
         """Internal function to send force command to the robot."""
-        # Calculate the distance between the two end effectors
-        # T_O1_E1 = construct_homogeneous_matrix(target_pos[:7])
-        # T_O2_E2 = construct_homogeneous_matrix(target_pos[7:])
-        # T_O1_O2 = np.array([[0., 1., 0., -0.340], 
-        #                     [-1., 0., 0., -0.980], 
-        #                     [0., 0., 1., 0.815 - 0.700], 
-        #                     [0., 0., 0., 1.]])
-        # T_O1_E2 = T_O1_O2 @ T_O2_E2
-        # ee_distance = np.sum(np.power(T_O1_E1[:3, 3] - T_O1_E2[:3, 3], 2))
+        # Calculate the distance between the two end effectors - collision check
+        T_O1_E1 = construct_homogeneous_matrix(target_pos[:7])
+        T_O2_E2 = construct_homogeneous_matrix(target_pos[7:])
+        T_O1_SC = T_O1_E1 @ self.T_EE_SC
+        T_O2_SC = T_O2_E2 @ self.T_EE_SC
+        T_O1_SC = self.T_O1_O2 @ T_O2_SC
+        ee_distance = np.sum(np.power(T_O1_SC[:3, 3] - T_O1_SC[:3, 3], 2))
 
-        # # Check if the distance is less than 2 cm (0.02 meters)
-        # if ee_distance < 0.02: # TODO: adjust this param because it depends on the box size too
-        #     print("\nDistance between end effectors is less than 2 cm. Resetting episode.\n")
-        #     self.reset()
+        # Check if the distance is less than 2 cm (0.02 meters)
+        if ee_distance < 0.02: # TODO: adjust this param because it depends on the box size too
+            print("\nDistance between end effectors is less than 2 cm. Resetting episode.\n")
+            self.reset()
+
+        state = self.controller_1.get_state()
+
+        # move to singularity free configurations only
+        if abs(self.controller_1.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
+            print("\nSingularity detected! Reset the agent!\n")
+            self.reset()
+
+        state = self.controller_2.get_state()
+
+        # move to singularity free configurations only
+        if abs(self.controller_2.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
+            print("\nSingularity detected! Reset the agent!\n")
+            self.reset()
 
         self.controller_1.set_target_pos(target_pos=target_pos[:7])
         self.controller_2.set_target_pos(target_pos=target_pos[7:])

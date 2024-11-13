@@ -1,8 +1,10 @@
 import numpy as np
 import torch
 import pytorch_kinematics as pk
+from fast_kinematics import FastKinematics
+import math
 
-def evaluate_jacobian_determinant(file_name="/home/sebastiano/voxel-serl/serl_robot_infra/robot_controllers/ur5.urdf", link="ee_link", joint_pos=np.zeros(6)):
+def evaluate_jacobian_determinant(file_name="/home/sebastiano/voxel-serl/serl_robot_infra/robot_controllers/ur5.urdf", link="ee_link", joint_pos=np.zeros(6), N=1000, d="cuda", dtype = torch.float32):
     """
     Evaluate the determinant of the Jacobian of a URDF file at a given link and joint position using
     the pytorch_kinematics library.    
@@ -16,14 +18,37 @@ def evaluate_jacobian_determinant(file_name="/home/sebastiano/voxel-serl/serl_ro
         det (float): determinant of Jacobian
     """
 
-    chain = pk.build_serial_chain_from_urdf(open(file_name).read(), link)
+    chain = pk.build_serial_chain_from_urdf(open(file_name).read(), N, link)
+    joint_pos = torch.tensor(joint_pos, dtype=dtype, device=d)
     J = chain.jacobian(joint_pos)
     det = torch.det(J).item()
 
     return det
 
+def fast_evaluate_jacobian_determinant(file_name="/home/sebastiano/voxel-serl/serl_robot_infra/robot_controllers/ur5.urdf", link="ee_link", joint_pos=np.zeros(6, np.float32), N=1, d="cuda", dtype = torch.float32):
+    """
+    Evaluate the determinant of the Jacobian of a URDF file at a given link and joint position using
+    the fast_kinematics library.    
+
+    Args:
+        file_name (str): URDF file name
+        link (str): link name, note that any link can be chosen; it doesn't have to be a link with no children
+        joint_pos (np.array): joint positions
+
+    Returns:
+        det (float): determinant of Jacobian
+    """
+    joint_pos = np.array([math.radians(241.46), math.radians(-75.78), math.radians(107.78), math.radians(-38.43), math.radians(-24.73), math.radians(33.13)], dtype=np.float32)
+    chain = FastKinematics(file_name, N, link)
+    J = chain.jacobian_mixed_frame(joint_pos)
+    J = J.reshape(N, 6, 6)
+    J = torch.tensor(J).to(d)
+    det = torch.det(J).item()
+
+    return det
+
 if __name__ == "__main__":
-    print(evaluate_jacobian_determinant())
+    print(fast_evaluate_jacobian_determinant())
 
 # file_name = "ur5.urdf"
 

@@ -11,6 +11,9 @@ from rtde_control import RTDEControlInterface
 from rtde_receive import RTDEReceiveInterface
 import torch
 import pytorch_kinematics as pk
+from fast_kinematics import FastKinematics
+import jax
+import jax.numpy as jnp
 
 from ur_env.utils.vacuum_gripper import VacuumGripper
 from ur_env.utils.rotations import rotvec_2_quat, quat_2_rotvec, pose2rotvec, pose2quat
@@ -64,9 +67,14 @@ class UrImpedanceController(threading.Thread):
         self.last_link = "ee_link"
 
         # Open the file, read its contents as a string, and close it
-        # with open(self.urdf_file_path, "r") as file:
-        #     urdf_data = file.read()
+        with open(self.urdf_file_path, "r") as file:
+            urdf_data = file.read()
         # self.chain = pk.build_serial_chain_from_urdf(urdf_data, self.last_link)
+        # self.chain = self.chain.to(device='cuda', dtype=torch.float32)
+        self.chain = FastKinematics(self.urdf_file_path, 1, self.last_link)
+        # Create a static JIT-compiled function for the computation part
+        self._compute_manipulability = jax.jit(self._compute_manipulability_raw)
+        self.J = jnp.zeros((1, 6, 6))
 
         self.target_pos = np.zeros((7,), dtype=np.float32)  # new as quat to avoid +- problems with axis angle repr.
         self.target_grip = np.zeros((1,), dtype=np.float32)
@@ -340,10 +348,10 @@ class UrImpedanceController(threading.Thread):
         finally:
             self.stop()
 
-    def evaluate_manipulability(self, joint_pos=np.zeros(6)):
+    def old_evaluate_manipulability(self, joint_pos=np.zeros(6), N=1000, d="cuda", dtype=torch.float32):
         """
         Evaluate the determinant of the Jacobian of a URDF file at a given link and joint position using
-        the pytorch_kinematics library.    
+        the fast_kinematics library.    
 
         Args:
             file_name (str): URDF file name
@@ -352,11 +360,35 @@ class UrImpedanceController(threading.Thread):
 
         Returns:
             det (float): determinant of Jacobian
-        """
-        J = self.chain.jacobian(joint_pos)
-        det = torch.det(J).item()
+        """        
+        J = self.chain.jacobian_mixed_frame(joint_pos)
+        J = jax.numpy.reshape(J, (1, 6, 6))
+        # J = torch.tensor(J).to(d)
+        # det = torch.det(J).item()
+        # J.det()
+        det = jax.numpy.linalg.det(J)
 
         return det
+    
+    def _compute_manipulability_raw(self, jacobian):
+        """
+        The raw computation part that can be JIT-compiled
+        """
+        # self.J = jnp.reshape(jacobian, (1, 6, 6))
+        return jnp.linalg.det(jacobian)
+
+    def evaluate_manipulability(self, joint_pos=jnp.zeros(6)):
+        """
+        Wrapper method that handles the non-JIT-compatible parts
+        """
+        # Get the Jacobian using your existing method
+        self.J = self.chain.jacobian_mixed_frame(joint_pos).reshape((1, 6, 6))
+        
+        # Convert to JAX array if needed
+        # self.J = jnp.array(self.J)
+        
+        # Use the JIT-compiled computation
+        return self._compute_manipulability(self.J)
 
     async def _go_to_reset_pose(self):
         self.ur_control.forceModeStop()
