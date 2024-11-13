@@ -4,6 +4,7 @@ import jax
 import requests
 import flax.linen as nn
 import numpy as np
+import jax.numpy as jnp
 
 def test_dinov2():
     url = "http://images.cocodataset.org/val2017/000000039769.jpg"
@@ -39,6 +40,45 @@ def test_dinov2():
 if __name__ == "__main__":
     test_dinov2()
 
+class ChannelAdapter(nn.Module):
+    target_channels: int
+    
+    @nn.compact
+    def __call__(self, x):
+        return nn.Conv(features=self.target_channels, 
+                      kernel_size=(1, 1),
+                      strides=(1, 1))(x)
+    
+def adapt_dinov2_model(model, input_channels=96):
+    """
+    Adapt DINOv2 model to handle different input channels.
+    
+    Args:
+        model: Original FlaxDinov2ForImageClassification model
+        input_channels: Number of channels in your input data
+        
+    Returns:
+        Modified model with channel adaptation layer
+    """
+    # Get the expected number of channels from the model config
+    expected_channels = model.config.num_channels  # Usually 3 for RGB
+    
+    # Initialize the channel adapter
+    channel_adapter = ChannelAdapter(target_channels=expected_channels)
+    
+    # Create dummy input to initialize the adapter
+    dummy_input = jnp.ones((input_channels, 1, 224, 224))  # Adjust size as needed
+    adapter_params = channel_adapter.init(jax.random.PRNGKey(0), dummy_input)
+    
+    # Modified forward function
+    def modified_forward(params, input_ids, **kwargs):
+        # First apply channel adaptation
+        adapted_input = channel_adapter.apply(adapter_params, input_ids)
+        # Then pass through the original model
+        return model.__call__(adapted_input, **kwargs)
+    
+    return modified_forward, adapter_params
+
 class Dinov2ImageEncoder():
     def __init__(self, 
                  model_name: str = "facebook/dinov2-base-imagenet1k-1-layer", 
@@ -54,9 +94,17 @@ class Dinov2ImageEncoder():
 
     def encode(self, observation):
         # inputs = self.image_processor(images=image, return_tensors="np")
+        adapted_model, adapter_params = adapt_dinov2_model(self.model, input_channels=observation.shape[0])
+
         inputs = observation
-        outputs = self.model(inputs)
-        hidden_states = outputs.hidden_states
+
+        outputs = adapted_model(
+            {'params': adapter_params},
+            inputs,
+            train=False,
+        )
+        # outputs = self.model(inputs)
+        hidden_states = adapted_model.hidden_states
 
         last_hidden_state = hidden_states[-1]
         last_hidden_state = last_hidden_state.flatten()
