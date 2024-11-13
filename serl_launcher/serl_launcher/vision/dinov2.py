@@ -2,6 +2,8 @@ from transformers import AutoImageProcessor, FlaxDinov2ForImageClassification
 from PIL import Image
 import jax
 import requests
+import flax.linen as nn
+import numpy as np
 
 def test_dinov2():
     url = "http://images.cocodataset.org/val2017/000000039769.jpg"
@@ -11,6 +13,8 @@ def test_dinov2():
     model = FlaxDinov2ForImageClassification.from_pretrained("facebook/dinov2-base-imagenet1k-1-layer", from_pt=True, output_hidden_states=True, output_attentions=True)
 
     inputs = image_processor(images=image, return_tensors="np")
+    print(inputs['pixel_values'].shape)
+    print("\n")
     outputs = model(**inputs)
     logits = outputs.logits
     hidden_states = outputs.hidden_states
@@ -28,9 +32,9 @@ def test_dinov2():
     # Apply max pooling to each chunk
     pooled_vector = jax.numpy.max(reshaped_vector, axis=1)  # Shape: (128,)
 
-    print(pooled_vector.shape)
+    # print(pooled_vector.shape)
 
-    print(last_hidden_state.shape)
+    # print(last_hidden_state.shape)
 
 if __name__ == "__main__":
     test_dinov2()
@@ -40,14 +44,18 @@ class Dinov2ImageEncoder():
                  model_name: str = "facebook/dinov2-base-imagenet1k-1-layer", 
                  target_dim: int = 128,
                  pooling_method: str = "max"):
-        self.model = FlaxDinov2ForImageClassification.from_pretrained(model_name, from_pt=True, output_hidden_states=True, output_attentions=True)
+        self.model = FlaxDinov2ForImageClassification.from_pretrained(model_name, 
+                                                                      from_pt=True, 
+                                                                      output_hidden_states=True, 
+                                                                      output_attentions=True)
         self.image_processor = AutoImageProcessor.from_pretrained(model_name)
         self.target_dim = target_dim
         self.pooling_method = pooling_method
 
-    def encode(self, image: Image):
-        inputs = self.image_processor(images=image, return_tensors="np")
-        outputs = self.model(**inputs)
+    def encode(self, observation):
+        # inputs = self.image_processor(images=image, return_tensors="np")
+        inputs = observation
+        outputs = self.model(inputs)
         hidden_states = outputs.hidden_states
 
         last_hidden_state = hidden_states[-1]
@@ -66,3 +74,16 @@ class Dinov2ImageEncoder():
             raise ValueError(f"Pooling method {self.pooling_method} not supported.")
 
         return pooled_vector
+    
+    @nn.compact
+    def __call__(self, observations, train=False, encode=False):
+        assert observations.shape[-3:] == (128, 128, 3), f"Expected image shape (128, 128, 3), got {observations.shape[-3:]}"
+        # breakpoint()
+        if observations.shape == (128, 128, 3):
+            observations = observations.reshape(1,3,128,128)
+        else:
+            pass
+
+        observations = observations.astype(np.float32)
+        x = self.encode(observations)
+        return x
