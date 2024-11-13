@@ -75,7 +75,8 @@ def adapt_dinov2_model(model, input_channels=96):
         # First apply channel adaptation
         adapted_input = channel_adapter.apply(adapter_params, input_ids)
         # Then pass through the original model
-        return model.__call__(adapted_input, **kwargs)
+        output, hidden_states = model.__call__(adapted_input, output_hidden_states=True, **kwargs)
+        return output, hidden_states
     
     return modified_forward, adapter_params
 
@@ -98,7 +99,7 @@ class Dinov2ImageEncoder():
 
         inputs = observation
 
-        outputs = adapted_model(
+        outputs, hidden_states = adapted_model(
             {'params': adapter_params},
             inputs,
             train=False,
