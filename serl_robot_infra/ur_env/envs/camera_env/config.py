@@ -58,30 +58,34 @@ class UR5CameraConfigBox5(DefaultEnvConfig):
 
 
 class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
-    # RESET_Q = np.array([
-    #     [0.6331, -1.5022, 2.1151, -2.183, -1.5664, -0.4762],
-    #     [1.983, -1.2533, 1.9069, -2.2314, -1.5495, 0.4462],
-    #     [1.8937, -0.8273, 1.2339, -1.9765, -1.5651, 0.3666],
-    #     [1.4174, -1.6403, 2.2494, -2.179, -1.5666, -0.1286],
-    #     [1.472, -0.8583, 1.2817, -1.9934, -1.5655, -0.0869],
-    #     [1.1117, -0.7666, 1.0792, -1.8871, -1.5639, -0.443],
-    #     [1.0242, - 1.3104, 2.0986, - 2.358, - 1.5664, - 2.0496],
-    #     [0.8757, -1.1028, 1.6058, -2.2458, -1.8081, -0.7877],
-    #     [0.4391, - 1.5926, 2.3356, - 2.3129, - 1.5668, - 1.1115],
-    #     [0.1815, - 1.2945, 1.8964, - 2.1719, - 1.5658, - 1.3841],
-    # ])
-    RESET_Q = np.array([[- math.pi / 12, -math.pi/2 + math.pi/12, math.pi/2 + math.pi/12, -math.pi/2 - math.pi/6, -math.pi/2, 0.]])
+    RESET_Q = np.array([
+        [0.6331, -1.5022, 2.1151, -2.183, -1.5664, -0.4762],
+        [1.983, -1.2533, 1.9069, -2.2314, -1.5495, 0.4462],
+        [1.8937, -0.8273, 1.2339, -1.9765, -1.5651, 0.3666],
+        [1.4174, -1.6403, 2.2494, -2.179, -1.5666, -0.1286],
+        [1.472, -0.8583, 1.2817, -1.9934, -1.5655, -0.0869],
+        [1.1117, -0.7666, 1.0792, -1.8871, -1.5639, -0.443],
+        [1.0242, - 1.3104, 2.0986, - 2.358, - 1.5664, - 2.0496],
+        [0.8757, -1.1028, 1.6058, -2.2458, -1.8081, -0.7877],
+        [0.4391, - 1.5926, 2.3356, - 2.3129, - 1.5668, - 1.1115],
+        [0.1815, - 1.2945, 1.8964, - 2.1719, - 1.5658, - 1.3841],
+    ])
+    # horizontal box
+    # RESET_Q = np.array([[- math.pi / 12, -math.pi/2 + math.pi/12, math.pi/2 + math.pi/12, -math.pi/2 - math.pi/6, -math.pi/2, 0.]])
+    # vertical box
+    # RESET_Q = np.array([[math.radians(241.46), math.radians(-75.78), math.radians(107.78), math.radians(-38.43), math.radians(-24.73), math.radians(33.13)]])
+
     RANDOM_RESET = True
     RANDOM_XY_RANGE = (0.0,)
     RANDOM_ROT_RANGE = (0.04,)
-    ABS_POSE_LIMIT_HIGH = np.array([-0.276, 0.329, 0.503, 0.05, 0.05, 0.2])
-    ABS_POSE_LIMIT_LOW = np.array([-0.590, -0.418, 0.008, -0.05, -0.05, -0.2])
-    # ABS_POSE_LIMIT_HIGH = np.array([0.6, 0.1, 0.25, 0.05, 0.05, 0.2])
-    # ABS_POSE_LIMIT_LOW = np.array([-0.7, -0.85, -0.006, -0.05, -0.05, -0.2])
+    # ABS_POSE_LIMIT_HIGH = np.array([-0.276, 0.329, 0.503, 0.05, 0.05, 0.2])
+    # ABS_POSE_LIMIT_LOW = np.array([-0.590, -0.418, 0.008, -0.05, -0.05, -0.2])
+    ABS_POSE_LIMIT_HIGH = np.array([0.6, 0.1, 0.25, 0.05, 0.05, 0.2])
+    ABS_POSE_LIMIT_LOW = np.array([-0.7, -0.85, -0.006, -0.05, -0.05, -0.2])
     ABS_POSE_RANGE_LIMITS = np.array([0.36, 0.83])
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
-    ROBOT_IP: str = "192.168.1.66" #"172.22.22.2" # "192.168.1.66"
+    ROBOT_IP: str = "172.22.22.2" #"172.22.22.2" # "192.168.1.66"
     CONTROLLER_HZ = 100
     GRIPPER_TIMEOUT = 2000  # in milliseconds
     ERROR_DELTA: float = 0.05
@@ -137,15 +141,28 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     # RESET_Q = np.array([[- math.pi / 12, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
     #                     math.pi * 3 / 2, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]])
     # without wheels
-    RESET_Q = np.array([[math.radians(-14.92), math.radians(-80.77), math.radians(98.94), math.radians(-107.72), math.radians(-91.33), math.radians(-0.2),
-                         math.pi * 3 / 2, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]])
+    # RESET_Q = np.array([[math.radians(-14.92), math.radians(-80.77), math.radians(98.94), math.radians(-107.72), math.radians(-91.33), math.radians(-0.2),
+    #                      math.pi * 3 / 2, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]])
     # box in vertical position
-    # RESET_Q = np.array([[math.radians(-43.80), math.radians(-55.76), math.radians(102.76), math.radians(-45.15), math.radians(-37.34), math.radians(1.50),
-    #                      math.radians(245.43), math.radians(-57.40), math.radians(102.00), math.radians(-48.73), math.radians(-28.71), math.radians(32.72)]])
+    # RESET_Q = np.array([[math.radians(-48.84), math.radians(-53.56), math.radians(99.53), math.radians(-51.25), math.radians(-50.28), math.radians(1.62),
+    #                      math.radians(238.59), math.radians(-54.08), math.radians(110.62), math.radians(-59.62), math.radians(-31.03), math.radians(32.72)]])
+    # higher version
+    RESET_Q = np.array([[math.radians(-58.76), math.radians(-47.53), math.radians(88.21), math.radians(-39.62), math.radians(304.64), math.radians(1.06),
+                         math.radians(219.46), math.radians(-48.13), math.radians(89.47), math.radians(-45.59), math.radians(-50.63), math.radians(-155.60)]])
     
     RANDOM_RESET = False
     RANDOM_XY_RANGE = (0.00,)
     RANDOM_ROT_RANGE = (0.0,)
+
+    T_O1_O2 = np.array([[0., 1., 0., -0.], 
+                        [-1., 0., 0., -0.935], 
+                        [0., 0., 1., 0.], 
+                        [0., 0., 0., 1.]])
+    # 13cm
+    T_EE_SC = np.array([[1., 0., 0., 0.],
+                        [0., 1., 0., 0.],
+                        [0., 0., 1., 0.130],
+                        [0., 0., 0., 1.]])
     
     ###########################################################################
     # pay attention that you are not clipping the single value of the angles, # 
@@ -153,8 +170,8 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     ###########################################################################
     ABS_POSE_LIMIT_HIGH_ROBOT_1 = np.array([-0.276, 0.329, 0.503, 0.05, 0.05, 0.2])
     ABS_POSE_LIMIT_LOW_ROBOT_1 = np.array([-0.558, -0.418, 0.008, -0.05, -0.05, -0.2])
-    ABS_POSE_LIMIT_HIGH_ROBOT_2 = np.array([0.119, 0.511, 0.470, 0.05, 0.05, 0.2])
-    ABS_POSE_LIMIT_LOW_ROBOT_2 = np.array([-0.476, 0.240, 0.100, -0.05, -0.05, -0.2])
+    ABS_POSE_LIMIT_HIGH_ROBOT_2 = np.array([0.350, 0.581, 0.470, 0.05, 0.05, 0.2])
+    ABS_POSE_LIMIT_LOW_ROBOT_2 = np.array([-0.476, 0.240, 0.020, -0.05, -0.05, -0.2])
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
     ROBOT_IP_1: str = "192.168.1.66" # docker "172.17.0.2"
