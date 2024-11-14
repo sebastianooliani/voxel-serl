@@ -6,6 +6,8 @@ import flax.linen as nn
 import numpy as np
 import jax.numpy as jnp
 
+from serl_launcher.vision.spatial import SpatialLearnedEmbeddings
+
 def test_dinov2():
     url = "http://images.cocodataset.org/val2017/000000039769.jpg"
     image = Image.open(requests.get(url, stream=True).raw)
@@ -62,12 +64,13 @@ def adapt_dinov2_model(model, input_channels=96):
     """
     # Get the expected number of channels from the model config
     expected_channels = model.config.num_channels  # Usually 3 for RGB
+    # print(f"Expected channels: {expected_channels}")
     
     # Initialize the channel adapter
     channel_adapter = ChannelAdapter(target_channels=expected_channels)
     
     # Create dummy input to initialize the adapter
-    dummy_input = jnp.ones((input_channels, 1, 224, 224))  # Adjust size as needed
+    dummy_input = jnp.ones((input_channels, 1, 128, 128))  # Adjust size as needed
     adapter_params = channel_adapter.init(jax.random.PRNGKey(0), dummy_input)
     
     # Modified forward function
@@ -75,8 +78,9 @@ def adapt_dinov2_model(model, input_channels=96):
         # First apply channel adaptation
         adapted_input = channel_adapter.apply(adapter_params, input_ids)
         # Then pass through the original model
-        output, hidden_states = model.__call__(adapted_input, output_hidden_states=True, **kwargs)
-        return output, hidden_states
+        # breakpoint()
+        output = model.__call__(adapted_input, output_hidden_states=True, **kwargs)
+        return output
     
     return modified_forward, adapter_params
 
@@ -92,22 +96,24 @@ class Dinov2ImageEncoder():
         self.image_processor = AutoImageProcessor.from_pretrained(model_name)
         self.target_dim = target_dim
         self.pooling_method = pooling_method
+        self.bottleneck_dim = 128
 
     def encode(self, observation):
         # inputs = self.image_processor(images=image, return_tensors="np")
+        # print(observation.shape)
         adapted_model, adapter_params = adapt_dinov2_model(self.model, input_channels=observation.shape[0])
 
         inputs = observation
 
-        outputs, hidden_states = adapted_model(
+        outputs = adapted_model(
             {'params': adapter_params},
             inputs,
             train=False,
         )
         # outputs = self.model(inputs)
-        hidden_states = adapted_model.hidden_states
-
-        last_hidden_state = hidden_states[-1]
+        hidden_states = outputs.hidden_states
+        
+        last_hidden_state = hidden_states[-1] # Shape: (1, 1, 768)
         last_hidden_state = last_hidden_state.flatten()
 
         chunk_size = last_hidden_state.shape[0] // self.target_dim
@@ -119,8 +125,16 @@ class Dinov2ImageEncoder():
             pooled_vector = jax.numpy.max(reshaped_vector, axis=1)  # Shape: (128,)
         elif self.pooling_method == "mean":
             pooled_vector = jax.numpy.mean(reshaped_vector, axis=1)
+        # if self.pooling_method == "spatial_learned_embeddings":
+        #     spatial_encoder = SpatialLearnedEmbeddings(height=128, width=128, channel=3, num_features=8)
+        #     pooled_vector = spatial_encoder(last_hidden_state)
         else:
             raise ValueError(f"Pooling method {self.pooling_method} not supported.")
+        # breakpoint()
+        # if self.bottleneck_dim is not None:
+        #     pooled_vector = nn.Dense(features=self.bottleneck_dim)(last_hidden_state)
+        #     pooled_vector = nn.LayerNorm()(pooled_vector)
+        #     pooled_vector = nn.tanh(pooled_vector)
 
         return pooled_vector
     
@@ -131,7 +145,12 @@ class Dinov2ImageEncoder():
         if observations.shape == (128, 128, 3):
             observations = observations.reshape(1,3,128,128)
         else:
-            pass
+            a, b, c, d = observations.shape
+            observations = observations.reshape(a, d, b, c)
+            observations = observations.astype(np.float32)
+
+            x = jnp.array([self.encode(observations[i].reshape(1,d,b,c)) for i in range(a)])
+            return x
 
         observations = observations.astype(np.float32)
         x = self.encode(observations)
