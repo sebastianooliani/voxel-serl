@@ -5,6 +5,8 @@ import requests
 import flax.linen as nn
 import numpy as np
 import jax.numpy as jnp
+from functools import partial
+from jax import vmap
 
 from serl_launcher.vision.spatial import SpatialLearnedEmbeddings
 
@@ -51,38 +53,43 @@ class ChannelAdapter(nn.Module):
                       kernel_size=(1, 1),
                       strides=(1, 1))(x)
     
-def adapt_dinov2_model(model, input_channels=96):
+def adapt_dinov2_model(model, input_channels=3, batch_size=96):
     """
     Adapt DINOv2 model to handle different input channels.
     
     Args:
         model: Original FlaxDinov2ForImageClassification model
         input_channels: Number of channels in your input data
+        batch_size: expected batch size for processing
         
     Returns:
         Modified model with channel adaptation layer
     """
     # Get the expected number of channels from the model config
     expected_channels = model.config.num_channels  # Usually 3 for RGB
-    # print(f"Expected channels: {expected_channels}")
     
     # Initialize the channel adapter
     channel_adapter = ChannelAdapter(target_channels=expected_channels)
     
     # Create dummy input to initialize the adapter
-    dummy_input = jnp.ones((input_channels, 1, 128, 128))  # Adjust size as needed
+    dummy_input = jnp.ones((batch_size, input_channels, 128, 128))  # Adjust size as needed
     adapter_params = channel_adapter.init(jax.random.PRNGKey(0), dummy_input)
     
     # Modified forward function
-    def modified_forward(params, input_ids, **kwargs):
+    @partial(jax.jit, static_argnums=(3,))
+    def forward_batch(params, adapter_params, batch, train=False):
         # First apply channel adaptation
-        adapted_input = channel_adapter.apply(adapter_params, input_ids)
+        adapted_batch = channel_adapter.apply(adapter_params, batch)
         # Then pass through the original model
         # breakpoint()
-        output = model.__call__(adapted_input, output_hidden_states=True, **kwargs)
+        output = model.__call__(adapted_batch,
+                                params=params,
+                                train=train,
+                                output_hidden_states=True
+                                )
         return output
     
-    return modified_forward, adapter_params
+    return forward_batch, adapter_params
 
 class Dinov2ImageEncoder():
     def __init__(self, 
@@ -93,27 +100,14 @@ class Dinov2ImageEncoder():
                                                                       from_pt=True, 
                                                                       output_hidden_states=True, 
                                                                       output_attentions=True)
-        self.image_processor = AutoImageProcessor.from_pretrained(model_name)
+        # self.image_processor = AutoImageProcessor.from_pretrained(model_name)
         self.target_dim = target_dim
         self.pooling_method = pooling_method
         self.bottleneck_dim = 128
 
-    def encode(self, observation):
-        # inputs = self.image_processor(images=image, return_tensors="np")
-        # print(observation.shape)
-        adapted_model, adapter_params = adapt_dinov2_model(self.model, input_channels=observation.shape[0])
+        self.pooling_fn = jax.jit(self._apply_pooling)
 
-        inputs = observation
-
-        outputs = adapted_model(
-            {'params': adapter_params},
-            inputs,
-            train=False,
-        )
-        # outputs = self.model(inputs)
-        hidden_states = outputs.hidden_states
-        
-        last_hidden_state = hidden_states[-1] # Shape: (1, 1, 768)
+    def _apply_pooling(self, hidden_states):
         last_hidden_state = last_hidden_state.flatten()
 
         chunk_size = last_hidden_state.shape[0] // self.target_dim
@@ -137,6 +131,33 @@ class Dinov2ImageEncoder():
         #     pooled_vector = nn.tanh(pooled_vector)
 
         return pooled_vector
+
+    def encode(self, observation):
+        # inputs = self.image_processor(images=image, return_tensors="np")
+        # print(observation.shape)
+        if len(observations.shape) == 3:
+            observations = observations[None, ...]
+        observations = observations.astype(jnp.float32)
+
+        adapted_model, adapter_params = adapt_dinov2_model(self.model, input_channels=observation.shape[1], batch_size=observation.shape[0])
+
+        inputs = observation
+
+        outputs = adapted_model(
+            self.model.params,
+            {'params': adapter_params},
+            inputs,
+            train=False,
+        )
+        # outputs = self.model(inputs)
+        hidden_states = outputs.hidden_states
+        
+        last_hidden_state = hidden_states[-1] # Shape: (1, 1, 768)
+        
+        # Vectorize the pooling operation across the batch
+        pooled_vectors = vmap(self.pooling_fn)(last_hidden_state)
+        
+        return pooled_vectors
     
     @nn.compact
     def __call__(self, observations, train=False, encode=False):
