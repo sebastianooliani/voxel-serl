@@ -32,10 +32,14 @@ class DualTreeState():
     Commands for the dual robot are written in the tcp frame of the robot
     """
     def __init__(self, opposite_grasp=False):
-        self.down = np.array([0., 0., 1., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0.])
-        self.up = -self.down
-        self.suck_old = np.array([0., 0., 1., 0., 0., 0., 1., 0., 0., 1., 0., 0., 0., 1.])
-        self.suck = np.array([0., 1., 0., 0., 0., 0., 1., 0., 1., 0., 0., 0., 0., 1.]) if opposite_grasp else self.suck_old
+        self.down = np.array([0., 0., 1., 0., 0., 0., 0., 
+                              0., 0., 1., 0., 0., 0., 0.])
+        self.up = np.array([0., 1., 0., 0., 0., 0., 0.,
+                            0., -1., 0., 0., 0., 0., 0.]) if opposite_grasp else -self.down
+        self.suck_old = np.array([0., 0., 1., 0., 0., 0., 1.,
+                                  0., 0., 1., 0., 0., 0., 1.])
+        self.suck = np.array([0., 1., 0., 0., 0., 0., 1.,
+                              0., -1., 0., 0., 0., 0., 1.]) if opposite_grasp else self.suck_old
         self.random_direction = np.zeros_like(self.down)
         self.random_orientation = np.zeros_like(self.down)
         self.re_sample_xy()
@@ -44,7 +48,8 @@ class DualTreeState():
         self.current = np.zeros_like(self.down)
 
         # new commands
-        self.right = np.array([0., 1., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0.])
+        self.right = np.array([0., 1., 0., 0., 0., 0., 0., 
+                               1., 0., 0., 0., 0., 0., 0.])
         self.left = -self.right
         # self.change_orientation = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
 
