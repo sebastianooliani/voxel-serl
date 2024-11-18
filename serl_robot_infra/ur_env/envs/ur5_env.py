@@ -15,6 +15,7 @@ from datetime import datetime
 from collections import OrderedDict
 from scipy.spatial.transform import Rotation as R
 import open3d as o3d
+import jax
 
 from ur_env.camera.video_capture import VideoCapture
 from ur_env.camera.rs_capture import RSCapture
@@ -22,10 +23,6 @@ from ur_env.camera.rs_capture import RSCapture
 from ur_env.camera.utils import PointCloudFusion, CalibrationTread
 
 from robot_controllers.ur5_controller import UrImpedanceController
-
-from franka_env.utils.transformations import (
-    construct_homogeneous_matrix
-)
 
 
 class ImageDisplayer(threading.Thread):
@@ -44,7 +41,7 @@ class ImageDisplayer(threading.Thread):
                 [v for k, v in img_array.items() if "full" not in k], axis=0
             )
             cv2.namedWindow("RealSense Cameras", cv2.WINDOW_NORMAL)
-            cv2.resizeWindow("RealSense Cameras", 300, 700)
+            cv2.resizeWindow("RealSense Cameras", 300, 700) # TODO: change sizes?
             cv2.imshow("RealSense Cameras", frame)
             cv2.waitKey(1)
 
@@ -110,10 +107,8 @@ class DefaultEnvConfig:
 
 class DualRobotDefaultEnvConfig(DefaultEnvConfig):
     REALSENSE_CAMERAS = {
-        "shoulder": "",
-        "wrist": "",
-        "shoulder_2": "",
-        "wrist_2": "",
+        "wrist_ROBOT_1": "",
+        "wrist_ROBOT_2": "",
     }
     ROBOT_IP_1: str = "localhost_1"
     ROBOT_IP_2: str = "localhost_2"
@@ -425,7 +420,7 @@ class UR5Env(gym.Env):
             if i == 0:
                 raise Exception("err")
             try:
-                r = requests.get('http://192.168.1.204:5000/api/data')
+                r = requests.get('http://192.168.1.204:5000/apisave_video/data')
                 r.raise_for_status()
                 boxes = r.json()
                 if len(boxes) == 0:
@@ -795,21 +790,21 @@ class UR5DualRobotEnv(UR5Env):
         image_space_definition = {}
         if camera_mode in ["rgb", "grey", "both"]:
             channel = 1 if camera_mode == "grey" else 3
-            if "wrist" in config.REALSENSE_CAMERAS.keys():
+            if "wrist_ROBOT_1" in config.REALSENSE_CAMERAS.keys():
                 image_space_definition["wrist"] = gym.spaces.Box(
                     0, 255, shape=(128, 128, channel), dtype=np.uint8
                 )
-            if "wrist_2" in config.REALSENSE_CAMERAS.keys():
+            if "wrist_ROBOT_2" in config.REALSENSE_CAMERAS.keys():
                 image_space_definition["wrist_2"] = gym.spaces.Box(
                     0, 255, shape=(128, 128, channel), dtype=np.uint8
                 )
 
         if camera_mode in ["depth", "both"]:
-            if "wrist" in config.REALSENSE_CAMERAS.keys():
+            if "wrist_ROBOT_1" in config.REALSENSE_CAMERAS.keys():
                 image_space_definition["wrist_depth"] = gym.spaces.Box(
                     0, 255, shape=(128, 128, 1), dtype=np.uint8
                 )
-            if "wrist_2" in config.REALSENSE_CAMERAS.keys():
+            if "wrist_ROBOT_2" in config.REALSENSE_CAMERAS.keys():
                 image_space_definition["wrist_2_depth"] = gym.spaces.Box(
                     0, 255, shape=(128, 128, 1), dtype=np.uint8
                 )
@@ -928,6 +923,9 @@ class UR5DualRobotEnv(UR5Env):
 
                 self.calibrate_pointcloud_fusion(visualize=True)
 
+        # initialize jit methods
+        self._compute_end_effector_distance = jax.jit(self._compute_end_effector_distance_raw)
+
     def step(self, action: np.ndarray) -> tuple:
         """standard gym step function."""
         start_time = time.time()
@@ -1018,15 +1016,49 @@ class UR5DualRobotEnv(UR5Env):
             self.curr_reset_pose[:] = reset_pose
             return np.zeros((4,))
         
-    def _send_pos_command(self, target_pos: np.ndarray):
-        """Internal function to send force command to the robot."""
-        # Calculate the distance between the two end effectors - collision check
-        T_O1_E1 = construct_homogeneous_matrix(target_pos[:7])
-        T_O2_E2 = construct_homogeneous_matrix(target_pos[7:])
+    # def crop_image(self, name, image) -> np.ndarray:
+    #     """Crop realsense images to be a square."""
+    #     if name == "wrist_ROBOT_1":
+    #         return image[:, 124:604, :]
+    #     elif name == "wrist_ROBOT_2":
+    #         return image[:, 124:604, :]
+    #     else:
+    #         raise ValueError(f"Camera {name} not recognized in cropping")
+    
+    @jax.jit
+    def _compute_end_effector_distance_raw(self, target_pos: np.ndarray) -> float:
+        """
+        Jitted method to compute the distance between the two end effectors.
+        
+        Args:
+            target_pos (np.ndarray): The target position of the end effectors.
+            
+        Returns:
+            float: The distance between the two end effectors.
+        """
+
+        T_O1_E1 = np.eye(4)
+        rotation = R.from_quat(target_pos[3:7]).as_matrix()
+        translation = np.array(target_pos[:3])
+        T_O1_E1[:3, :3] = rotation
+        T_O1_E1[:3, 3] = translation
+        
+        T_O2_E2 = np.eye(4)
+        rotation = R.from_quat(target_pos[10:13]).as_matrix()
+        translation = np.array(target_pos[13:])
+        T_O2_E2[:3, :3] = rotation
+        T_O2_E2[:3, 3] = translation
+
         T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
         T_O2_SC2 = T_O2_E2 @ self.T_EE_SC
         T_O1_SC2 = self.T_O1_O2 @ T_O2_SC2
-        ee_distance = np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
+
+        return np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
+        
+    def _send_pos_command(self, target_pos: np.ndarray):
+        """Internal function to send force command to the robot."""
+        # Calculate the distance between the two end effectors - collision check
+        ee_distance = self._compute_end_effector_distance(target_pos=target_pos)
 
         # Check if the distance is less than 2 cm (0.02 meters)
         if ee_distance < 0.02: # TODO: adjust this param because it depends on the box size too
@@ -1068,11 +1100,6 @@ class UR5DualRobotEnv(UR5Env):
         """
         state = self.controller_1.get_state()
 
-        # move to singularity free configurations only
-        # if abs(self.controller_1.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
-        #     print("\nSingularity detected! Reset the agent!\n")
-        #     self.reset()
-
         self.curr_pos[:7] = state['pos']
         self.curr_vel[:6] = state['vel']
         self.curr_force[:3] = state['force']
@@ -1082,11 +1109,6 @@ class UR5DualRobotEnv(UR5Env):
         self.gripper_state[:2] = state['gripper']
 
         state = self.controller_2.get_state()
-
-        # move to singularity free configurations only
-        # if abs(self.controller_2.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
-        #     print("\nSingularity detected! Reset the agent!\n")
-        #     self.reset()
 
         self.curr_pos[7:] = state['pos']
         self.curr_vel[6:] = state['vel']

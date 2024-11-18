@@ -1,12 +1,10 @@
 import numpy as np
 from typing import Tuple
+import jax
 
 from ur_env.envs.ur5_env import UR5Env, UR5DualRobotEnv
 from ur_env.envs.camera_env.config import UR5CameraConfigFinal, UR5CameraConfigFinalTests, UR5CameraConfigFinalEvaluation, UR5CameraConfigDemo, UR5CameraConfigDualRobot
 
-from franka_env.utils.transformations import (
-    construct_homogeneous_matrix
-)
 from scipy.spatial.transform import Rotation as R
 
 
@@ -72,8 +70,41 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
             self.T_O1_O2 = UR5CameraConfigDualRobot.T_O1_O2
             self.T_EE_SC = UR5CameraConfigDualRobot.T_EE_SC
+
+            # initialize jit methods
+            self._compute_end_effector_distance = jax.jit(self._compute_end_effector_distance_raw)
         else:
             super().__init__(**kwargs)
+
+    @jax.jit
+    def _compute_end_effector_distance_raw(self, target_pos: np.ndarray) -> float:
+        """
+        Jitted method to compute the distance between the two end effectors.
+        
+        Args:
+            target_pos (np.ndarray): The target position of the end effectors.
+            
+        Returns:
+            float: The distance between the two end effectors.
+        """
+
+        T_O1_E1 = np.eye(4)
+        rotation = R.from_quat(target_pos[3:7]).as_matrix()
+        translation = np.array(target_pos[:3])
+        T_O1_E1[:3, :3] = rotation
+        T_O1_E1[:3, 3] = translation
+        
+        T_O2_E2 = np.eye(4)
+        rotation = R.from_quat(target_pos[10:13]).as_matrix()
+        translation = np.array(target_pos[13:])
+        T_O2_E2[:3, :3] = rotation
+        T_O2_E2[:3, 3] = translation
+
+        T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
+        T_O2_SC2 = T_O2_E2 @ self.T_EE_SC
+        T_O1_SC2 = self.T_O1_O2 @ T_O2_SC2
+
+        return np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
     
     def compute_reward(self, obs, action) -> float:
         # TODO: adjust actions dimensions
@@ -104,12 +135,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
-        T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
-        T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
-        T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
-        T_O2_SC2 = T_O2_E2 @ self.T_EE_SC
-        T_O1_SC2 = self.T_O1_O2 @ T_O2_SC2
-        distance_cost = 1. * np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
+        distance_cost = 1. * self._compute_end_effector_distance(target_pos=obs["state"]["tcp_pose"])
 
         # TOTAL COST
         cost_info = dict(
