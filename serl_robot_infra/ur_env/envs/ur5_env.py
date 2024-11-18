@@ -1023,10 +1023,10 @@ class UR5DualRobotEnv(UR5Env):
         # Calculate the distance between the two end effectors - collision check
         T_O1_E1 = construct_homogeneous_matrix(target_pos[:7])
         T_O2_E2 = construct_homogeneous_matrix(target_pos[7:])
-        T_O1_SC = T_O1_E1 @ self.T_EE_SC
-        T_O2_SC = T_O2_E2 @ self.T_EE_SC
-        T_O1_SC = self.T_O1_O2 @ T_O2_SC
-        ee_distance = np.sum(np.power(T_O1_SC[:3, 3] - T_O1_SC[:3, 3], 2))
+        T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
+        T_O2_SC2 = T_O2_E2 @ self.T_EE_SC
+        T_O1_SC2 = self.T_O1_O2 @ T_O2_SC2
+        ee_distance = np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
 
         # Check if the distance is less than 2 cm (0.02 meters)
         if ee_distance < 0.02: # TODO: adjust this param because it depends on the box size too
