@@ -16,6 +16,8 @@ from collections import OrderedDict
 from scipy.spatial.transform import Rotation as R
 import open3d as o3d
 import jax
+import jax.numpy as jnp
+from jax.scipy.spatial.transform import Rotation as jR
 
 from ur_env.camera.video_capture import VideoCapture
 from ur_env.camera.rs_capture import RSCapture
@@ -728,8 +730,8 @@ class UR5DualRobotEnv(UR5Env):
         self.curr_torque = np.zeros((6,), dtype=np.float32)
         self.last_action = np.zeros(self.action_space.shape)
 
-        self.T_O1_O2 = config.T_O1_O2
-        self.T_EE_SC = config.T_EE_SC
+        self.T_O1_O2 = jnp.array(config.T_O1_O2, dtype=jnp.float32)
+        self.T_EE_SC = jnp.array(config.T_EE_SC, dtype=jnp.float32)
 
         self.gripper_state = np.zeros((4,), dtype=np.float32)
         self.random_reset = config.RANDOM_RESET
@@ -924,7 +926,7 @@ class UR5DualRobotEnv(UR5Env):
                 self.calibrate_pointcloud_fusion(visualize=True)
 
         # initialize jit methods
-        self._compute_end_effector_distance = jax.jit(self._compute_end_effector_distance_raw)
+        # self._compute_end_effector_distance = jax.jit(self._compute_end_effector_distance_raw)
 
     def step(self, action: np.ndarray) -> tuple:
         """standard gym step function."""
@@ -1025,40 +1027,65 @@ class UR5DualRobotEnv(UR5Env):
     #     else:
     #         raise ValueError(f"Camera {name} not recognized in cropping")
     
-    @jax.jit
-    def _compute_end_effector_distance_raw(self, target_pos: np.ndarray) -> float:
-        """
-        Jitted method to compute the distance between the two end effectors.
-        
-        Args:
-            target_pos (np.ndarray): The target position of the end effectors.
-            
-        Returns:
-            float: The distance between the two end effectors.
-        """
-
-        T_O1_E1 = np.eye(4)
-        rotation = R.from_quat(target_pos[3:7]).as_matrix()
-        translation = np.array(target_pos[:3])
-        T_O1_E1[:3, :3] = rotation
-        T_O1_E1[:3, 3] = translation
-        
-        T_O2_E2 = np.eye(4)
-        rotation = R.from_quat(target_pos[10:13]).as_matrix()
-        translation = np.array(target_pos[13:])
-        T_O2_E2[:3, :3] = rotation
-        T_O2_E2[:3, 3] = translation
-
-        T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
-        T_O2_SC2 = T_O2_E2 @ self.T_EE_SC
-        T_O1_SC2 = self.T_O1_O2 @ T_O2_SC2
-
-        return np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
+    
         
     def _send_pos_command(self, target_pos: np.ndarray):
         """Internal function to send force command to the robot."""
+
+        @jax.jit
+        def compute_end_effector_distance_raw(target_pos, T_O1_O2, T_EE_SC):
+            """
+            Jitted method to compute the distance between the two end effectors.
+            
+            Args:
+                target_pos (np.ndarray): The target position of the end effectors.
+                
+            Returns:
+                float: The distance between the two end effectors.
+            """
+
+            def quat_to_matrix(quat):
+                """
+                Converts a quaternion to a rotation matrix.
+                
+                Args:
+                    quat (jnp.ndarray): Quaternion [x, y, z, w].
+
+                Returns:
+                    jnp.ndarray: 3x3 rotation matrix.
+                """
+                x, y, z, w = quat
+                xx, yy, zz = x*x, y*y, z*z
+                xy, xz, yz = x*y, x*z, y*z
+                wx, wy, wz = w*x, w*y, w*z
+
+                return jnp.array([
+                    [1 - 2 * (yy + zz), 2 * (xy - wz), 2 * (xz + wy)],
+                    [2 * (xy + wz), 1 - 2 * (xx + zz), 2 * (yz - wx)],
+                    [2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx + yy)]
+                ], dtype=jnp.float32)
+
+            T_O1_E1 = jnp.eye(4, dtype=jnp.float32)
+            rotation = jR.from_quat(target_pos[3:7]).as_matrix()
+            translation = target_pos[:3]
+            T_O1_E1 = T_O1_E1.at[:3, :3].set(rotation)
+            T_O1_E1 = T_O1_E1.at[:3, 3].set(translation)
+            
+            T_O2_E2 = jnp.eye(4, dtype=jnp.float32)
+            rotation = jR.from_quat(target_pos[7:11]).as_matrix()
+            translation = target_pos[11:]
+            T_O2_E2 = T_O2_E2.at[:3, :3].set(rotation)
+            T_O2_E2 = T_O2_E2.at[:3, 3].set(translation)
+
+            T_O1_SC1 = T_O1_E1 @ T_EE_SC
+            T_O2_SC2 = T_O2_E2 @ T_EE_SC
+            T_O1_SC2 = T_O1_O2 @ T_O2_SC2
+
+            return jnp.sum(jnp.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
+    
+        target_pos = jnp.array(target_pos, dtype=jnp.float32)
         # Calculate the distance between the two end effectors - collision check
-        ee_distance = self._compute_end_effector_distance(target_pos=target_pos)
+        ee_distance = compute_end_effector_distance_raw(target_pos, self.T_O1_O2, self.T_EE_SC)
 
         # Check if the distance is less than 2 cm (0.02 meters)
         if ee_distance < 0.02: # TODO: adjust this param because it depends on the box size too
