@@ -362,11 +362,11 @@ class UrImpedanceController(threading.Thread):
             det (float): determinant of Jacobian
         """        
         J = self.chain.jacobian_mixed_frame(joint_pos)
-        J = jax.numpy.reshape(J, (1, 6, 6))
+        J = jnp.reshape(J, (1, 6, 6))
         # J = torch.tensor(J).to(d)
         # det = torch.det(J).item()
         # J.det()
-        det = jax.numpy.linalg.det(J)
+        det = jnp.linalg.det(J)
 
         return det
     
@@ -474,11 +474,7 @@ class UrImpedanceController(threading.Thread):
                     2,
                     self.fm_limits
                 )
-                """fm_successful = self.ur_control.freedriveMode(
-                    self.fm_selection_vector, 
-                    self.fm_task_frame
-                    )"""
-                
+
                 if not fm_successful:  # truncate if the robot ends up in a singularity
                     await self.restart_ur_interface()
                     await self._go_to_reset_pose()
@@ -499,7 +495,6 @@ class UrImpedanceController(threading.Thread):
                 print(f"[RTDEPositionalController] >dt: {self.err}     <dt (good): {self.noerr}")
             # mandatory cleanup
             self.ur_control.forceModeStop()
-            # self.ur_control.endFreedriveMode()
 
             # release gripper
             if self.robotiq_gripper:
@@ -507,7 +502,6 @@ class UrImpedanceController(threading.Thread):
                 time.sleep(0.05)
 
             # move to real home
-            pi = 3.1415
             reset_Q = self.reset_Q
             self.ur_control.moveJ(reset_Q, speed=1., acceleration=0.8)
 
