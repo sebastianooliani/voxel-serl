@@ -162,7 +162,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     T_EE_SC = np.array([[1., 0., 0., 0.],
                         [0., 1., 0., 0.],
                         [0., 0., 1., 0.130],
-                        [0., 0., 0., 1.]])
+                        [0., 0., 0., 1.]], dtype=np.float32)
     
     ###########################################################################
     # pay attention that you are not clipping the single value of the angles, # 

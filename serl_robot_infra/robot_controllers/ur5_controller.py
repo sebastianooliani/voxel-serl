@@ -67,8 +67,8 @@ class UrImpedanceController(threading.Thread):
         self.last_link = "ee_link"
 
         # Open the file, read its contents as a string, and close it
-        with open(self.urdf_file_path, "r") as file:
-            urdf_data = file.read()
+        # with open(self.urdf_file_path, "r") as file:
+        #     urdf_data = file.read()
         # self.chain = pk.build_serial_chain_from_urdf(urdf_data, self.last_link)
         # self.chain = self.chain.to(device='cuda', dtype=torch.float32)
         self.chain = FastKinematics(self.urdf_file_path, 1, self.last_link)
