@@ -1028,8 +1028,10 @@ class UR5DualRobotEnv(UR5Env):
         T_O1_SC2 = self.T_O1_O2 @ T_O2_SC2
         ee_distance = np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
 
-        # Check if the distance is less than 2 cm (0.02 meters)
-        if ee_distance < 0.02: # TODO: adjust this param because it depends on the box size too
+        # print(T_O1_SC1[:3, 3], T_O1_SC2[:3, 3])
+
+        # Check if the distance is less than 5 cm (0.05 meters)
+        if ee_distance < 0.05: # TODO: adjust this param because it depends on the box size too
             print("\nDistance between end effectors is less than 2 cm. Resetting episode.\n")
             self.reset()
 

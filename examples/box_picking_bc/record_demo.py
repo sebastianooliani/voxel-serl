@@ -37,7 +37,7 @@ DUAL_SPACEMOUSE = True
 
 if __name__ == "__main__":
     env = gym.make("box_picking_camera_env_dual_robot",
-                   camera_mode="none") if DUAL_SPACEMOUSE else gym.make("box_picking_camera_env", camera_mode="none")
+                   camera_mode="rgb") if DUAL_SPACEMOUSE else gym.make("box_picking_camera_env", camera_mode="rgb")
     env = TwoSpacemiceIntervention(env) if DUAL_SPACEMOUSE else SpacemouseIntervention(env)
     env = DualRelativeFrame(env) if DUAL_SPACEMOUSE else RelativeFrame(env)
     env = DualQuat2MrpWrapper(env) if DUAL_SPACEMOUSE else Quat2MrpWrapper(env)
@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     transitions = []
     success_count = 0
-    success_needed = 20
+    success_needed = 20 if not DUAL_SPACEMOUSE else 20
     total_count = 0
     pbar = tqdm(total=success_needed)
 

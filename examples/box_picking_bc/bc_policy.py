@@ -68,6 +68,7 @@ flags.DEFINE_string(
     None,
     "Path to reward classifier checkpoint. Default: None",
 )
+flags.DEFINE_boolean("dual", False, "Dual robot mode.")
 
 devices = jax.local_devices()
 num_devices = len(devices)

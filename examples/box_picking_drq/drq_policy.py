@@ -109,6 +109,7 @@ flags.DEFINE_string("preload_rlds_path", None, "Path to preload RLDS data.")
 flags.DEFINE_boolean(
     "debug", False, "Debug mode."
 )  # debug mode will disable wandb logging
+flags.DEFINE_boolean("dual", False, "Dual robot mode.")
 
 
 def print_green(x):
