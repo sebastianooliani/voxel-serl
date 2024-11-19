@@ -80,7 +80,7 @@ flags.DEFINE_string("preload_rlds_path", None, "Path to preload RLDS data.")
 flags.DEFINE_boolean(
     "debug", False, "Debug mode."
 )  # debug mode will disable wandb logging
-
+flags.DEFINE_boolean("dual", False, "Dual robot mode.")
 
 def print_green(x):
     return print("\033[92m {}\033[00m".format(x))
@@ -346,7 +346,7 @@ def main(_):
 
         # set up wandb and logging
         wandb_logger = make_wandb_logger(
-            project="dual_robot_first_sac",
+            project="dual_robot_side_sac",
             description=FLAGS.exp_name or FLAGS.env,
             debug=FLAGS.debug,
         )

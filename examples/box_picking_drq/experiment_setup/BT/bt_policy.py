@@ -34,8 +34,9 @@ flags.DEFINE_string("env", "box_picking_camera_env_dual_robot", "Name of environ
 flags.DEFINE_string("exp_name", "BT agent", "Name of the experiment for wandb logging.")
 flags.DEFINE_integer("max_traj_length", 100, "Maximum length of trajectory.")
 flags.DEFINE_integer("eval_n_trajs", 10, "Number of trajectories for evaluation.")
+flags.DEFINE_boolean("dual", False, "Dual robot mode.")
 
-DUAL = False
+DUAL = True
 OPPOSITE_GRASP = True
 
 def main(_):

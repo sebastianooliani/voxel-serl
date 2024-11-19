@@ -15,9 +15,6 @@ from datetime import datetime
 from collections import OrderedDict
 from scipy.spatial.transform import Rotation as R
 import open3d as o3d
-import jax
-import jax.numpy as jnp
-from jax.scipy.spatial.transform import Rotation as jR
 
 from ur_env.camera.video_capture import VideoCapture
 from ur_env.camera.rs_capture import RSCapture
@@ -25,6 +22,10 @@ from ur_env.camera.rs_capture import RSCapture
 from ur_env.camera.utils import PointCloudFusion, CalibrationTread
 
 from robot_controllers.ur5_controller import UrImpedanceController
+
+from franka_env.utils.transformations import (
+    construct_homogeneous_matrix
+)
 
 
 class ImageDisplayer(threading.Thread):
@@ -43,7 +44,7 @@ class ImageDisplayer(threading.Thread):
                 [v for k, v in img_array.items() if "full" not in k], axis=0
             )
             cv2.namedWindow("RealSense Cameras", cv2.WINDOW_NORMAL)
-            cv2.resizeWindow("RealSense Cameras", 300, 700) # TODO: change sizes?
+            cv2.resizeWindow("RealSense Cameras", 300, 700)
             cv2.imshow("RealSense Cameras", frame)
             cv2.waitKey(1)
 
@@ -109,8 +110,10 @@ class DefaultEnvConfig:
 
 class DualRobotDefaultEnvConfig(DefaultEnvConfig):
     REALSENSE_CAMERAS = {
-        "wrist_ROBOT_1": "",
-        "wrist_ROBOT_2": "",
+        "shoulder": "",
+        "wrist": "",
+        "shoulder_2": "",
+        "wrist_2": "",
     }
     ROBOT_IP_1: str = "localhost_1"
     ROBOT_IP_2: str = "localhost_2"
@@ -422,7 +425,7 @@ class UR5Env(gym.Env):
             if i == 0:
                 raise Exception("err")
             try:
-                r = requests.get('http://192.168.1.204:5000/apisave_video/data')
+                r = requests.get('http://192.168.1.204:5000/api/data')
                 r.raise_for_status()
                 boxes = r.json()
                 if len(boxes) == 0:
@@ -730,8 +733,8 @@ class UR5DualRobotEnv(UR5Env):
         self.curr_torque = np.zeros((6,), dtype=np.float32)
         self.last_action = np.zeros(self.action_space.shape)
 
-        self.T_O1_O2 = jnp.array(config.T_O1_O2, dtype=jnp.float32)
-        self.T_EE_SC = jnp.array(config.T_EE_SC, dtype=jnp.float32)
+        self.T_O1_O2 = config.T_O1_O2
+        self.T_EE_SC = config.T_EE_SC
 
         self.gripper_state = np.zeros((4,), dtype=np.float32)
         self.random_reset = config.RANDOM_RESET
@@ -925,9 +928,6 @@ class UR5DualRobotEnv(UR5Env):
 
                 self.calibrate_pointcloud_fusion(visualize=True)
 
-        # initialize jit methods
-        # self._compute_end_effector_distance = jax.jit(self._compute_end_effector_distance_raw)
-
     def step(self, action: np.ndarray) -> tuple:
         """standard gym step function."""
         start_time = time.time()
@@ -1018,77 +1018,20 @@ class UR5DualRobotEnv(UR5Env):
             self.curr_reset_pose[:] = reset_pose
             return np.zeros((4,))
         
-    # def crop_image(self, name, image) -> np.ndarray:
-    #     """Crop realsense images to be a square."""
-    #     if name == "wrist_ROBOT_1":
-    #         return image[:, 124:604, :]
-    #     elif name == "wrist_ROBOT_2":
-    #         return image[:, 124:604, :]
-    #     else:
-    #         raise ValueError(f"Camera {name} not recognized in cropping")
-    
-    
-        
     def _send_pos_command(self, target_pos: np.ndarray):
         """Internal function to send force command to the robot."""
-
-        @jax.jit
-        def compute_end_effector_distance_raw(target_pos, T_O1_O2, T_EE_SC):
-            """
-            Jitted method to compute the distance between the two end effectors.
-            
-            Args:
-                target_pos (np.ndarray): The target position of the end effectors.
-                
-            Returns:
-                float: The distance between the two end effectors.
-            """
-
-            def quat_to_matrix(quat):
-                """
-                Converts a quaternion to a rotation matrix.
-                
-                Args:
-                    quat (jnp.ndarray): Quaternion [x, y, z, w].
-
-                Returns:
-                    jnp.ndarray: 3x3 rotation matrix.
-                """
-                x, y, z, w = quat
-                xx, yy, zz = x*x, y*y, z*z
-                xy, xz, yz = x*y, x*z, y*z
-                wx, wy, wz = w*x, w*y, w*z
-
-                return jnp.array([
-                    [1 - 2 * (yy + zz), 2 * (xy - wz), 2 * (xz + wy)],
-                    [2 * (xy + wz), 1 - 2 * (xx + zz), 2 * (yz - wx)],
-                    [2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx + yy)]
-                ], dtype=jnp.float32)
-
-            T_O1_E1 = jnp.eye(4, dtype=jnp.float32)
-            rotation = jR.from_quat(target_pos[3:7]).as_matrix()
-            translation = target_pos[:3]
-            T_O1_E1 = T_O1_E1.at[:3, :3].set(rotation)
-            T_O1_E1 = T_O1_E1.at[:3, 3].set(translation)
-            
-            T_O2_E2 = jnp.eye(4, dtype=jnp.float32)
-            rotation = jR.from_quat(target_pos[7:11]).as_matrix()
-            translation = target_pos[11:]
-            T_O2_E2 = T_O2_E2.at[:3, :3].set(rotation)
-            T_O2_E2 = T_O2_E2.at[:3, 3].set(translation)
-
-            T_O1_SC1 = T_O1_E1 @ T_EE_SC
-            T_O2_SC2 = T_O2_E2 @ T_EE_SC
-            T_O1_SC2 = T_O1_O2 @ T_O2_SC2
-
-            return jnp.sum(jnp.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
-    
-        target_pos = jnp.array(target_pos, dtype=jnp.float32)
         # Calculate the distance between the two end effectors - collision check
-        ee_distance = compute_end_effector_distance_raw(target_pos, self.T_O1_O2, self.T_EE_SC)
+        T_O1_E1 = construct_homogeneous_matrix(target_pos[:7])
+        T_O2_E2 = construct_homogeneous_matrix(target_pos[7:])
+        T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
+        T_O2_SC2 = T_O2_E2 @ self.T_EE_SC
+        T_O1_SC2 = self.T_O1_O2 @ T_O2_SC2
+        ee_distance = np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
 
-        # Check if the distance is less than 2 cm (0.02 meters)
-        if ee_distance < 0.02: # TODO: adjust this param because it depends on the box size too
+        # print(T_O1_SC1[:3, 3], T_O1_SC2[:3, 3])
+
+        # Check if the distance is less than 5 cm (0.05 meters)
+        if ee_distance < 0.05: # TODO: adjust this param because it depends on the box size too
             print("\nDistance between end effectors is less than 2 cm. Resetting episode.\n")
             self.reset()
 
@@ -1127,6 +1070,11 @@ class UR5DualRobotEnv(UR5Env):
         """
         state = self.controller_1.get_state()
 
+        # move to singularity free configurations only
+        # if abs(self.controller_1.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
+        #     print("\nSingularity detected! Reset the agent!\n")
+        #     self.reset()
+
         self.curr_pos[:7] = state['pos']
         self.curr_vel[:6] = state['vel']
         self.curr_force[:3] = state['force']
@@ -1136,6 +1084,11 @@ class UR5DualRobotEnv(UR5Env):
         self.gripper_state[:2] = state['gripper']
 
         state = self.controller_2.get_state()
+
+        # move to singularity free configurations only
+        # if abs(self.controller_2.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
+        #     print("\nSingularity detected! Reset the agent!\n")
+        #     self.reset()
 
         self.curr_pos[7:] = state['pos']
         self.curr_vel[6:] = state['vel']
