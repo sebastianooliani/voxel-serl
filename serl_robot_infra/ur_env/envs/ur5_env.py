@@ -192,7 +192,7 @@ class UR5Env(gym.Env):
             channel = 1 if camera_mode == "grey" else 3
             if "wrist" in config.REALSENSE_CAMERAS.keys():
                 image_space_definition["wrist"] = gym.spaces.Box(
-                    0, 255, shape=(128, 128, channel), dtype=np.uint8
+                    0, 255, shape=(224, 224, channel), dtype=np.uint8 # 224 for dinov2
                 )
             if "wrist_2" in config.REALSENSE_CAMERAS.keys():
                 image_space_definition["wrist_2"] = gym.spaces.Box(
@@ -202,11 +202,11 @@ class UR5Env(gym.Env):
         if camera_mode in ["depth", "both"]:
             if "wrist" in config.REALSENSE_CAMERAS.keys():
                 image_space_definition["wrist_depth"] = gym.spaces.Box(
-                    0, 255, shape=(128, 128, 1), dtype=np.uint8
+                    0, 255, shape=(224, 224, 1), dtype=np.uint8
                 )
             if "wrist_2" in config.REALSENSE_CAMERAS.keys():
                 image_space_definition["wrist_2_depth"] = gym.spaces.Box(
-                    0, 255, shape=(128, 128, 1), dtype=np.uint8
+                    0, 255, shape=(224, 224, 1), dtype=np.uint8
                 )
 
         if camera_mode in ["pointcloud"]:

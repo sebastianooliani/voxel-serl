@@ -7,6 +7,7 @@ import numpy as np
 import jax.numpy as jnp
 from functools import partial
 from jax import vmap
+from skimage.transform import resize
 
 from serl_launcher.vision.spatial import SpatialLearnedEmbeddings
 
@@ -91,12 +92,36 @@ def adapt_dinov2_model(model, input_channels=3, batch_size=96):
     
     return forward_batch, adapter_params
 
+def zero_pad_to_size(images, target_size=(224, 224)):
+    batch, height, width, channels = images.shape
+    
+    # Calculate padding
+    pad_height = target_size[0] - height
+    pad_width = target_size[1] - width
+    
+    # Calculate padding for top/bottom and left/right
+    pad_top = pad_height // 2
+    pad_bottom = pad_height - pad_top
+    pad_left = pad_width // 2
+    pad_right = pad_width - pad_left
+    
+    # Define padding configuration
+    paddings = [
+        (0, 0),  # batch dimension
+        (pad_top, pad_bottom),  # height dimension
+        (pad_left, pad_right),  # width dimension
+        (0, 0)   # channel dimension
+    ]
+    
+    # Apply padding
+    return jnp.pad(images, paddings, mode='constant', constant_values=0)
+
 class Dinov2ImageEncoder():
     def __init__(self, 
                  model_name: str = "facebook/dinov2-base-imagenet1k-1-layer", 
                  target_dim: int = 128,
                  pooling_method: str = "max"):
-        self.model = FlaxDinov2ForImageClassification.from_pretrained(model_name, 
+        self.model = FlaxDinov2ForImageClassification.from_pretrained(model_name,
                                                                       from_pt=True, 
                                                                       output_hidden_states=True, 
                                                                       output_attentions=True)
@@ -108,7 +133,7 @@ class Dinov2ImageEncoder():
         self.pooling_fn = jax.jit(self._apply_pooling)
 
     def _apply_pooling(self, hidden_states):
-        last_hidden_state = last_hidden_state.flatten()
+        last_hidden_state = hidden_states.flatten()
 
         chunk_size = last_hidden_state.shape[0] // self.target_dim
 
@@ -135,21 +160,15 @@ class Dinov2ImageEncoder():
     def encode(self, observation):
         # inputs = self.image_processor(images=image, return_tensors="np")
         # print(observation.shape)
-        if len(observations.shape) == 3:
-            observations = observations[None, ...]
-        observations = observations.astype(jnp.float32)
+        if len(observation.shape) == 3:
+            observation = observation[None, ...]
+        observation = observation.astype(jnp.float32)
 
-        adapted_model, adapter_params = adapt_dinov2_model(self.model, input_channels=observation.shape[1], batch_size=observation.shape[0])
+        # adapted_model, adapter_params = adapt_dinov2_model(self.model, input_channels=observation.shape[1], batch_size=observation.shape[0])
 
         inputs = observation
 
-        outputs = adapted_model(
-            self.model.params,
-            {'params': adapter_params},
-            inputs,
-            train=False,
-        )
-        # outputs = self.model(inputs)
+        outputs = self.model(inputs)
         hidden_states = outputs.hidden_states
         
         last_hidden_state = hidden_states[-1] # Shape: (1, 1, 768)
@@ -161,18 +180,21 @@ class Dinov2ImageEncoder():
     
     @nn.compact
     def __call__(self, observations, train=False, encode=False):
-        assert observations.shape[-3:] == (128, 128, 3), f"Expected image shape (128, 128, 3), got {observations.shape[-3:]}"
+        if len(observations.shape) == 3:
+            observations = observations[None, ...]
+        # resize
+        # observations = zero_pad_to_size(observations)
+        assert observations.shape[-3:] == (224, 224, 3), f"Expected image shape (224, 224, 3), got {observations.shape[-3:]}"
         # breakpoint()
-        if observations.shape == (128, 128, 3):
-            observations = observations.reshape(1,3,128,128)
+        if observations.shape == (224, 224, 3):
+            pass
         else:
             a, b, c, d = observations.shape
             observations = observations.reshape(a, d, b, c)
-            observations = observations.astype(np.float32)
 
-            x = jnp.array([self.encode(observations[i].reshape(1,d,b,c)) for i in range(a)])
+            x = self.encode(observations)
+            x = x.reshape(a, self.target_dim)
             return x
 
-        observations = observations.astype(np.float32)
         x = self.encode(observations)
         return x
