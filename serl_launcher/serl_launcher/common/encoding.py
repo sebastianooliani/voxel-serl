@@ -6,17 +6,19 @@ import jax
 import jax.numpy as jnp
 from einops import rearrange, repeat
 
+DUAL = True
 
 def create_state_mask(mask_str: str) -> jnp.ndarray:
-    all = jnp.ones((27,), dtype=jnp.bool)
+    # for the future: just 'all' is considered for now
+    all = jnp.ones((27,), dtype=jnp.bool) if not DUAL else jnp.ones((69,), dtype=jnp.bool)
     none = jnp.zeros_like(all)
-    no_action = all.at[:7].set(False)
-    gripper = none.at[0+7:2+7].set(True)
-    no_ForceTorque = all.at[7+2:7+5].set(False).at[7+11:7+14].set(False)
-    action_only = none.at[:7].set(True)
+    no_action = all.at[:7].set(False) if not DUAL else all.at[:14].set(False)
+    gripper = none.at[0+7:2+7].set(True) if not DUAL else none.at[0+14:4+14].set(True)
+    no_ForceTorque = all.at[7+2:7+5].set(False).at[7+11:7+14].set(False) if not DUAL else all.at[14+4:14+9].set(False)
+    action_only = none.at[:7].set(True) if not DUAL else none.at[:14].set(True)
     masks = dict(
         all=all,
-        none=jnp.zeros_like(all),
+        none=none,
         gripper=gripper,
         position_gripper=gripper.at[5:11].set(True),
         no_ForceTorque=no_ForceTorque,
