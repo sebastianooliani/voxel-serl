@@ -192,7 +192,7 @@ class UR5Env(gym.Env):
             channel = 1 if camera_mode == "grey" else 3
             if "wrist" in config.REALSENSE_CAMERAS.keys():
                 image_space_definition["wrist"] = gym.spaces.Box(
-                    0, 255, shape=(224, 224, channel), dtype=np.uint8 # 224 for dinov2
+                    0, 255, shape=(128, 128, channel), dtype=np.uint8 # 224 for dinov2
                 )
             if "wrist_2" in config.REALSENSE_CAMERAS.keys():
                 image_space_definition["wrist_2"] = gym.spaces.Box(
@@ -1024,11 +1024,8 @@ class UR5DualRobotEnv(UR5Env):
         T_O1_E1 = construct_homogeneous_matrix(target_pos[:7])
         T_O2_E2 = construct_homogeneous_matrix(target_pos[7:])
         T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
-        T_O2_SC2 = T_O2_E2 @ self.T_EE_SC
-        T_O1_SC2 = self.T_O1_O2 @ T_O2_SC2
+        T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
         ee_distance = np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
-
-        # print(T_O1_SC1[:3, 3], T_O1_SC2[:3, 3])
 
         # Check if the distance is less than 5 cm (0.05 meters)
         if ee_distance < 0.05: # TODO: adjust this param because it depends on the box size too
