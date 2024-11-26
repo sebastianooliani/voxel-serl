@@ -331,7 +331,7 @@ class UR5Env(gym.Env):
 
         reward = self.compute_reward(obs, action)
         truncated = self._is_truncated()
-        reward = reward if not truncated else reward - 10.  # truncation penalty
+        reward = reward if not truncated else reward - 50.  # truncation penalty # TODO: increased penalty from 10 to 50
         done = self.curr_path_length >= self.max_episode_length or self.reached_goal_state(obs) or truncated
 
         dt = time.time() - start_time
@@ -1024,27 +1024,36 @@ class UR5DualRobotEnv(UR5Env):
         T_O1_E1 = construct_homogeneous_matrix(target_pos[:7])
         T_O2_E2 = construct_homogeneous_matrix(target_pos[7:])
         T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
-        T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
-        ee_distance = np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
+        T_O1_E2 = self.T_O1_O2 @ T_O2_E2
+        T_O1_SC2 = T_O1_E2 @ self.T_EE_SC
+        grippers_distance = np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
+        ee_distance = np.sum(np.power(T_O1_E1[:3, 3] - T_O1_E2[:3, 3], 2))
 
         # Check if the distance is less than 5 cm (0.05 meters)
-        if ee_distance < 0.05: # TODO: adjust this param because it depends on the box size too
-            print("\nDistance between end effectors is less than 2 cm. Resetting episode.\n")
-            self.reset()
+        if ee_distance < 0.05 or grippers_distance < 0.03: # TODO: adjust this param because it depends on the box size too
+            self.controller_1._is_truncated.set()
+            self.controller_2._is_truncated.set()
+            print("\nDistance between end effectors is too small. Resetting episode.\n")
+            self.controller_1.restart_ur_interface()
+            self.controller_2.restart_ur_interface()
 
         state = self.controller_1.get_state()
 
         # move to singularity free configurations only
         if abs(self.controller_1.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
+            self.controller_1._is_truncated.set()
             print("\nSingularity detected! Reset the agent!\n")
-            self.reset()
+            self.controller_1.restart_ur_interface()
+            self.controller_2.restart_ur_interface()
 
         state = self.controller_2.get_state()
 
         # move to singularity free configurations only
         if abs(self.controller_2.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
+            self.controller_2._is_truncated.set()
             print("\nSingularity detected! Reset the agent!\n")
-            self.reset()
+            self.controller_1.restart_ur_interface()
+            self.controller_2.restart_ur_interface()
 
         self.controller_1.set_target_pos(target_pos=target_pos[:7])
         self.controller_2.set_target_pos(target_pos=target_pos[7:])
