@@ -52,6 +52,7 @@ class UrImpedanceController(threading.Thread):
         self._is_truncated = threading.Event()
         self.lock = threading.Lock()
 
+        self.config = config
         self.robot_ip = robot_ip
         self.port = port
         self.frequency = frequency
@@ -66,15 +67,13 @@ class UrImpedanceController(threading.Thread):
         self.urdf_file_path = "/home/sebastiano/voxel-serl/serl_robot_infra/robot_controllers/ur5.urdf"
         self.last_link = "ee_link"
 
-        # Open the file, read its contents as a string, and close it
-        # with open(self.urdf_file_path, "r") as file:
-        #     urdf_data = file.read()
-        # self.chain = pk.build_serial_chain_from_urdf(urdf_data, self.last_link)
-        # self.chain = self.chain.to(device='cuda', dtype=torch.float32)
+        # kinematic chain
         self.chain = FastKinematics(self.urdf_file_path, 1, self.last_link)
         # Create a static JIT-compiled function for the computation part
         self._compute_manipulability = jax.jit(self._compute_manipulability_raw)
         self.J = jnp.zeros((1, 6, 6))
+        # self.singularity = False
+        # self.collision = False
 
         self.target_pos = np.zeros((7,), dtype=np.float32)  # new as quat to avoid +- problems with axis angle repr.
         self.target_grip = np.zeros((1,), dtype=np.float32)
@@ -90,8 +89,10 @@ class UrImpedanceController(threading.Thread):
         # self.reset_Q = np.array([0., -np.pi / 2., np.pi / 2., -np.pi / 2., -np.pi / 2., 0.], dtype=np.float32)  # reset state in Joint Space
         if self.robot_ip[-2:] == "66":
             self.reset_Q = config.RESET_Q[0, :6]
+            self.mid_reset_Q = config.MID_RESET_Q[0, :6]
         elif self.robot_ip[-2:] == "33":
             self.reset_Q = config.RESET_Q[0, 6:]
+            self.mid_reset_Q = config.MID_RESET_Q[0, 6:]
         elif self.robot_ip[:3] == "172":
             self.reset_Q = config.RESET_Q[0, :6]
 
@@ -339,7 +340,11 @@ class UrImpedanceController(threading.Thread):
         else:
             self._is_truncated.clear()
 
+
+
     def is_truncated(self):
+        if self._is_truncated.is_set():
+            print(f"\n[RIC] is_truncated: {self._is_truncated.is_set()}\n")
         return self._is_truncated.is_set()
 
     def run(self):
@@ -363,9 +368,6 @@ class UrImpedanceController(threading.Thread):
         """        
         J = self.chain.jacobian_mixed_frame(joint_pos)
         J = jnp.reshape(J, (1, 6, 6))
-        # J = torch.tensor(J).to(d)
-        # det = torch.det(J).item()
-        # J.det()
         det = jnp.linalg.det(J)
 
         return det
@@ -374,7 +376,6 @@ class UrImpedanceController(threading.Thread):
         """
         The raw computation part that can be JIT-compiled
         """
-        # self.J = jnp.reshape(jacobian, (1, 6, 6))
         return jnp.linalg.det(jacobian)
 
     def evaluate_manipulability(self, joint_pos=jnp.zeros(6)):
@@ -383,9 +384,6 @@ class UrImpedanceController(threading.Thread):
         """
         # Get the Jacobian using your existing method
         self.J = self.chain.jacobian_mixed_frame(joint_pos).reshape((1, 6, 6))
-        
-        # Convert to JAX array if needed
-        # self.J = jnp.array(self.J)
         
         # Use the JIT-compiled computation
         return self._compute_manipulability(self.J)
@@ -415,6 +413,10 @@ class UrImpedanceController(threading.Thread):
             self.reset_Pose[:] = 0.
         else:
             # then move to desired Jointspace position
+            # TODO: insert mid-point to avoid collisions. Only needed for dual set with top grasping
+            if self.config.DUAL and self.config.TOP:
+                success = success and self.ur_control.moveJ(self.mid_reset_Q, speed=1., acceleration=0.8)
+
             success = success and self.ur_control.moveJ(self.reset_Q, speed=1., acceleration=0.8)
             self.print(f"[RIC] moving to {self.reset_Q} with moveJ (joint space)", both=self.verbose)
 
