@@ -108,7 +108,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
         T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
         T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
-        distance_cost = 1. * np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
+        distance_cost = 0.5 / np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
 
         # TOTAL COST
         cost_info = dict(
@@ -119,8 +119,8 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
             orientation_cost=orientation_cost,
             position_cost=position_cost,
             action_diff_cost=action_diff_cost,
-            total_cost=-(-action_cost - step_cost + suction_reward - suction_cost - orientation_cost - position_cost - action_diff_cost),
-            distance_cost=distance_cost
+            distance_cost=distance_cost,
+            total_cost=-(-action_cost - step_cost + suction_reward - suction_cost - orientation_cost - position_cost - action_diff_cost - distance_cost),
         )
         for key, info in cost_info.items():
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])

@@ -959,7 +959,7 @@ class UR5DualRobotEnv(UR5Env):
 
         reward = self.compute_reward(obs, action)
         truncated = self._is_truncated()
-        reward = reward if not truncated else reward - 10.  # truncation penalty
+        reward = reward if not truncated else reward - 50.  # truncation penalty
         done = self.curr_path_length >= self.max_episode_length or self.reached_goal_state(obs) or truncated
 
         dt = time.time() - start_time
