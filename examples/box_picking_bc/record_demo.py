@@ -32,12 +32,14 @@ def on_esc(key):
     if key == keyboard.Key.esc:
         exit_program.set()
 
-# dummy variable for debugging
-DUAL_SPACEMOUSE = True
+DUAL = True
 
 if __name__ == "__main__":
     env = gym.make("box_picking_camera_env_dual_robot",
-                   camera_mode="rgb") if DUAL_SPACEMOUSE else gym.make("box_picking_camera_env", camera_mode="rgb")
+                   camera_mode="rgb") if DUAL else gym.make("box_picking_camera_env", camera_mode="rgb")
+    
+    DUAL_SPACEMOUSE = env.env.env.env.config.DUAL
+
     env = TwoSpacemiceIntervention(env) if DUAL_SPACEMOUSE else SpacemouseIntervention(env)
     env = DualRelativeFrame(env) if DUAL_SPACEMOUSE else RelativeFrame(env)
     env = DualQuat2MrpWrapper(env) if DUAL_SPACEMOUSE else Quat2MrpWrapper(env)
@@ -49,7 +51,7 @@ if __name__ == "__main__":
 
     transitions = []
     success_count = 0
-    success_needed = 20 if not DUAL_SPACEMOUSE else 20
+    success_needed = 5 if not DUAL_SPACEMOUSE else 10
     total_count = 0
     pbar = tqdm(total=success_needed)
 

@@ -30,13 +30,14 @@ def on_esc(key):
     if key == keyboard.Key.esc:
         exit_program.set()
 
-DUAL = False
-
 if __name__ == "__main__":
-    env = gym.make("box_picking_camera_env",
-                   camera_mode="pointcloud",
+    env = gym.make("box_picking_camera_env_dual_robot",
+                   camera_mode="rgb",
                    max_episode_length=100,
                    )
+    
+    DUAL = env.env.env.env.config.DUAL
+    
     env = SpacemouseIntervention(env) if not DUAL else TwoSpacemiceIntervention(env)
     env = RelativeFrame(env) if not DUAL else DualRelativeFrame(env)
     env = Quat2MrpWrapper(env) if not DUAL else DualQuat2MrpWrapper(env)
@@ -49,7 +50,7 @@ if __name__ == "__main__":
 
     transitions = []
     success_count = 0
-    success_needed = 20
+    success_needed = 20 if not DUAL else 20
     total_count = 0
     pbar = tqdm(total=success_needed)
 
@@ -75,7 +76,8 @@ if __name__ == "__main__":
             if exit_program.is_set():
                 raise KeyboardInterrupt  # stop program, but clean up before
 
-            next_obs, rew, done, truncated, info = env.step(action=np.zeros((7,)))
+            action = np.zeros((14,)) if DUAL else np.zeros((7,))
+            next_obs, rew, done, truncated, info = env.step(action=action)
             actions = info["intervene_action"]
 
             transition = copy.deepcopy(
