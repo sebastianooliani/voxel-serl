@@ -86,7 +86,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         step_cost = 0.1
 
         # SUCTION: reward for successful grip and cost for unnecessary suctioning
-        suction_reward = 0.5 * 0.3 * (float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5))
+        suction_reward = 5 * 0.3 * (float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5))
         suction_cost = 0.5 * 3. * (float(obs["state"]["gripper_state"][1] < -0.5) + float(obs["state"]["gripper_state"][3] < -0.5))
 
         # ORIENTATION: penalize deviating too much from the starting pose
@@ -108,7 +108,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
         T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
         T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
-        distance_cost = 0.5 / np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
+        distance_cost = 1. / np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
 
         # TOTAL COST
         cost_info = dict(
@@ -125,6 +125,8 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         for key, info in cost_info.items():
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])
 
+        # print(f"Action costs: {action_cost}\n, Step costs: {step_cost}\n, Suction reward: {suction_reward}\n, Suction cost: {suction_cost}\n, Orientation cost: {orientation_cost}\n, Position cost: {position_cost}\n, Action difference cost: {action_diff_cost}\n, Distance cost: {distance_cost}\n, Total cost: {cost_info['total_cost']}")
+        
         if self.reached_goal_state(obs):
             self.last_action[:] = 0.
             R_goal = 100.
