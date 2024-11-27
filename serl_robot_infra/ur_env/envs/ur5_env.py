@@ -862,7 +862,8 @@ class UR5DualRobotEnv(UR5Env):
         self.observation_space = gym.spaces.Dict(obs_space_definition)
 
         self.cycle_count = 0
-        self.controller = None
+        self.controller_1 = None
+        self.controller_2 = None
         self.cap = None
 
         if fake_env:
@@ -959,7 +960,7 @@ class UR5DualRobotEnv(UR5Env):
 
         reward = self.compute_reward(obs, action)
         truncated = self._is_truncated()
-        reward = reward if not truncated else reward - 50.  # truncation penalty
+        reward = reward if not truncated else reward - 100.  # truncation penalty
         done = self.curr_path_length >= self.max_episode_length or self.reached_goal_state(obs) or truncated
 
         dt = time.time() - start_time
@@ -1031,11 +1032,8 @@ class UR5DualRobotEnv(UR5Env):
 
         # Check if the distance is less than 5 cm (0.05 meters)
         if ee_distance < 0.05 or grippers_distance < 0.03: # TODO: adjust this param because it depends on the box size too
-            self.controller_1._is_truncated.set()
-            self.controller_2._is_truncated.set()
             print("\nDistance between end effectors is too small. Resetting episode.\n")
-            self.controller_1.restart_ur_interface()
-            self.controller_2.restart_ur_interface()
+            self.reset()
 
         state = self.controller_1.get_state()
 
