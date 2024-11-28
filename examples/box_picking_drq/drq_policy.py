@@ -101,6 +101,8 @@ flags.DEFINE_string("demo_path", None, "Path to the demo data.")
 flags.DEFINE_integer("checkpoint_period", 0, "Period to save checkpoints.")
 flags.DEFINE_string("checkpoint_path", '/home/nico/real-world-rl/serl/examples/box_picking_drq/checkpoints',
                     "Path to save checkpoints.")
+flags.DEFINE_string("load_checkpoint_path", '/home/nico/real-world-rl/serl/examples/box_picking_drq/checkpoints',
+                    "Path to load previously saved checkpoints and start training from them.")
 
 flags.DEFINE_integer("eval_checkpoint_step", 0, "evaluate the policy from ckpt at this step")
 flags.DEFINE_string("log_rlds_path", '/home/nico/real-world-rl/serl/examples/box_picking_drq/rlds',
@@ -407,16 +409,19 @@ def learner(rng, agent: DrQAgent, replay_buffer, wandb_logger=None):
     # send the initial network to the actor
     # TODO: load network from checkpoint
     if FLAGS.eval_checkpoint_step:
+        print("loading checkpoint")
         ckpt = checkpoints.restore_checkpoint(
-            FLAGS.checkpoint_path,
+            FLAGS.load_checkpoint_path,
             agent.state,
             step=FLAGS.eval_checkpoint_step,
         )
         agent = agent.replace(state=ckpt)
         server.publish_network(agent.state.params)
+        print("sent checkpoint network to actor")
+
     else:
         server.publish_network(agent.state.params)
-    print_green("sent initial network to actor")
+        print_green("sent initial network to actor")
 
     replay_iterator = replay_buffer.get_iterator(
         sample_args={
