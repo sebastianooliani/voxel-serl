@@ -118,6 +118,9 @@ flags.DEFINE_boolean("dual", True, "Dual robot mode.")
 def print_green(x):
     return print("\033[92m {}\033[00m".format(x))
 
+def print_yellow(x):
+    return print("\033[93m {}\033[00m".format(x))
+
 
 PAUSE_EVENT_FLAG = threading.Event()
 PAUSE_EVENT_FLAG.clear()  # clear() to continue the actor/learner loop, set() to pause
@@ -409,7 +412,7 @@ def learner(rng, agent: DrQAgent, replay_buffer, wandb_logger=None):
     # send the initial network to the actor
     # TODO: load network from checkpoint
     if FLAGS.eval_checkpoint_step:
-        print("loading checkpoint")
+        print_yellow("loading checkpoint")
         ckpt = checkpoints.restore_checkpoint(
             FLAGS.load_checkpoint_path,
             agent.state,
@@ -417,7 +420,7 @@ def learner(rng, agent: DrQAgent, replay_buffer, wandb_logger=None):
         )
         agent = agent.replace(state=ckpt)
         server.publish_network(agent.state.params)
-        print("sent checkpoint network to actor")
+        print_yellow("sent checkpoint network to actor")
 
     else:
         server.publish_network(agent.state.params)
