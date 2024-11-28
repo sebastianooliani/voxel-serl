@@ -38,9 +38,9 @@ from serl_launcher.utils.launcher import (
 )
 from serl_launcher.data.data_store import MemoryEfficientReplayBufferDataStore
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper, ScaleObservationWrapper
-from serl_launcher.wrappers.observation_statistics_wrapper import ObservationStatisticsWrapper
-from ur_env.envs.relative_env import RelativeFrame
-from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, ObservationRotationWrapper
+from serl_launcher.wrappers.observation_statistics_wrapper import ObservationStatisticsWrapper, DualObservationStatisticsWrapper
+from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
+from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, ObservationRotationWrapper, DualQuat2MrpWrapper
 from serl_launcher.vision.data_augmentations import batched_random_rot90_state, batched_random_rot90_voxel, \
     batched_random_rot90_action
 
@@ -95,6 +95,7 @@ flags.DEFINE_integer("eval_n_trajs", 10, "Number of trajectories for evaluation.
 # flag to indicate if this is a leaner or a actor
 flags.DEFINE_boolean("learner", False, "Is this a learner or a trainer.")
 flags.DEFINE_boolean("actor", False, "Is this a learner or a trainer.")
+flags.DEFINE_boolean("evaluation", False, "Evaluation mode.")
 flags.DEFINE_string("ip", "localhost", "IP address of the learner.")
 flags.DEFINE_string("demo_path", None, "Path to the demo data.")
 flags.DEFINE_integer("checkpoint_period", 0, "Period to save checkpoints.")
@@ -109,7 +110,7 @@ flags.DEFINE_string("preload_rlds_path", None, "Path to preload RLDS data.")
 flags.DEFINE_boolean(
     "debug", False, "Debug mode."
 )  # debug mode will disable wandb logging
-flags.DEFINE_boolean("dual", False, "Dual robot mode.")
+flags.DEFINE_boolean("dual", True, "Dual robot mode.")
 
 
 def print_green(x):
@@ -149,9 +150,9 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng):
     """
     global PAUSE_EVENT_FLAG
 
-    if FLAGS.eval_checkpoint_step:
+    if FLAGS.eval_checkpoint_step and FLAGS.evaluation:
         wandb_logger = make_wandb_logger(
-            project="test_drq_one_arm",  # TODO only temporary
+            project="drq_rgb_top",  # TODO only temporary
             description=FLAGS.exp_name or FLAGS.env,
             debug=FLAGS.debug,
         )
@@ -404,7 +405,17 @@ def learner(rng, agent: DrQAgent, replay_buffer, wandb_logger=None):
     pbar.close()
 
     # send the initial network to the actor
-    server.publish_network(agent.state.params)
+    # TODO: load network from checkpoint
+    if FLAGS.eval_checkpoint_step:
+        ckpt = checkpoints.restore_checkpoint(
+            FLAGS.checkpoint_path,
+            agent.state,
+            step=FLAGS.eval_checkpoint_step,
+        )
+        agent = agent.replace(state=ckpt)
+        server.publish_network(agent.state.params)
+    else:
+        server.publish_network(agent.state.params)
     print_green("sent initial network to actor")
 
     replay_iterator = replay_buffer.get_iterator(
@@ -482,7 +493,6 @@ def learner(rng, agent: DrQAgent, replay_buffer, wandb_logger=None):
 
 ##############################################################################
 
-
 def main(_):
     assert FLAGS.batch_size % num_devices == 0
     if FLAGS.checkpoint_path.split('/')[-1] == "checkpoints":
@@ -501,10 +511,10 @@ def main(_):
     )
     # if FLAGS.actor:
     #     env = SpacemouseIntervention(env)
-    env = RelativeFrame(env)
-    env = Quat2MrpWrapper(env)
+    env = RelativeFrame(env) if not FLAGS.dual else DualRelativeFrame(env)
+    env = Quat2MrpWrapper(env) if not FLAGS.dual else DualQuat2MrpWrapper(env)
     env = ScaleObservationWrapper(env)  # scale obs space (after quat2mrp, but before serlobs)
-    env = ObservationStatisticsWrapper(env)
+    env = ObservationStatisticsWrapper(env) if not FLAGS.dual else DualObservationStatisticsWrapper(env)
     if FLAGS.enable_obs_rotation_wrapper:
         env = ObservationRotationWrapper(env)
     env = SERLObsWrapper(env)
@@ -559,7 +569,7 @@ def main(_):
         )
         # set up wandb and logging
         wandb_logger = make_wandb_logger(
-            project="test_drq_one_arm",  # TODO only temporary
+            project="drq_rgb_top",  # TODO only temporary
             description=FLAGS.exp_name or FLAGS.env,
             debug=FLAGS.debug,
         )
@@ -604,7 +614,7 @@ def main(_):
                 wandb_logger=wandb_logger,
             )
         except KeyboardInterrupt:
-            print_green("leraner loop interrupted")
+            print_green("learner loop interrupted")
         finally:
             # Wrap up the learner loop
             env.close()
