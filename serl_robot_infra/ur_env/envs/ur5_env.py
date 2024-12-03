@@ -19,13 +19,16 @@ import open3d as o3d
 from ur_env.camera.video_capture import VideoCapture
 from ur_env.camera.rs_capture import RSCapture
 
-from ur_env.camera.utils import PointCloudFusion, CalibrationTread
+from ur_env.camera.utils import PointCloudFusion, CalibrationTread, PointCloudGenerator
 
 from robot_controllers.ur5_controller import UrImpedanceController
 
 from franka_env.utils.transformations import (
     construct_homogeneous_matrix
 )
+
+from websockets.asyncio.client import connect
+import msgpack
 
 
 class ImageDisplayer(threading.Thread):
@@ -56,10 +59,10 @@ class PointCloudDisplayer:
 
         self.pc = o3d.geometry.PointCloud()
         self.window.get_render_option().load_from_json(
-            "/home/sebastiano/.config/nico_PyCharm2024.1/scratches/render_options.json")
+            "/home/sebastiano/.config/render_options.json")
 
         self.param = o3d.io.read_pinhole_camera_parameters(
-            "/home/sebastiano/.config/nico_PyCharm2024.1/scratches/camera_parameters.json")
+            "/home/sebastiano/.config/camera_parameters.json")
         self.ctr = self.window.get_view_control()
         self.coord_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.01, origin=[0, 0, 0])
 
@@ -714,6 +717,8 @@ class UR5DualRobotEnv(UR5Env):
 
         self.config = config
 
+        self.dual = config.DUAL
+
         #############################
         # Action Space              #
         #############################
@@ -815,7 +820,10 @@ class UR5DualRobotEnv(UR5Env):
                 )
 
         if camera_mode in ["pointcloud"]:
-            image_space_definition["wrist_pointcloud"] = gym.spaces.Box(
+            image_space_definition["wrist_1_pointcloud"] = gym.spaces.Box(
+                0, 255, shape=(50, 50, 40), dtype=np.uint8
+            )
+            image_space_definition["wrist_2_pointcloud"] = gym.spaces.Box(
                 0, 255, shape=(50, 50, 40), dtype=np.uint8
             )
         if camera_mode is not None and camera_mode not in ["rgb", "both", "depth", "pointcloud", "grey"]:
@@ -843,6 +851,7 @@ class UR5DualRobotEnv(UR5Env):
                 # - joint positions , so that the network learns where to move to avoid collisions
                 # - relative eef positions, for same reason as above
                 # no object position in the beginning (blind agent)
+                # - object position, so that the network learns to move the object to the goal
                 "tcp_pos_diff": gym.spaces.Box(
                     -np.inf, np.inf, shape=(3,)
                 ),  # xyz + quat
@@ -900,7 +909,8 @@ class UR5DualRobotEnv(UR5Env):
             self.init_cameras(config.REALSENSE_CAMERAS)
             self.img_queue = queue.Queue()
             if self.camera_mode in ["pointcloud"]:
-                self.displayer = PointCloudDisplayer()  # o3d displayer cannot be threaded :/
+                # self.displayer = PointCloudDisplayer()  # o3d displayer cannot be threaded :/
+                pass
             else:
                 self.displayer = ImageDisplayer(self.img_queue)
                 self.displayer.start()
@@ -915,19 +925,90 @@ class UR5DualRobotEnv(UR5Env):
         print("\n[RIC] Controller 2 has started and is ready!\n")
 
         if self.camera_mode in ["pointcloud"]:
-            voxel_grid_shape = np.array(self.observation_space["images"]["wrist_pointcloud"].shape)
+            voxel_grid_shape = np.array(self.observation_space["images"]["wrist_1_pointcloud"].shape)
             # voxel_grid_shape[-1] *= 8     # do not use compacting for now
             # voxel_grid_shape *= 2
             print(f"\npointcloud resolution set to: {voxel_grid_shape}\n")
-            self.pointcloud_fusion = PointCloudFusion(angle=31., x_distance=0.205, voxel_grid_shape=voxel_grid_shape)
+            self.pointcloud_1 = PointCloudGenerator(voxel_grid_shape=voxel_grid_shape)
+            self.pointcloud_2 = PointCloudGenerator(voxel_grid_shape=voxel_grid_shape)
 
-            # load pre calibrated, else calibrate
-            if not self.pointcloud_fusion.load_finetuned():
-                # TODO make calibration more robust!
-                self.calibration_thread = CalibrationTread(pc_fusion=self.pointcloud_fusion, verbose=True)
-                self.calibration_thread.start()
+    async def get_box_pose_estimate():
+        """
+        Function used to read the data from the server containing the pose of the boxes (orientation is expressed with angle-axis representation) in the scene. The unit measure of the output is in meters.
 
-                self.calibrate_pointcloud_fusion(visualize=True)
+        Keys:
+        - space-boxes-box-world2box: pose from the camera frame to the center of the box (exponential coordinates for the orientation)
+        """
+        async with connect("ws://192.168.1.204:7777") as websocket:
+            message = msgpack.unpackb(await websocket.recv())
+
+            return message['space'][0]['boxes'][list(message['space'][0]['boxes'].keys())[0]]['world2box']['pos']
+            
+    def get_image(self) -> Dict[str, np.ndarray]:
+        """Get images from the realsense cameras."""
+        images = {}
+        display_images = {}
+
+        for key, cap in self.cap.items():
+            try:
+                image = cap.read()
+                if self.camera_mode in ["rgb", "both", "grey"]:
+                    rgb = image[..., :3].astype(np.uint8)
+                    cropped_rgb = self.crop_image(key, rgb)
+                    resized = cv2.resize(
+                        cropped_rgb, self.observation_space["images"][key].shape[:2][::-1],
+                    )
+                    # convert to grayscale here
+                    if self.camera_mode == "grey":
+                        grey = np.array([0.2989, 0.5870, 0.1140])
+                        resized = np.dot(resized, grey)[..., None]
+                        resized = resized.astype(np.uint8)
+                        display_images[key] = np.repeat(resized, 3, axis=-1)
+                    else:
+                        display_images[key] = resized
+
+                    images[key] = resized[..., ::-1]
+                    display_images[key + "_full"] = cropped_rgb
+
+                if self.camera_mode in ["depth", "both"]:
+                    depth_key = key + "_depth"
+                    depth = image[..., -1:]
+                    cropped_depth = self.crop_image(key, depth)
+
+                    resized = cv2.resize(
+                        cropped_depth, np.array(self.observation_space["images"][depth_key].shape[:2]) * 3,
+                        # (128 * 3, 128 * 3) image
+                    )[..., None]
+
+                    resized = resized.reshape((128, 3, 128, 3, 1)).max((1, 3))  # max pool with 3x3
+
+                    images[depth_key] = resized
+                    display_images[depth_key] = cv2.applyColorMap(resized, cv2.COLORMAP_JET)
+                    display_images[depth_key + "_full"] = cv2.applyColorMap(cropped_depth, cv2.COLORMAP_JET)
+
+                if self.camera_mode in ["pointcloud"]:
+                    self.pointcloud_1.capture_pointcloud(image) if key == "wrist" else self.pointcloud_2.capture_pointcloud(image)
+
+            except queue.Empty:
+                input(f"{key} camera frozen. Check connect, then press enter to relaunch...")
+                self.init_cameras(self.config.REALSENSE_CAMERAS)
+                return self.get_image()
+
+        if self.camera_mode in ["pointcloud"]:
+            voxel_grid, voxel_indices = self.pointcloud_1.voxelize()
+            images["wrist_1_pointcloud"] = voxel_grid.astype(np.uint8)
+            self.pointcloud_1.visualize()
+
+            # downsample on 2x2x2 grid with sum of points (8 as max)
+            # vs = self.observation_space["images"]["wrist_pointcloud"].shape
+            # voxel_grid = np.sum(np.reshape(voxel_grid, (vs[0], 2, vs[1], 2, vs[2], 2)), axis=(1, 3, 5))
+            voxel_grid, voxel_indices = self.pointcloud_2.voxelize()
+            images["wrist_2_pointcloud"] = voxel_grid.astype(np.uint8)
+            self.pointcloud_2.visualize()
+            
+        self.img_queue.put(display_images)
+
+        return images
 
     def step(self, action: np.ndarray) -> tuple:
         """standard gym step function."""
@@ -1027,8 +1108,8 @@ class UR5DualRobotEnv(UR5Env):
         T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
         T_O1_E2 = self.T_O1_O2 @ T_O2_E2
         T_O1_SC2 = T_O1_E2 @ self.T_EE_SC
-        grippers_distance = np.sum(np.power(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3], 2))
-        ee_distance = np.sum(np.power(T_O1_E1[:3, 3] - T_O1_E2[:3, 3], 2))
+        grippers_distance = np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
+        ee_distance = np.linalg.norm(T_O1_E1[:3, 3] - T_O1_E2[:3, 3])
 
         # Check if the distance is less than 5 cm (0.05 meters)
         if ee_distance < 0.05 or grippers_distance < 0.03: # TODO: adjust this param because it depends on the box size too

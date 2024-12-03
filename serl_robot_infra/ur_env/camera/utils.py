@@ -3,6 +3,7 @@ import open3d as o3d
 from scipy.spatial.transform import Rotation as R
 import threading
 from typing import Any
+import pyrealsense2 as rs
 
 
 def finetune_pointcloud_fusion(pc1: np.ndarray, pc2: np.ndarray):
@@ -59,6 +60,134 @@ def transform_point_cloud(points, transform_matrix):
         transformed_points = transformed_points[:, :3]
 
     return transformed_points
+
+
+class PointCloudGenerator:
+    def __init__(self, 
+                 min_bounds=np.array([-0.05, -0.05, 0.075]),
+                 max_bounds=np.array([0.05, 0.05, 0.155]),
+                 voxel_grid_shape=(100, 100, 80)):
+        """
+        Initialize RealSense point cloud generator with voxel grid parameters.
+        
+        Args:
+            min_bounds (np.ndarray): Minimum bounds for cropping point cloud
+            max_bounds (np.ndarray): Maximum bounds for cropping point cloud
+            voxel_grid_shape (tuple): Shape of the voxel grid
+        """
+        # Crop and voxel grid parameters
+        self.min_bounds = np.array(min_bounds)
+        self.max_bounds = np.array(max_bounds)
+
+        # Calculate voxel size
+        vox_size = (self.max_bounds - self.min_bounds) / voxel_grid_shape
+        assert np.all(np.isclose(vox_size, vox_size[0]))
+        self.voxel_size: float = float(vox_size[0])
+
+        # Intrinsic for point cloud generation
+        self.intrinsic = o3d.camera.PinholeCameraIntrinsic(
+            o3d.camera.PinholeCameraIntrinsicParameters.PrimeSenseDefault
+        )
+
+        # Store original and processed point cloud
+        self.original_pcd = None
+        self.processed_pcd = None
+
+    def capture_pointcloud(self, rgbd_image):
+        """
+        Capture point cloud from RealSense camera.
+        
+        Args:
+            depth_scale (float): Scale to convert depth to meters
+            depth_trunc (float): Maximum depth to consider
+        
+        Returns:
+            np.ndarray: Captured point cloud
+        """
+        # Generate point cloud
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(rgbd_image)
+
+        # Store and convert to numpy
+        self.original_pcd = pcd
+        self.processed_pcd = pcd
+        return np.asarray(pcd.points)
+
+    def crop_pointcloud(self, points=None):
+        """
+        Crop point cloud to specified bounds.
+        
+        Args:
+            points (np.ndarray, optional): Point cloud to crop. 
+                                           Uses stored point cloud if None.
+        
+        Returns:
+            np.ndarray: Cropped point cloud
+        """
+        if points is None:
+            points = np.asarray(self.processed_pcd.points)
+
+        within_bounds = np.all(
+            (points >= self.min_bounds) & (points <= self.max_bounds), 
+            axis=1
+        )
+        return points[within_bounds]
+
+    def voxelize(self, points=None):
+        """
+        Convert point cloud to voxel grid.
+        
+        Args:
+            points (np.ndarray, optional): Point cloud to voxelize. 
+                                           Uses stored point cloud if None.
+        
+        Returns:
+            tuple: (voxel_grid, voxel_indices)
+        """
+        if points is None:
+            points = self.crop_pointcloud()
+        else:
+            points = self.crop_pointcloud(points)
+
+        # Calculate voxel indices
+        dimensions = np.ceil((self.max_bounds - self.min_bounds) / self.voxel_size).astype(int)
+        voxel_indices = ((points - self.min_bounds) / self.voxel_size).astype(int)
+
+        # Create voxel grid
+        voxel_grid = np.zeros(dimensions, dtype=np.bool_)
+        valid_indices = np.all((voxel_indices >= 0) & (voxel_indices < dimensions), axis=1)
+        
+        voxel_grid[
+            voxel_indices[valid_indices, 0], 
+            voxel_indices[valid_indices, 1], 
+            voxel_indices[valid_indices, 2]
+        ] = True
+
+        return voxel_grid, voxel_indices[valid_indices, :].astype(np.uint8)
+
+    def get_voxelgrid_shape(self):
+        """
+        Get the shape of the voxel grid.
+        
+        Returns:
+            np.ndarray: Voxel grid dimensions
+        """
+        return np.ceil((self.max_bounds - self.min_bounds) / self.voxel_size).astype(int)
+
+    def visualize(self, points=None):
+        """
+        Visualize point cloud.
+        
+        Args:
+            points (np.ndarray, optional): Point cloud to visualize. 
+                                           Uses stored point cloud if None.
+        """
+        if points is None and self.processed_pcd is not None:
+            o3d.visualization.draw_geometries([self.processed_pcd])
+        elif points is not None:
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(points)
+            o3d.visualization.draw_geometries([pcd])
 
 
 class PointCloudFusion:
