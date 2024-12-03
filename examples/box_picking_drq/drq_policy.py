@@ -149,7 +149,7 @@ listener.start()
 ##############################################################################
 
 
-def actor(agent: DrQAgent, data_store, env, sampling_rng):
+def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
     """
     This is the actor loop, which runs when "--actor" is set to True.
     """
@@ -291,7 +291,12 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng):
 
                 rotated_obs = copy.deepcopy(obs)
                 rotated_obs["state"] = batched_random_rot90_state(obs["state"], rot_rng)
-                rotated_obs["wrist_pointcloud"] = batched_random_rot90_voxel(obs["wrist_pointcloud"], rot_rng)
+
+                if not dual:
+                    rotated_obs["wrist_pointcloud"] = batched_random_rot90_voxel(obs["wrist_pointcloud"], rot_rng)
+                else:
+                    rotated_obs["wrist_1_pointcloud"] = batched_random_rot90_voxel(obs["wrist_1_pointcloud"], rot_rng)
+                    rotated_obs["wrist_2_pointcloud"] = batched_random_rot90_voxel(obs["wrist_2_pointcloud"], rot_rng)
 
                 actions = agent.sample_actions(
                     observations=jax.device_put(rotated_obs),
@@ -635,7 +640,7 @@ def main(_):
         # actor loop
         print_green("starting actor loop")
         try:
-            actor(agent, data_store, env, sampling_rng)
+            actor(agent, data_store, env, sampling_rng, dual=FLAGS.dual)
             print_green("actor loop finished")
         except (KeyboardInterrupt, RuntimeError) as e:
             print_green("actor loop interrupted: " + str(e))

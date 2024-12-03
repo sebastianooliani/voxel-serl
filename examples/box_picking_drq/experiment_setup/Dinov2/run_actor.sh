@@ -3,8 +3,8 @@ export XLA_PYTHON_CLIENT_MEM_FRACTION=.1 && \
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform && \
 python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy.py "$@" \
     --actor \
-    --env box_picking_camera_env_dual_robot \
-    --exp_name="ResNet18 feat red 32 128" \
+    --env box_picking_camera_env \
+    --exp_name="dinov2_one_arm" \
     --camera_mode rgb \
     --max_traj_length 100 \
     --seed 1 \
@@ -15,11 +15,6 @@ python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy.py "$@" \
     --batch_size 96 \
     --eval_period 0 \
     \
-    --encoder_type resnet-pretrained-18 \
+    --encoder_type dinov2 \
     --encoder_bottleneck_dim 128 \
-    --state_mask all \
-    --encoder_kwargs pooling_method \
-    --encoder_kwargs feature_reduction \
-    --encoder_kwargs num_kp \
-    --encoder_kwargs 32 \
     --debug

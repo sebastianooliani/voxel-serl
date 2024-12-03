@@ -74,7 +74,7 @@ devices = jax.local_devices()
 num_devices = len(devices)
 sharding = jax.sharding.PositionalSharding(devices)
 
-DUAL_SPACEMOUSE = True
+DUAL_SPACEMOUSE = False
 
 def main(_):
     assert FLAGS.batch_size % num_devices == 0
@@ -85,7 +85,7 @@ def main(_):
         FLAGS.env,
         fake_env=not FLAGS.eval_checkpoint_step,
         max_episode_length=100,
-        camera_mode="none"
+        camera_mode="rgb"
     )
     # env = SpacemouseIntervention(env)
     env = DualRelativeFrame(env) if DUAL_SPACEMOUSE else RelativeFrame(env)

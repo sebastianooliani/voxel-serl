@@ -311,7 +311,7 @@ def main(_):
         FLAGS.env,
         fake_env=FLAGS.learner,
         max_episode_length=FLAGS.max_traj_length,
-        camera_mode="none",
+        camera_mode="rgb",
     )
     if FLAGS.actor:
         env = SpacemouseIntervention(env) if not DUAL_SPACEMOUSE else TwoSpacemiceIntervention(env)
@@ -346,7 +346,7 @@ def main(_):
 
         # set up wandb and logging
         wandb_logger = make_wandb_logger(
-            project="dual_robot_side_sac",
+            project="dual_robot_top_sac",
             description=FLAGS.exp_name or FLAGS.env,
             debug=FLAGS.debug,
         )

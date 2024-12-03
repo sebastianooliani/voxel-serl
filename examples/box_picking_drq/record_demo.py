@@ -32,7 +32,7 @@ def on_esc(key):
 
 if __name__ == "__main__":
     env = gym.make("box_picking_camera_env_dual_robot",
-                   camera_mode="rgb",
+                   camera_mode="pointcloud",
                    max_episode_length=100,
                    )
     

@@ -1,7 +1,6 @@
 export XLA_PYTHON_CLIENT_PREALLOCATE=false && \
 export XLA_PYTHON_CLIENT_MEM_FRACTION=.2 && \
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform && \
-
 python /home/nico/real-world-rl/serl/examples/box_picking_drq/drq_policy.py "$@" \
     --actor \
     --env box_picking_camera_env_eval \

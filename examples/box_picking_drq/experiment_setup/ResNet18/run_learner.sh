@@ -1,8 +1,9 @@
 export XLA_PYTHON_CLIENT_PREALLOCATE=false && \
 export XLA_PYTHON_CLIENT_MEM_FRACTION=.3 && \
-python /home/nico/real-world-rl/serl/examples/box_picking_drq/drq_policy.py "$@" \
+export XLA_PYTHON_CLIENT_ALLOCATOR=platform && \
+python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy.py "$@" \
     --learner \
-    --env box_picking_camera_env \
+    --env box_picking_camera_env_dual_robot \
     --exp_name="ResNet18 feat red 32 128" \
     --camera_mode rgb \
     --max_traj_length 100 \
@@ -13,8 +14,11 @@ python /home/nico/real-world-rl/serl/examples/box_picking_drq/drq_policy.py "$@"
     --utd_ratio 8 \
     --batch_size 96 \
     --checkpoint_period 1000 \
-    --checkpoint_path /home/nico/real-world-rl/serl/examples/box_picking_drq/experiment_setup/ResNet18/checkpoints \
-    --demo_path /home/nico/real-world-rl/serl/examples/box_picking_drq/experiment_setup/box_picking_20_demos_2024-08-20_rgb_depth.pkl \
+    --checkpoint_path /home/sebastiano/voxel-serl/examples/box_picking_drq/experiment_setup/ResNet18/checkpoints \
+    --demo_path /home/sebastiano/voxel-serl/examples/box_picking_drq/box_picking_20_demos_2024-11-27_09-21-09_twoarms_rgb_128_top.pkl \
+    \
+    --load_checkpoint_path "/home/sebastiano/voxel-serl/examples/box_picking_drq/experiment_setup/ResNet18/checkpoints ResNet18 feat red 32 128 1125-16:17"\
+    --eval_checkpoint_step 1000 \
     \
     --encoder_type resnet-pretrained-18 \
     --encoder_bottleneck_dim 128 \
@@ -23,4 +27,4 @@ python /home/nico/real-world-rl/serl/examples/box_picking_drq/drq_policy.py "$@"
     --encoder_kwargs feature_reduction \
     --encoder_kwargs num_kp \
     --encoder_kwargs 32 \
-#    --debug
+    --debug

@@ -4,7 +4,7 @@ export XLA_PYTHON_CLIENT_ALLOCATOR=platform && \
 python sac_policy.py "$@" \
     --actor \
     --env box_picking_camera_env_dual_robot \
-    --exp_name=sac_drq_policy \
+    --exp_name=sac_drq_policy_rgb \
     --max_traj_length 300 \
     --seed 42 \
     --max_steps 10000 \
