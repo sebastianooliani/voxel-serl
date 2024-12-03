@@ -89,7 +89,8 @@ class UrImpedanceController(threading.Thread):
         # self.reset_Q = np.array([0., -np.pi / 2., np.pi / 2., -np.pi / 2., -np.pi / 2., 0.], dtype=np.float32)  # reset state in Joint Space
         if self.robot_ip[-2:] == "66":
             self.reset_Q = config.RESET_Q[0, :6]
-            self.mid_reset_Q = config.MID_RESET_Q[0, :6]
+            if self.config.DUAL:
+                self.mid_reset_Q = config.MID_RESET_Q[0, :6]
         elif self.robot_ip[-2:] == "33":
             self.reset_Q = config.RESET_Q[0, 6:]
             self.mid_reset_Q = config.MID_RESET_Q[0, 6:]
@@ -339,8 +340,6 @@ class UrImpedanceController(threading.Thread):
             self._is_truncated.set()
         else:
             self._is_truncated.clear()
-
-
 
     def is_truncated(self):
         if self._is_truncated.is_set():
