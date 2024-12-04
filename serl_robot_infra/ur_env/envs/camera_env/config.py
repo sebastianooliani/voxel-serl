@@ -140,7 +140,7 @@ class UR5CameraConfigFinalEvaluation(UR5CameraConfigFinal):
 class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     DUAL = True
     TOP = True
-    HER = True
+    HER = False
     # box in horizontal position
     RESET_Q = np.array([[- math.pi / 6. , -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
                         math.pi + math.pi / 4, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]])
@@ -166,12 +166,16 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     T_O1_O2 = np.array([[0., 1., 0., -0.945], 
                         [-1., 0., 0., -0.], 
                         [0., 0., 1., 0.01], 
-                        [0., 0., 0., 1.]])
+                        [0., 0., 0., 1.]], dtype=np.float32)
     # 13cm
     T_EE_SC = np.array([[1., 0., 0., 0.],
                         [0., 1., 0., 0.],
                         [0., 0., 1., 0.130],
                         [0., 0., 0., 1.]], dtype=np.float32)
+    
+    WF_rot = np.array([[-1,  0,  0],
+                        [ 0,  0, -1],
+                        [ 0, -1,  0]], dtype=np.float32)
     
     ###########################################################################
     # pay attention that you are not clipping the single value of the angles, # 
