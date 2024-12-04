@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Tuple
+import copy
 
 from ur_env.envs.ur5_env import UR5Env, UR5DualRobotEnv
 from ur_env.envs.camera_env.config import UR5CameraConfigFinal, UR5CameraConfigFinalTests, UR5CameraConfigFinalEvaluation, UR5CameraConfigDemo, UR5CameraConfigDualRobot
@@ -7,7 +7,6 @@ from ur_env.envs.camera_env.config import UR5CameraConfigFinal, UR5CameraConfigF
 from franka_env.utils.transformations import (
     construct_homogeneous_matrix
 )
-from scipy.spatial.transform import Rotation as R
 
 
 class UR5CameraEnv(UR5Env):
@@ -215,12 +214,40 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5CameraEnvDualRobot):
         else:
             return 0. + suction_reward - action_cost - orientation_cost - position_cost - \
                 suction_cost - step_cost - action_diff_cost - distance_cost
+
+    def _get_obs(self, action) -> dict:
+        # get image before state observation, so they match better in time
+
+        images = None
+        if self.camera_mode is not None:
+            images = self.get_image()
+
+        self._update_box_pose_estimate()
+
+        self._update_currpos()
+        state_observation = {
+            "tcp_pose": self.curr_pos,
+            "tcp_vel": self.curr_vel,
+            "gripper_state": self.gripper_state,
+            "tcp_force": self.curr_force,
+            "tcp_torque": self.curr_torque,
+            "action": action,
+            # TODO: add my custom observations here
+            "tcp_pos_diff": self.curr_pos[:3] - self.curr_pos[7:10],
+            "joint_positions": self.curr_Q,
+            # motion planning observations
+            "goal_box_position": np.linalg.norm(self.goal_position - self.box_position),
+            "box_position": self.box_position,
+        }
+
+        if images is not None:
+            return copy.deepcopy(dict(images=images, state=state_observation))
+        else:
+            return copy.deepcopy(dict(state=state_observation))
     
-    def reached_goal_state_her(self, obs) -> bool:
+    def reached_goal_state(self, obs) -> bool:
         state = obs["state"]
-        box_pos = state['box_position']
-        goal_pos = ...
-        return np.linalg.norm(goal_pos - box_pos) < 0.05 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
+        return np.linalg.norm(state["goal_box_position"]) < 0.05 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
     
 ############################################################################################################
 
