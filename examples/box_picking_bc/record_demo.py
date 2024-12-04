@@ -32,11 +32,11 @@ def on_esc(key):
     if key == keyboard.Key.esc:
         exit_program.set()
 
-DUAL = False
+DUAL = True
 
 if __name__ == "__main__":
     env = gym.make("box_picking_camera_env_dual_robot",
-                   camera_mode="pointcloud") if DUAL else gym.make("box_picking_camera_env", camera_mode="pointcloud")
+                   camera_mode="rgb") if DUAL else gym.make("box_picking_camera_env", camera_mode="none")
     
     DUAL_SPACEMOUSE = env.env.env.env.config.DUAL
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     transitions = []
     her_transitions = []
     success_count = 0
-    success_needed = 5 if not DUAL_SPACEMOUSE else 10
+    success_needed = 20
     total_count = 0
     pbar = tqdm(total=success_needed)
 

@@ -32,7 +32,7 @@ def on_esc(key):
 
 if __name__ == "__main__":
     env = gym.make("box_picking_camera_env_dual_robot",
-                   camera_mode="pointcloud",
+                   camera_mode="rgb",
                    max_episode_length=100,
                    )
     
@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     transitions = []
     success_count = 0
-    success_needed = 20 if not DUAL else 20
+    success_needed = 20
     total_count = 0
     pbar = tqdm(total=success_needed)
 
