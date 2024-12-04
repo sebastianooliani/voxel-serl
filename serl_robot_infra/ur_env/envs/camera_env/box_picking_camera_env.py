@@ -148,7 +148,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
 
 ############################################################################################################
 
-class UR5CameraEnvDualRobotMotionPlanning(UR5CameraEnvDualRobot):
+class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
     def __init__(self, load_config=True, **kwargs):
         if load_config:
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)

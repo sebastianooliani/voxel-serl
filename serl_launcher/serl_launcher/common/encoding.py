@@ -7,10 +7,17 @@ import jax.numpy as jnp
 from einops import rearrange, repeat
 
 DUAL = True
+HER = True
 
 def create_state_mask(mask_str: str) -> jnp.ndarray:
     # for the future: just 'all' is considered for now
-    all = jnp.ones((27,), dtype=jnp.bool) if not DUAL else jnp.ones((69,), dtype=jnp.bool)
+    if not DUAL:
+        all = jnp.ones((27,), dtype=jnp.bool)
+    elif HER:
+        all = jnp.ones((75,), dtype=jnp.bool)
+    else:
+        all = jnp.ones((69,), dtype=jnp.bool)
+    # all = jnp.ones((27,), dtype=jnp.bool) if not DUAL else jnp.ones((69,), dtype=jnp.bool)
     none = jnp.zeros_like(all)
     no_action = all.at[:7].set(False) if not DUAL else all.at[:14].set(False)
     gripper = none.at[0+7:2+7].set(True) if not DUAL else none.at[0+14:4+14].set(True)

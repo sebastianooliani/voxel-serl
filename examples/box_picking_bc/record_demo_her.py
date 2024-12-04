@@ -9,6 +9,7 @@ import gymnasium as gym
 from pprint import pprint
 from pynput import keyboard
 import sys
+import math
 
 sys.path.append("../../serl_robot_infra")
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention
@@ -18,6 +19,11 @@ from ur_env.utils.sample_3d_points import sample_points_in_intersecting_boxes
 
 from gymnasium.wrappers import TransformReward
 from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
+
+from franka_env.utils.transformations import (
+    construct_homogeneous_matrix
+)
+from fast_kinematics import FastKinematics
 
 exit_program = threading.Event()
 
@@ -33,14 +39,89 @@ def on_esc(key):
     if key == keyboard.Key.esc:
         exit_program.set()
 
+# global variables to speed up her computation
+file_name="/home/sebastiano/voxel-serl/serl_robot_infra/robot_controllers/ur5.urdf"
+link="ee_link"
+N=1
+robot_model = FastKinematics(file_name, N, link)
+joint_positions = np.array([[- math.pi / 6. , -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
+                        math.pi + math.pi / 4, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]], dtype=np.float32)
+# output of forward kinematics is position and quaternion
+curr_reset_pose = np.concatenate([robot_model.forward_kinematics(joint_positions[0, :6].transpose()), robot_model.forward_kinematics(joint_positions[0, 6:].transpose())], axis=0)
+
+# her reward computation
+def compute_reward_her(obs, 
+                   action, 
+                   goal_position,
+                   last_action=np.zeros((14,)),
+                   T_O1_O2=np.array([[0., 1., 0., -0.945], 
+                        [-1., 0., 0., -0.], 
+                        [0., 0., 1., 0.01], 
+                        [0., 0., 0., 1.]]),
+                    T_EE_SC=np.array([[1., 0., 0., 0.],
+                        [0., 1., 0., 0.],
+                        [0., 0., 1., 0.130],
+                        [0., 0., 0., 1.]]),
+                    ) -> float:
+        action_cost = 0.1 * np.sum(np.power(action, 2))
+        action_diff_cost = 0.1 * np.sum(np.power(obs["state"]["action"] - last_action, 2))
+        last_action[:] = action
+        
+        # STEP: penalize each step
+        step_cost = 0.1
+
+        # SUCTION: reward for successful grip and cost for unnecessary suctioning
+        suction_reward = 5 * 0.3 * (float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5))
+        suction_cost = 0.5 * 3. * (float(obs["state"]["gripper_state"][1] < -0.5) + float(obs["state"]["gripper_state"][3] < -0.5))
+
+        # ORIENTATION: penalize deviating too much from the starting pose
+        orientation_cost = 0
+        orientation_cost = 0.5 - sum(obs["state"]["tcp_pose"][3:7] * curr_reset_pose[3:7]) ** 2
+        orientation_cost += 0.5 - sum(obs["state"]["tcp_pose"][10:] * curr_reset_pose[10:]) ** 2
+        orientation_cost = max(orientation_cost - 0.005, 0.) * 25.
+
+        # POSITION: penalize deviating too much from the starting pose
+        max_pose_diff = 0.05  # set to 5cm
+        pos_diff = np.concatenate([obs["state"]["tcp_pose"][:2] - curr_reset_pose[:2], obs["state"]["tcp_pose"][7:9] - curr_reset_pose[7:9]])
+        position_cost = 10. * np.sum(
+            np.where(np.abs(pos_diff) > max_pose_diff, np.abs(pos_diff - np.sign(pos_diff) * max_pose_diff), 0.0)
+        )
+
+        # 3D DISTANCE: penalize the distance between the two robots' end-effectors
+        # TODO: adjust reference frames and relative base positions
+        T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
+        T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
+        T_O1_SC1 = T_O1_E1 @ T_EE_SC
+        T_O1_SC2 = T_O1_O2 @ T_O2_E2 @ T_EE_SC
+        distance_cost = 1. / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
+                
+        if reached_goal_state_her(obs, goal_position):
+            last_action[:] = 0.
+            R_goal = 100.
+            return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
+        else:
+            return 0. + suction_reward - action_cost - orientation_cost - position_cost - \
+                suction_cost - step_cost - action_diff_cost - distance_cost
+        
+def reached_goal_state_her(obs, goal_position) -> bool:
+        state = obs["state"]
+        return np.linalg.norm(goal_position - state["box_position"]) < 0.05 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
+
 DUAL = True
 
 if __name__ == "__main__":
-    env = gym.make("box_picking_camera_env_dual_robot",
-                   camera_mode="none", her=True) if DUAL else gym.make("box_picking_camera_env", camera_mode="rgb")
+    env = gym.make("box_picking_camera_env_dual_robot_motion_planning",
+                   camera_mode="none") if DUAL else gym.make("box_picking_camera_env", camera_mode="rgb")
     
     DUAL_SPACEMOUSE = env.env.env.env.config.DUAL
     HER = env.env.env.env.config.HER
+    T = env.env.env.env.config.T_O1_O2
+        
+    # Example boxes
+    box1_min = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_LOW_ROBOT_1[:3], [1]])
+    box1_max = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_HIGH_ROBOT_1[:3], [1]])
+    box2_min = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_LOW_ROBOT_2[:3], [1]])
+    box2_max = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_HIGH_ROBOT_2[:3], [1]])
 
     env = TwoSpacemiceIntervention(env) if DUAL_SPACEMOUSE else SpacemouseIntervention(env)
     env = DualRelativeFrame(env) if DUAL_SPACEMOUSE else RelativeFrame(env)
@@ -57,7 +138,7 @@ if __name__ == "__main__":
     augmented_transitions = []
 
     success_count = 0
-    success_needed = 5 if not DUAL_SPACEMOUSE else 10
+    success_needed = 20
     total_count = 0
     pbar = tqdm(total=success_needed)
 
@@ -79,13 +160,6 @@ if __name__ == "__main__":
 
     try:
         iter = 0
-        T = env.env.env.env.config.T_O1_O2
-        
-        # Example boxes
-        box1_min = env.env.env.env.config.ABS_POSE_LIMIT_LOW_ROBOT_1[:3]
-        box1_max = env.env.env.env.config.ABS_POSE_LIMIT_HIGH_ROBOT_1[:3]
-        box2_min = env.env.env.env.config.ABS_POSE_LIMIT_LOW_ROBOT_2[:3]
-        box2_max = env.env.env.env.config.ABS_POSE_LIMIT_HIGH_ROBOT_2[:3]
 
         # Evaluate box limits in the correct reference frame
         box2_min = T @ box2_min
@@ -93,12 +167,14 @@ if __name__ == "__main__":
 
         # Sample points in the intersection
         intersection_points = sample_points_in_intersecting_boxes(
-            box1_min, box1_max, box2_min, box2_max, 20
+            box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 20
         )
 
         num_points = intersection_points.shape[0]
 
         while iter < num_points:
+            # define goal position
+            env.env.env.env.env.goal_position = intersection_points[iter]
             if exit_program.is_set():
                 raise KeyboardInterrupt  # stop program, but clean up before
             action = np.zeros((14,)) if DUAL_SPACEMOUSE else np.zeros((7,))
@@ -125,21 +201,15 @@ if __name__ == "__main__":
             if done:
                 last_obs = next_obs
 
-                def reached_goal_state_her(obs, box_position) -> bool:
-                    state = obs["state"]
-                    box_pos = state["box_position"]
-                    goal_pos = box_position
-                    return np.linalg.norm(goal_pos - box_pos) < 0.05 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
-
                 # HER transitions
-                for i, trans in enumerate(transitions):
+                for trans in transitions:
                     her_transitions.append(
                         dict(
                             observations=np.concatenate([trans['observations'], last_obs], axis=0),
                             actions=trans['actions'],
                             next_observations=np.concatenate([trans['next_observations'], last_obs], axis=0),
                             # compute reward based on the new goal state
-                            rewards=reached_goal_state_her(box_position=last_obs['state']['box_position'], obs=trans['observations']), # TODO: implement this function
+                            rewards=compute_reward_her(obs=trans['observations'],action=trans["actions"], goal_position=last_obs["box_position"]), # TODO: implement this function
                             masks=trans['masks'],
                             dones=trans['dones'],
                         )
@@ -175,8 +245,8 @@ if __name__ == "__main__":
     except KeyboardInterrupt as e:
         print(f'\nProgram was interrupted from keyboard, cleaning up...  ', e.__str__())
 
-    except ValueError as e:
-        print(f'\nValue Error! Program was interrupted, cleaning up...  ', e.__str__())
+    # except ValueError as e:
+    #     print(f'\nValue Error! Program was interrupted, cleaning up...  ', e.__str__())
 
     finally:
         if 'pbar' in locals() and not pbar.disable:
