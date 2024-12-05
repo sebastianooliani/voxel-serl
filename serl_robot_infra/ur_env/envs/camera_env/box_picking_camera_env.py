@@ -236,7 +236,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             "tcp_pos_diff": self.curr_pos[:3] - self.curr_pos[7:10],
             "joint_positions": self.curr_Q,
             # motion planning observations
-            "goal_box_position": np.linalg.norm(self.goal_position - self.box_position),
+            "goal_box_position": self.goal_position - self.box_position,
             "box_position": self.box_position,
         }
 
