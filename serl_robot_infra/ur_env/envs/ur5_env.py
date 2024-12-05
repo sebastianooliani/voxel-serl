@@ -957,6 +957,8 @@ class UR5DualRobotEnv(UR5Env):
             self.box_position = np.array(message['space'][0]['boxes'][list(message['space'][0]['boxes'].keys())[0]]['world2box']['pos'])
             print(f"box position: {self.box_position}")
             self.box_position = self.WF_rot @ self.box_position
+
+            await websocket.send("a")
             
     def get_image(self) -> Dict[str, np.ndarray]:
         """Get images from the realsense cameras."""
