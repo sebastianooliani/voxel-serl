@@ -51,9 +51,6 @@ def calculate_box_intersection(box1_min, box1_max, box2_min, box2_max):
     # Calculate intersection boundaries
     intersection_min = np.maximum(box1_min, box2_min)
     intersection_max = np.minimum(box1_max, box2_max)
-
-    print("Intersection Min:", intersection_min)
-    print("Intersection Max:", intersection_max)
     
     # More robust intersection check
     if np.all(intersection_max >= intersection_min - 1e-10):
