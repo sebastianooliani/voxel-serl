@@ -1,5 +1,6 @@
 import numpy as np
 import copy
+import asyncio
 
 from ur_env.envs.ur5_env import UR5Env, UR5DualRobotEnv
 from ur_env.envs.camera_env.config import UR5CameraConfigFinal, UR5CameraConfigFinalTests, UR5CameraConfigFinalEvaluation, UR5CameraConfigDemo, UR5CameraConfigDualRobot
@@ -7,7 +8,6 @@ from ur_env.envs.camera_env.config import UR5CameraConfigFinal, UR5CameraConfigF
 from franka_env.utils.transformations import (
     construct_homogeneous_matrix
 )
-
 
 class UR5CameraEnv(UR5Env):
     def __init__(self, load_config=True, **kwargs):
@@ -215,14 +215,14 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             return 0. + suction_reward - action_cost - orientation_cost - position_cost - \
                 suction_cost - step_cost - action_diff_cost - distance_cost
 
-    def _get_obs(self, action) -> dict:
+    async def _get_obs(self, action) -> dict:
         # get image before state observation, so they match better in time
 
         images = None
         if self.camera_mode is not None:
             images = self.get_image()
 
-        self._update_box_pose_estimate()
+        await self._update_box_pose_estimate()
 
         self._update_currpos()
         state_observation = {
@@ -246,8 +246,9 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             return copy.deepcopy(dict(state=state_observation))
     
     def reached_goal_state(self, obs) -> bool:
-        state = obs["state"]
-        return np.linalg.norm(state["goal_box_position"]) < 0.05 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
+        state = obs['state']
+        print(f"Goal box position: {state['goal_box_position']}, Gripper state: {state['gripper_state']}")
+        return np.linalg.norm(state['goal_box_position']) < 0.05 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
     
 ############################################################################################################
 
