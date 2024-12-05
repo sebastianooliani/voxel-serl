@@ -76,4 +76,29 @@ class ScaleObservationWrapper(gym.ObservationWrapper):
         obs["state"]["tcp_vel"][3:] *= self.rotation_scale
         obs["state"]["tcp_force"] *= self.force_scale
         obs["state"]["tcp_torque"] *= self.torque_scale
+        # TODO: Add scaling for dual set up observations
+        return obs
+
+class ScaleDualObservationWrapper(ScaleObservationWrapper):
+    """
+    This observation wrapper scales the observations with the provided hyperparams
+    (to somewhat normalize the observations space) for dual setups.
+    """
+
+    def __init__(self,
+                 env,
+                 translation_scale=100.,
+                 rotation_scale=10.,
+                 force_scale=1.,
+                 torque_scale=10.
+                 ):
+        super().__init__(env, translation_scale, rotation_scale, force_scale, torque_scale)
+
+    def observation(self, obs):
+        obs["state"]["tcp_pose"][:3] *= self.translation_scale
+        obs["state"]["tcp_pose"][3:] *= self.rotation_scale
+        obs["state"]["tcp_vel"][:3] *= self.translation_scale
+        obs["state"]["tcp_vel"][3:] *= self.rotation_scale
+        obs["state"]["tcp_force"] *= self.force_scale
+        obs["state"]["tcp_torque"] *= self.torque_scale
         return obs
