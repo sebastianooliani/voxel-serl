@@ -1,31 +1,29 @@
-import os
-import datetime
-import threading
+import gymnasium as gym
+from tqdm import tqdm
 import numpy as np
 import copy
 import pickle as pkl
-from tqdm import tqdm
-import gymnasium as gym
-from pprint import pprint
+import datetime
+import os
+import threading
 from pynput import keyboard
-import sys
+
+from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
+from ur_env.envs.wrappers import SpacemouseIntervention, TwoSpacemiceIntervention, DualQuat2MrpWrapper, Quat2MrpWrapper, ObservationRotationWrapper
+
+from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper, ScaleObservationWrapper
+from serl_launcher.wrappers.chunking import ChunkingWrapper
+
+import ur_env
+
 import math
 from scipy.spatial.transform import Rotation as R
-
-sys.path.append("../../serl_robot_infra")
-from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention
-from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
-from serl_launcher.wrappers.chunking import ChunkingWrapper
-from ur_env.utils.sample_3d_points import sample_points_in_intersecting_boxes
-
-from gymnasium.wrappers import TransformReward
-from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
-
 from franka_env.utils.transformations import (
     pose_2_homogeneous_matrix,
     construct_homogeneous_matrix
 )
 from fast_kinematics import FastKinematics
+from ur_env.utils.sample_3d_points import sample_points_in_intersecting_boxes
 
 exit_program = threading.Event()
 
@@ -122,13 +120,13 @@ def compute_reward_her(obs,
         
 ############################################################################################################
 
-DUAL = True
-
 if __name__ == "__main__":
-    env = gym.make("box_picking_camera_env_dual_robot_motion_planning",
-                   camera_mode="none") if DUAL else gym.make("box_picking_camera_env", camera_mode="rgb")
+    env = gym.make("box_picking_camera_env_dual_robot",
+                   camera_mode="rgb",
+                   max_episode_length=100,
+                   )
     
-    DUAL_SPACEMOUSE = env.env.env.env.config.DUAL
+    DUAL = env.env.env.env.config.DUAL
     HER = env.env.env.env.config.HER
     T = env.env.env.env.config.T_O1_O2
         
@@ -137,13 +135,14 @@ if __name__ == "__main__":
     box1_max = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_HIGH_ROBOT_1[:3], [1]])
     box2_min = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_LOW_ROBOT_2[:3], [1]])
     box2_max = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_HIGH_ROBOT_2[:3], [1]])
-
-    env = TwoSpacemiceIntervention(env) if DUAL_SPACEMOUSE else SpacemouseIntervention(env)
-    env = DualRelativeFrame(env) if DUAL_SPACEMOUSE else RelativeFrame(env)
-    env = DualQuat2MrpWrapper(env) if DUAL_SPACEMOUSE else Quat2MrpWrapper(env)
-    env = SerlObsWrapperNoImages(env)
-    # env = TransformReward(env, lambda r: 10. * r)
-    # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
+    
+    env = SpacemouseIntervention(env) if not DUAL else TwoSpacemiceIntervention(env)
+    env = RelativeFrame(env) if not DUAL else DualRelativeFrame(env)
+    env = Quat2MrpWrapper(env) if not DUAL else DualQuat2MrpWrapper(env)
+    env = ScaleObservationWrapper(env)
+    # env = ObservationRotationWrapper(env)       # if it should be enabled
+    env = SERLObsWrapper(env)
+    env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
 
     obs, _ = env.reset()
 
@@ -158,7 +157,7 @@ if __name__ == "__main__":
     pbar = tqdm(total=success_needed)
 
     info_dict = {'state': env.unwrapped.curr_pos, 'gripper_state': env.unwrapped.gripper_state,
-                 'force': env.unwrapped.curr_force}
+                 'force': env.unwrapped.curr_force, 'reset_pose': env.unwrapped.curr_reset_pose}
     listener_1 = keyboard.Listener(daemon=True, on_press=lambda event: on_space(event, info_dict=info_dict))
     listener_1.start()
 
@@ -166,7 +165,7 @@ if __name__ == "__main__":
     listener_2.start()
 
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"ur5_test_{success_needed}_demos_{uuid}_her.pkl"
+    file_name = f"box_picking_{success_needed}_demos_{uuid}_her.pkl"
     file_dir = os.path.dirname(os.path.realpath(__file__))  # same dir as this script
     file_path = os.path.join(file_dir, file_name)
 
@@ -174,6 +173,8 @@ if __name__ == "__main__":
         raise PermissionError(f"No permission to write to {file_dir}")
 
     try:
+        running_reward = 0.
+
         iter = 0
 
         # Evaluate box limits in the correct reference frame
@@ -186,20 +187,15 @@ if __name__ == "__main__":
         )
 
         num_points = intersection_points.shape[0]
-
+        
         while iter < num_points:
-            # define goal position
-            env.env.env.env.env.goal_position = intersection_points[iter]
-            # print(f"Goal position: {intersection_points[iter]}")
             if exit_program.is_set():
                 raise KeyboardInterrupt  # stop program, but clean up before
-            
-            action = np.zeros((14,)) if DUAL_SPACEMOUSE else np.zeros((7,))
+
+            action = np.zeros((14,)) if DUAL else np.zeros((7,))
             next_obs, rew, done, truncated, info = env.step(action=action)
             actions = info["intervene_action"]
 
-            # Original transitions
-            # Std experience replay
             transition = copy.deepcopy(
                 dict(
                     observations=obs,
@@ -211,11 +207,11 @@ if __name__ == "__main__":
                 )
             )
             transitions.append(transition)
-            # pprint(transition)
 
             obs = next_obs
+            running_reward += rew
 
-            if done:
+            if done or truncated:
                 last_obs = next_obs
 
                 # HER transitions
@@ -259,13 +255,11 @@ if __name__ == "__main__":
             print(f"saved {success_needed} demos to {file_path}")
 
     except KeyboardInterrupt as e:
-        print(f'\nProgram was interrupted from keyboard, cleaning up...  ', e.__str__())
+        print(f'\nProgram was interrupted, cleaning up...  ', e.__str__())
 
     finally:
-        if 'pbar' in locals() and not pbar.disable:
-            pbar.close()
+        pbar.close()
         env.close()
-        print("Environment closed.")
         listener_1.stop()
         listener_2.stop()
         print("Program ended.")
