@@ -58,7 +58,7 @@ def calculate_box_intersection(box1_min, box1_max, box2_min, box2_max):
     
     return None
 
-def sample_points_in_intersecting_boxes(box1_min, box1_max, box2_min, box2_max, num_points, shrink_factor=0.2):
+def sample_points_in_intersecting_boxes(box1_min, box1_max, box2_min, box2_max, num_points, shrink_factor=0.2, seed=42):
     """
     Sample points uniformly from the intersection of two 3D boxes.
     
@@ -103,6 +103,7 @@ def sample_points_in_intersecting_boxes(box1_min, box1_max, box2_min, box2_max, 
     # print("Shrunk Intersection Max:", box_max_shrunk)
     
     # Generate points in the intersection box
+    np.random.seed(seed=seed)
     random_points = np.random.uniform(0, 1, size=(num_points, 3))
     box_dimensions = box_max_shrunk - box_min_shrunk
     scaled_points = random_points * box_dimensions + box_min_shrunk
@@ -268,6 +269,7 @@ def main():
         print("Max coordinates:", intersection_points.max(axis=0))
 
     plot_3d_points(box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], intersection_points)
+
 
 if __name__ == "__main__":
     main()
