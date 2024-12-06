@@ -209,7 +209,7 @@ if __name__ == "__main__":
                             actions=trans['actions'],
                             next_observations=np.concatenate([trans['next_observations'], last_obs], axis=0),
                             # compute reward based on the new goal state
-                            rewards=compute_reward_her(obs=trans['observations'],action=trans["actions"], goal_position=last_obs["box_position"]), # TODO: implement this function
+                            rewards=compute_reward_her(obs=trans['observations'],action=trans['actions'], goal_position=last_obs['state']['box_position']), # TODO: implement this function
                             masks=trans['masks'],
                             dones=trans['dones'],
                         )
