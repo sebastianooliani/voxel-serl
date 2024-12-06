@@ -43,3 +43,17 @@ def construct_homogeneous_matrix(tcp_pose):
     T[:3, 3] = translation
     T[3, 3] = 1
     return T
+
+def pose_2_homogeneous_matrix(tcp_pose):
+    """
+    Construct the homogeneous transformation matrix from given pose with orientation
+    represented with Modified Rodriguez Parameters.
+    args: tcp_pose: (x, y, z, qx, qy, qz)
+    """
+    rotation = R.from_mrp(tcp_pose[3:]).as_matrix()
+    translation = np.array(tcp_pose[:3])
+    T = np.zeros((4, 4))
+    T[:3, :3] = rotation
+    T[:3, 3] = translation
+    T[3, 3] = 1
+    return T

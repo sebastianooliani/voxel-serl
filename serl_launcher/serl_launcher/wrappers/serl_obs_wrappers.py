@@ -96,9 +96,24 @@ class ScaleDualObservationWrapper(ScaleObservationWrapper):
 
     def observation(self, obs):
         obs["state"]["tcp_pose"][:3] *= self.translation_scale
-        obs["state"]["tcp_pose"][3:] *= self.rotation_scale
+        obs["state"]["tcp_pose"][3:6] *= self.rotation_scale
+        obs["state"]["tcp_pose"][6:9] *= self.translation_scale
+        obs["state"]["tcp_pose"][9:] *= self.rotation_scale
+
         obs["state"]["tcp_vel"][:3] *= self.translation_scale
-        obs["state"]["tcp_vel"][3:] *= self.rotation_scale
+        obs["state"]["tcp_vel"][3:6] *= self.rotation_scale
+        obs["state"]["tcp_vel"][6:9] *= self.translation_scale
+        obs["state"]["tcp_vel"][9:] *= self.rotation_scale
+
         obs["state"]["tcp_force"] *= self.force_scale
         obs["state"]["tcp_torque"] *= self.torque_scale
+
+        obs['state']['tcp_pos_diff'] *= self.translation_scale
+        # obs['state']['joint_position'] *= self.rotation_scale # TODO: Check if this is needed
+        try:
+            obs['state']['goal_box_position'] *= self.translation_scale
+            obs['state']['box_position'] *= self.translation_scale
+        except:
+            pass
+
         return obs
