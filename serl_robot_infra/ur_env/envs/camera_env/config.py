@@ -177,6 +177,8 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
                         [ 0,  0, -1],
                         [ 0, -1,  0]], dtype=np.float32)
     
+    GOAL_POSITION = np.array([0.0, 0.0, 0.0])
+    
     ###########################################################################
     # pay attention that you are not clipping the single value of the angles, # 
     # but the orientation difference                                          #

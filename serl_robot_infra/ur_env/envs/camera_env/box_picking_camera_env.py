@@ -154,6 +154,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
             self.T_O1_O2 = UR5CameraConfigDualRobot.T_O1_O2
             self.T_EE_SC = UR5CameraConfigDualRobot.T_EE_SC
+            self.first = False
         else:
             super().__init__(**kwargs)
 
@@ -222,9 +223,10 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         if self.camera_mode is not None:
             images = self.get_image()
 
-        self._update_box_pose_estimate()
-        print(f"Box position: {self.box_position}")
-        print(f"Goal position: {self.goal_position}")
+        # self._update_box_pose_estimate()
+        self.box_position = np.array([0.5, 0.5, 0.5]) # dummy variable for debugging
+        self._get_goal_position()
+
         self._update_currpos()
         state_observation = {
             "tcp_pose": self.curr_pos,
@@ -248,7 +250,6 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
     
     def reached_goal_state(self, obs) -> bool:
         state = obs['state']
-        print(f"Goal box position: {state['goal_box_position']}, Gripper state: {state['gripper_state']}")
         return np.linalg.norm(state['goal_box_position']) < 0.05 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
     
 ############################################################################################################

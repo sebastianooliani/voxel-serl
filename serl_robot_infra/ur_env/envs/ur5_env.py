@@ -959,6 +959,12 @@ class UR5DualRobotEnv(UR5Env):
             self.box_position = self.WF_rot @ self.box_position
 
             await websocket.send("a")
+
+    def _get_goal_position(self):
+        """
+        Make sure the goal position is the correct one before computing the reward.
+        """
+        self.goal_position = self.config.GOAL_POSITION
             
     def get_image(self) -> Dict[str, np.ndarray]:
         """Get images from the realsense cameras."""
