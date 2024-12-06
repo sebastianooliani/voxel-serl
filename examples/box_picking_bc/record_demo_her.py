@@ -233,7 +233,7 @@ if __name__ == "__main__":
                     )
                     augmented_transitions.append(
                         dict(
-                            observations=np.concatenate([trans['observations'], intersection_points[iter]], axis=0),
+                            observations=np.concatenate([trans['observations'], intersection_points[iter]], axis=0), # TODO: should I recompute the goal_box_position observation?
                             actions=trans['actions'],
                             next_observations=np.concatenate([trans['next_observations'], intersection_points[iter]], axis=0),
                             rewards=trans['rewards'],

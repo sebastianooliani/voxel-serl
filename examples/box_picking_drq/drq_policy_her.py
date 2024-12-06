@@ -360,6 +360,10 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
     timer = Timer()
     running_return = 0.0
 
+    transitions = []
+    her_transitions = []
+    augmented_transitions = []
+
     for step in tqdm.tqdm(range(FLAGS.max_steps), dynamic_ncols=True):
         timer.tick("total")
 
@@ -415,10 +419,43 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                 masks=1.0 - done,
                 dones=done,
             )
-            data_store.insert(transition)
+            # data_store.insert(transition)
+            transitions.append(transition)
 
             obs = next_obs
+
             if done or truncated:
+                last_obs = next_obs
+
+                # HER transitions
+                for trans in transitions:
+                    her_transitions.append(
+                        dict(
+                            observations=np.concatenate([trans['observations'], last_obs], axis=0),
+                            actions=trans['actions'],
+                            next_observations=np.concatenate([trans['next_observations'], last_obs], axis=0),
+                            # compute reward based on the new goal state
+                            rewards=compute_reward_her(obs=trans['observations'],action=trans['actions'], goal_position=last_obs[-3:]), # TODO: implement this function
+                            masks=trans['masks'],
+                            dones=trans['dones'],
+                        )
+                    )
+                    augmented_transitions.append(
+                        dict(
+                            observations=np.concatenate([trans['observations'], intersection_points[iter]], axis=0), # TODO: what is the goal state?
+                            actions=trans['actions'],
+                            next_observations=np.concatenate([trans['next_observations'], intersection_points[iter]], axis=0),
+                            rewards=trans['rewards'],
+                            masks=trans['masks'],
+                            dones=trans['dones'],
+                        )
+                    )
+
+                transitions = []
+                augmented_transitions.extend(her_transitions)
+
+                data_store.insert(augmented_transitions)
+
                 stats = {"train": info}  # send stats to the learner to log
                 client.request("send-stats", stats)
                 print(f"running return: {running_return}")
