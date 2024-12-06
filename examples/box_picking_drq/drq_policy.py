@@ -37,7 +37,7 @@ from serl_launcher.utils.launcher import (
     make_wandb_logger,
 )
 from serl_launcher.data.data_store import MemoryEfficientReplayBufferDataStore
-from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper, ScaleObservationWrapper
+from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper, ScaleObservationWrapper, ScaleDualObservationWrapper
 from serl_launcher.wrappers.observation_statistics_wrapper import ObservationStatisticsWrapper, DualObservationStatisticsWrapper
 from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, ObservationRotationWrapper, DualQuat2MrpWrapper
@@ -526,7 +526,7 @@ def main(_):
     #     env = SpacemouseIntervention(env)
     env = RelativeFrame(env) if not FLAGS.dual else DualRelativeFrame(env)
     env = Quat2MrpWrapper(env) if not FLAGS.dual else DualQuat2MrpWrapper(env)
-    env = ScaleObservationWrapper(env)  # scale obs space (after quat2mrp, but before serlobs)
+    env = ScaleObservationWrapper(env) if not FLAGS.dual else ScaleDualObservationWrapper(env)  # scale obs space (after quat2mrp, but before serlobs)
     env = ObservationStatisticsWrapper(env) if not FLAGS.dual else DualObservationStatisticsWrapper(env)
     if FLAGS.enable_obs_rotation_wrapper:
         env = ObservationRotationWrapper(env)
