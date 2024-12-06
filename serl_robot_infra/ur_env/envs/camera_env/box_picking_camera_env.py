@@ -215,15 +215,16 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             return 0. + suction_reward - action_cost - orientation_cost - position_cost - \
                 suction_cost - step_cost - action_diff_cost - distance_cost
 
-    async def _get_obs(self, action) -> dict:
+    def _get_obs(self, action) -> dict:
         # get image before state observation, so they match better in time
 
         images = None
         if self.camera_mode is not None:
             images = self.get_image()
 
-        await self._update_box_pose_estimate()
-
+        self._update_box_pose_estimate()
+        print(f"Box position: {self.box_position}")
+        print(f"Goal position: {self.goal_position}")
         self._update_currpos()
         state_observation = {
             "tcp_pose": self.curr_pos,

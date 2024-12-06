@@ -63,6 +63,11 @@ def compute_reward_her(obs,
                         [0., 0., 1., 0.130],
                         [0., 0., 0., 1.]]),
                     ) -> float:
+        
+        def reached_goal_state_her(obs, goal_position) -> bool:
+            state = obs['state']
+            return np.linalg.norm(goal_position - state['box_position']) < 0.05 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
+
         action_cost = 0.1 * np.sum(np.power(action, 2))
         action_diff_cost = 0.1 * np.sum(np.power(obs["state"]["action"] - last_action, 2))
         last_action[:] = action
@@ -102,10 +107,6 @@ def compute_reward_her(obs,
         else:
             return 0. + suction_reward - action_cost - orientation_cost - position_cost - \
                 suction_cost - step_cost - action_diff_cost - distance_cost
-        
-def reached_goal_state_her(obs, goal_position) -> bool:
-        state = obs["state"]
-        return np.linalg.norm(goal_position - state["box_position"]) < 0.05 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
 
 DUAL = True
 
@@ -151,7 +152,7 @@ if __name__ == "__main__":
     listener_2.start()
 
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"ur5_test_{success_needed}_demos_{uuid}.pkl"
+    file_name = f"ur5_test_{success_needed}_demos_{uuid}_her.pkl"
     file_dir = os.path.dirname(os.path.realpath(__file__))  # same dir as this script
     file_path = os.path.join(file_dir, file_name)
 
@@ -175,6 +176,7 @@ if __name__ == "__main__":
         while iter < num_points:
             # define goal position
             env.env.env.env.env.goal_position = intersection_points[iter]
+            print(f"Goal position: {intersection_points[iter]}")
             if exit_program.is_set():
                 raise KeyboardInterrupt  # stop program, but clean up before
             action = np.zeros((14,)) if DUAL_SPACEMOUSE else np.zeros((7,))
@@ -209,7 +211,7 @@ if __name__ == "__main__":
                             actions=trans['actions'],
                             next_observations=np.concatenate([trans['next_observations'], last_obs], axis=0),
                             # compute reward based on the new goal state
-                            rewards=compute_reward_her(obs=trans['observations'],action=trans["actions"], goal_position=last_obs["box_position"]), # TODO: implement this function
+                            rewards=compute_reward_her(obs=trans['observations'], action=trans["actions"], goal_position=last_obs['box_position']), # TODO: implement this function
                             masks=trans['masks'],
                             dones=trans['dones'],
                         )
