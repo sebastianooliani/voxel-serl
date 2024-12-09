@@ -458,3 +458,11 @@ class FreeDriveWrapper(gym.ActionWrapper):
     def close(self):
         pass
         self.deactivate_free_drive()
+
+
+class SampleGoalPositions(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+
+    def step(self, action):
+        pass
