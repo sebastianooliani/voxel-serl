@@ -220,22 +220,41 @@ if __name__ == "__main__":
 
                 # HER transitions
                 for trans in transitions:
+                    # compute reward based on the new goal state
+                    # concatenate the last observation to the current observation
+                    # recompute the goal-box-position observation based on the reached point
                     her_transitions.append(
                         dict(
-                            observations=np.concatenate([trans['observations'], last_obs], axis=0),
+                            observations=np.concatenate(
+                                [trans['observations'][-6:], last_obs[-3:] - trans['observations'][-3:], trans['observations'][-3:], last_obs[-3:]], 
+                                axis=0
+                                ),
                             actions=trans['actions'],
-                            next_observations=np.concatenate([trans['next_observations'], last_obs], axis=0),
+                            next_observations=np.concatenate(
+                                [trans['next_observations'][-6:-3], last_obs[-3:] - trans['next_observations'][-3:], trans['next_observations'][-3:], last_obs[-3:]], 
+                                axis=0
+                                ), # TODO: should I recompute the goal_box_position observation?
                             # compute reward based on the new goal state
-                            rewards=compute_reward_her(obs=trans['observations'],action=trans['actions'], goal_position=last_obs[-3:]), # TODO: implement this function
+                            rewards=compute_reward_her(
+                                obs=trans['observations'],
+                                action=trans['actions'], 
+                                goal_position=last_obs[-3:]
+                                ), # TODO: implement this function
                             masks=trans['masks'],
                             dones=trans['dones'],
                         )
                     )
                     augmented_transitions.append(
                         dict(
-                            observations=np.concatenate([trans['observations'], intersection_points[iter]], axis=0), # TODO: should I recompute the goal_box_position observation?
+                            observations=np.concatenate(
+                                [trans['observations'], intersection_points[iter]], 
+                                axis=0
+                                ), 
                             actions=trans['actions'],
-                            next_observations=np.concatenate([trans['next_observations'], intersection_points[iter]], axis=0),
+                            next_observations=np.concatenate(
+                                [trans['next_observations'], intersection_points[iter]], 
+                                axis=0
+                                ),
                             rewards=trans['rewards'],
                             masks=trans['masks'],
                             dones=trans['dones'],
