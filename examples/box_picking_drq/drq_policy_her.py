@@ -53,6 +53,7 @@ from franka_env.utils.transformations import (
 from fast_kinematics import FastKinematics
 import math
 from scipy.spatial.transform import Rotation as R
+from ur_env.utils.sample_3d_points import sample_points_in_intersecting_boxes
 
 # used to debug nan errors (also in jit-ed functions)
 # jax.config.update("jax_debug_nans", True)
@@ -365,6 +366,11 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
     augmented_transitions = []
 
     for step in tqdm.tqdm(range(FLAGS.max_steps), dynamic_ncols=True):
+        intersection_points = sample_points_in_intersecting_boxes(num_points=1, seed=None)
+        # change goal state in config file
+        breakpoint()
+        env.env.env.env.env.env.goal_position = intersection_points
+        breakpoint()
         timer.tick("total")
 
         with timer.context("sample_actions"):
@@ -429,22 +435,41 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
                 # HER transitions
                 for trans in transitions:
+                    # compute reward based on the new goal state
+                    # concatenate the last observation to the current observation
+                    # recompute the goal-box-position observation based on the reached point
                     her_transitions.append(
                         dict(
-                            observations=np.concatenate([trans['observations'], last_obs], axis=0),
+                            observations=np.concatenate(
+                                [trans['observations'][-6:], last_obs[-3:] - trans['observations'][-3:], trans['observations'][-3:], last_obs[-3:]], 
+                                axis=0
+                                ),
                             actions=trans['actions'],
-                            next_observations=np.concatenate([trans['next_observations'], last_obs], axis=0),
+                            next_observations=np.concatenate(
+                                [trans['next_observations'][-6:-3], last_obs[-3:] - trans['next_observations'][-3:], trans['next_observations'][-3:], last_obs[-3:]], 
+                                axis=0
+                                ), # TODO: should I recompute the goal_box_position observation?
                             # compute reward based on the new goal state
-                            rewards=compute_reward_her(obs=trans['observations'],action=trans['actions'], goal_position=last_obs[-3:]), # TODO: implement this function
+                            rewards=compute_reward_her(
+                                obs=trans['observations'],
+                                action=trans['actions'], 
+                                goal_position=last_obs[-3:]
+                                ), # TODO: implement this function
                             masks=trans['masks'],
                             dones=trans['dones'],
                         )
                     )
                     augmented_transitions.append(
                         dict(
-                            observations=np.concatenate([trans['observations'], intersection_points[iter]], axis=0), # TODO: what is the goal state?
+                            observations=np.concatenate(
+                                [trans['observations'], intersection_points[iter]], 
+                                axis=0
+                                ), 
                             actions=trans['actions'],
-                            next_observations=np.concatenate([trans['next_observations'], intersection_points[iter]], axis=0),
+                            next_observations=np.concatenate(
+                                [trans['next_observations'], intersection_points[iter]], 
+                                axis=0
+                                ),
                             rewards=trans['rewards'],
                             masks=trans['masks'],
                             dones=trans['dones'],
