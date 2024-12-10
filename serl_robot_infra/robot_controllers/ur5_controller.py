@@ -448,6 +448,8 @@ class UrImpedanceController(threading.Thread):
 
             await websocket.send("a")
 
+            actual_pose = np.array(self.ur_receive.getActualTCPPose())
+            box_position = np.concatenate([box_position, actual_pose[3:]])
             # move to box position
             if self.robot_ip[-2:] == "66":
                 box_position[1] += size[2] / 2 - 0.01
@@ -455,7 +457,7 @@ class UrImpedanceController(threading.Thread):
             elif self.robot_ip[-2:] == "33":
                 box_position[1] += - size[2] / 2 + 0.01
                 # go back to robot's frame
-                box_position = np.linalg.inv(self.T_O1_O2) @ box_position
+                box_position[:3] = np.linalg.inv(self.T_O1_O2) @ box_position[:3]
                 self.ur_control.moveJ_IK(box_position, speed=0.5, acceleration=0.3)
 
     async def run_async(self):
@@ -478,7 +480,7 @@ class UrImpedanceController(threading.Thread):
                     await self._go_to_reset_pose()
 
                 await self._calibrate_starting_pose()
-                
+
                 t_now = time.monotonic()
 
                 # update robot state and check for truncation
