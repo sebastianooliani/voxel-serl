@@ -6,23 +6,16 @@ import copy
 import pickle as pkl
 from tqdm import tqdm
 import gymnasium as gym
-from pprint import pprint
 from pynput import keyboard
-import sys
 import math
 from scipy.spatial.transform import Rotation as R
 
-sys.path.append("../../serl_robot_infra")
-from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention
+from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention, SampleGoalPositionsWrapper
 from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
-from serl_launcher.wrappers.chunking import ChunkingWrapper
-from ur_env.utils.sample_3d_points import sample_points_in_intersecting_boxes
 
-from gymnasium.wrappers import TransformReward
 from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
 
 from franka_env.utils.transformations import (
-    pose_2_homogeneous_matrix,
     construct_homogeneous_matrix
 )
 from fast_kinematics import FastKinematics
@@ -130,14 +123,8 @@ if __name__ == "__main__":
     
     DUAL_SPACEMOUSE = env.env.env.env.config.DUAL
     HER = env.env.env.env.config.HER
-    T = env.env.env.env.config.T_O1_O2
         
-    # Example boxes
-    box1_min = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_LOW_ROBOT_1[:3], [1]])
-    box1_max = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_HIGH_ROBOT_1[:3], [1]])
-    box2_min = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_LOW_ROBOT_2[:3], [1]])
-    box2_max = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_HIGH_ROBOT_2[:3], [1]])
-
+    env = SampleGoalPositionsWrapper(env) if HER else env
     env = TwoSpacemiceIntervention(env) if DUAL_SPACEMOUSE else SpacemouseIntervention(env)
     env = DualRelativeFrame(env) if DUAL_SPACEMOUSE else RelativeFrame(env)
     env = DualQuat2MrpWrapper(env) if DUAL_SPACEMOUSE else Quat2MrpWrapper(env)
@@ -176,20 +163,14 @@ if __name__ == "__main__":
     try:
         iter = 0
 
-        # Evaluate box limits in the correct reference frame
-        box2_min = T @ box2_min
-        box2_max = T @ box2_max
+        # num_points = intersection_points.shape[0]
+        num_points = 20
 
-        # Sample points in the intersection
-        intersection_points = sample_points_in_intersecting_boxes(
-            box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 20
-        )
-
-        num_points = intersection_points.shape[0]
+        # define goal position
+        intersection_points = env.env.env.env.env.sample_goal_position()
 
         while iter < num_points:
-            # define goal position
-            env.env.env.env.env.goal_position = intersection_points[iter]
+            
             # print(f"Goal position: {intersection_points[iter]}")
             if exit_program.is_set():
                 raise KeyboardInterrupt  # stop program, but clean up before
@@ -247,12 +228,12 @@ if __name__ == "__main__":
                     augmented_transitions.append(
                         dict(
                             observations=np.concatenate(
-                                [trans['observations'], intersection_points[iter]], 
+                                [trans['observations'], intersection_points], 
                                 axis=0
                                 ), 
                             actions=trans['actions'],
                             next_observations=np.concatenate(
-                                [trans['next_observations'], intersection_points[iter]], 
+                                [trans['next_observations'], intersection_points], 
                                 axis=0
                                 ),
                             rewards=trans['rewards'],
@@ -264,6 +245,9 @@ if __name__ == "__main__":
                 # Reset transitions
                 transitions = []
                 iter += 1
+
+                # sample new goal position
+                intersection_points = env.env.env.env.env.sample_goal_position()
                 
                 total_count += 1
                 print(

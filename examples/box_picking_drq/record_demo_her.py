@@ -9,21 +9,17 @@ import threading
 from pynput import keyboard
 
 from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
-from ur_env.envs.wrappers import SpacemouseIntervention, TwoSpacemiceIntervention, DualQuat2MrpWrapper, Quat2MrpWrapper, ObservationRotationWrapper
+from ur_env.envs.wrappers import SpacemouseIntervention, TwoSpacemiceIntervention, DualQuat2MrpWrapper, Quat2MrpWrapper, ObservationRotationWrapper, SampleGoalPositionsWrapper
 
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper, ScaleObservationWrapper
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 
-import ur_env
-
 import math
 from scipy.spatial.transform import Rotation as R
 from franka_env.utils.transformations import (
-    pose_2_homogeneous_matrix,
     construct_homogeneous_matrix
 )
 from fast_kinematics import FastKinematics
-from ur_env.utils.sample_3d_points import sample_points_in_intersecting_boxes
 
 exit_program = threading.Event()
 
@@ -128,14 +124,8 @@ if __name__ == "__main__":
     
     DUAL = env.env.env.env.config.DUAL
     HER = env.env.env.env.config.HER
-    T = env.env.env.env.config.T_O1_O2
-        
-    # Example boxes
-    box1_min = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_LOW_ROBOT_1[:3], [1]])
-    box1_max = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_HIGH_ROBOT_1[:3], [1]])
-    box2_min = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_LOW_ROBOT_2[:3], [1]])
-    box2_max = np.concatenate([env.env.env.env.config.ABS_POSE_LIMIT_HIGH_ROBOT_2[:3], [1]])
     
+    env = SampleGoalPositionsWrapper(env) if HER else env
     env = SpacemouseIntervention(env) if not DUAL else TwoSpacemiceIntervention(env)
     env = RelativeFrame(env) if not DUAL else DualRelativeFrame(env)
     env = Quat2MrpWrapper(env) if not DUAL else DualQuat2MrpWrapper(env)
@@ -177,16 +167,10 @@ if __name__ == "__main__":
 
         iter = 0
 
-        # Evaluate box limits in the correct reference frame
-        box2_min = T @ box2_min
-        box2_max = T @ box2_max
-
         # Sample points in the intersection
-        intersection_points = sample_points_in_intersecting_boxes(
-            box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 20
-        )
+        intersection_points = env.env.env.env.env.env.env.sample_goal_position()
 
-        num_points = intersection_points.shape[0]
+        num_points = 20
         
         while iter < num_points:
             # define goal position
@@ -263,6 +247,9 @@ if __name__ == "__main__":
                 # Reset transitions
                 transitions = []
                 iter += 1
+
+                # sample new goal position
+                intersection_points = env.env.env.env.env.env.env.sample_goal_position()
                 
                 total_count += 1
                 print(

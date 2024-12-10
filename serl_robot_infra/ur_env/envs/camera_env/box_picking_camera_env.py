@@ -225,7 +225,6 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
 
         # self._update_box_pose_estimate()
         self.box_position = np.array([0.5, 0.5, 0.5]) # dummy variable for debugging
-        self._get_goal_position()
 
         self._update_currpos()
         state_observation = {

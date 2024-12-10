@@ -40,20 +40,17 @@ from serl_launcher.data.data_store import MemoryEfficientReplayBufferDataStore
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper, ScaleObservationWrapper, ScaleDualObservationWrapper
 from serl_launcher.wrappers.observation_statistics_wrapper import ObservationStatisticsWrapper, DualObservationStatisticsWrapper
 from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
-from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, ObservationRotationWrapper, DualQuat2MrpWrapper
+from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, ObservationRotationWrapper, DualQuat2MrpWrapper, SampleGoalPositionsWrapper
 from serl_launcher.vision.data_augmentations import batched_random_rot90_state, batched_random_rot90_voxel, \
     batched_random_rot90_action
 
-import ur_env
 
 from franka_env.utils.transformations import (
-    pose_2_homogeneous_matrix,
     construct_homogeneous_matrix
 )
 from fast_kinematics import FastKinematics
 import math
 from scipy.spatial.transform import Rotation as R
-from ur_env.utils.sample_3d_points import sample_points_in_intersecting_boxes
 
 # used to debug nan errors (also in jit-ed functions)
 # jax.config.update("jax_debug_nans", True)
@@ -366,11 +363,8 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
     augmented_transitions = []
 
     for step in tqdm.tqdm(range(FLAGS.max_steps), dynamic_ncols=True):
-        intersection_points = sample_points_in_intersecting_boxes(num_points=1, seed=None)
-        # change goal state in config file
-        breakpoint()
-        env.env.env.env.env.env.goal_position = intersection_points
-        breakpoint()
+        intersection_points = env.env.env.env.env.env.env.env.sample_goal_positions()
+
         timer.tick("total")
 
         with timer.context("sample_actions"):
@@ -462,12 +456,12 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                     augmented_transitions.append(
                         dict(
                             observations=np.concatenate(
-                                [trans['observations'], intersection_points[iter]], 
+                                [trans['observations'], intersection_points], 
                                 axis=0
                                 ), 
                             actions=trans['actions'],
                             next_observations=np.concatenate(
-                                [trans['next_observations'], intersection_points[iter]], 
+                                [trans['next_observations'], intersection_points], 
                                 axis=0
                                 ),
                             rewards=trans['rewards'],
@@ -480,6 +474,9 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                 augmented_transitions.extend(her_transitions)
 
                 data_store.insert(augmented_transitions)
+
+                # sample new goal position
+                intersection_points = env.env.env.env.env.env.env.env.sample_goal_positions()
 
                 stats = {"train": info}  # send stats to the learner to log
                 client.request("send-stats", stats)
@@ -674,6 +671,7 @@ def main(_):
     )
     # if FLAGS.actor:
     #     env = SpacemouseIntervention(env)
+    env = SampleGoalPositionsWrapper(env) if FLAGS.dual else env
     env = RelativeFrame(env) if not FLAGS.dual else DualRelativeFrame(env)
     env = Quat2MrpWrapper(env) if not FLAGS.dual else DualQuat2MrpWrapper(env)
     env = ScaleObservationWrapper(env) if not FLAGS.dual else ScaleDualObservationWrapper(env)  # scale obs space (after quat2mrp, but before serlobs)

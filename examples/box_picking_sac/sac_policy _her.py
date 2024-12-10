@@ -38,7 +38,6 @@ from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQu
 import ur_env
 
 from franka_env.utils.transformations import (
-    pose_2_homogeneous_matrix,
     construct_homogeneous_matrix
 )
 from fast_kinematics import FastKinematics

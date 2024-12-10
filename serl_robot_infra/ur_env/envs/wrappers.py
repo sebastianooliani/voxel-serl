@@ -8,6 +8,7 @@ import time
 from scipy.spatial.transform import Rotation as R
 
 from ur_env.utils.rotations import quat_2_euler, quat_2_mrp
+from ur_env.utils.sample_3d_points import sample_points_in_intersecting_boxes
 
 ROT90 = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
 ROT_GENERAL = np.array([np.eye(3), ROT90, ROT90 @ ROT90, ROT90.transpose()])
@@ -460,9 +461,27 @@ class FreeDriveWrapper(gym.ActionWrapper):
         self.deactivate_free_drive()
 
 
-class SampleGoalPositions(gym.Wrapper):
+class SampleGoalPositionsWrapper(gym.Wrapper):
     def __init__(self, env):
         super().__init__(env)
 
-    def step(self, action):
-        pass
+    def sample_goal_position(self):
+        rnm_num = np.random.randint(0, 100)
+        config = self.env.env.env.env.config
+        T = config.T_O1_O2
+
+        box1_min = np.concatenate([config.ABS_POSE_LIMIT_LOW_ROBOT_1[:3], [1]])
+        box1_max = np.concatenate([config.ABS_POSE_LIMIT_HIGH_ROBOT_1[:3], [1]])
+        box2_min = np.concatenate([config.ABS_POSE_LIMIT_LOW_ROBOT_2[:3], [1]])
+        box2_max = np.concatenate([config.ABS_POSE_LIMIT_HIGH_ROBOT_2[:3], [1]])
+
+        box2_min = T @ box2_min
+        box2_max = T @ box2_max
+
+        intersection_points = sample_points_in_intersecting_boxes(
+            box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 1, shrink_factor=0.1, seed=rnm_num
+        )
+
+        # print(f"Intersection Points: {intersection_points}")
+        self.env.env.env.env.goal_position = intersection_points[0]
+        return intersection_points[0]

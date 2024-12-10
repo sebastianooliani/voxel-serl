@@ -743,6 +743,7 @@ class UR5DualRobotEnv(UR5Env):
         self.T_O1_O2 = config.T_O1_O2
         self.T_EE_SC = config.T_EE_SC
         self.WF_rot = config.WF_rot
+        self.pose_estimation_ip = config.POSE_ESTIMATION_IP
 
         self.gripper_state = np.zeros((4,), dtype=np.float32)
         self.random_reset = config.RANDOM_RESET
@@ -950,7 +951,7 @@ class UR5DualRobotEnv(UR5Env):
         Keys:
         - space-boxes-box-world2box: pose from the camera frame to the center of the box (exponential coordinates for the orientation)
         """
-        async with connect("ws://192.168.1.204:7777") as websocket:
+        async with connect(self.pose_estimation_ip) as websocket:
             message = msgpack.unpackb(await websocket.recv())
 
             # position is in a rotated world frame
