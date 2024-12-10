@@ -18,6 +18,9 @@ import jax.numpy as jnp
 from ur_env.utils.vacuum_gripper import VacuumGripper
 from ur_env.utils.rotations import rotvec_2_quat, quat_2_rotvec, pose2rotvec, pose2quat
 
+from websockets.asyncio.client import connect
+import msgpack
+
 np.set_printoptions(precision=4, suppress=True)
 
 
@@ -54,6 +57,7 @@ class UrImpedanceController(threading.Thread):
 
         self.config = config
         self.robot_ip = robot_ip
+        self.pose_estimation_ip = self.config.POSE_ESTIMATION_IP
         self.port = port
         self.frequency = frequency
         self.kp = kp
@@ -105,6 +109,7 @@ class UrImpedanceController(threading.Thread):
         self.fm_task_frame = config.FORCEMODE_TASK_FRAME
         self.fm_selection_vector = config.FORCEMODE_SELECTION_VECTOR
         self.fm_limits = config.FORCEMODE_LIMITS
+        self.T_O1_O2 = config.T_O1_O2
 
         self.ur_control: RTDEControlInterface = None
         self.ur_receive: RTDEReceiveInterface = None
@@ -432,6 +437,27 @@ class UrImpedanceController(threading.Thread):
         else:
             self._reset.clear()
 
+    async def _calibrate_starting_pose(self):
+        async with connect(self.pose_estimation_ip) as websocket:
+            message = msgpack.unpackb(await websocket.recv())
+
+            # position is in a rotated world frame
+            box_position = np.array(message['space'][0]['boxes'][list(message['space'][0]['boxes'].keys())[0]]['world2box']['pos'])
+            size = np.array(message['space'][0]['boxes'][list(message['space'][0]['boxes'].keys())[0]]['size'])
+            box_position = self.config.WF_rot @ box_position
+
+            await websocket.send("a")
+
+            # move to box position
+            if self.robot_ip[-2:] == "66":
+                box_position[1] += size[2] / 2 - 0.01
+                self.ur_control.moveJ_IK(box_position, speed=0.5, acceleration=0.3)
+            elif self.robot_ip[-2:] == "33":
+                box_position[1] += - size[2] / 2 + 0.01
+                # go back to robot's frame
+                box_position = np.linalg.inv(self.T_O1_O2) @ box_position
+                self.ur_control.moveJ_IK(box_position, speed=0.5, acceleration=0.3)
+
     async def run_async(self):
         await self.start_ur_interfaces(gripper=self.gripper)
 
@@ -451,10 +477,11 @@ class UrImpedanceController(threading.Thread):
                     await self._update_robot_state()
                     await self._go_to_reset_pose()
 
+                await self._calibrate_starting_pose()
+                
                 t_now = time.monotonic()
 
                 # update robot state and check for truncation
-                await self._update_robot_state()
                 self._truncate_check()
 
                 # only used for plotting
