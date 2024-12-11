@@ -1,4 +1,5 @@
 import asyncio
+import threading
 from websockets.asyncio.client import connect
 import msgpack
 import matplotlib.pyplot as plt
@@ -12,19 +13,25 @@ async def read_vision_from_server():
     - space-boxes-box-world2box: pose from the camera frame to the center of the box (exponential coordinates for the orientation)
     """
     messages = []
-    async with connect("ws://192.168.1.204:7777") as websocket:
+    async with connect("ws://192.168.1.184:7777") as websocket:
         while True:
             message = msgpack.unpackb(await websocket.recv())
-            print(message)
+            # box_position = message['space'][0]['boxes'][list(message['space'][0]['boxes'].keys())[0]]['world2box']['pos']
+            # print(f"original frame {box_position}")
+            # box_position = np.array([[-1,  0,  0],
+            #                         [ 0,  0, -1],
+            #                         [ 0, -1,  0]]) @ np.array(box_position)
+            # print(f"rotated frame {box_position}")
             # send message to mantain the connection alive
+            print(message)
             await websocket.send("a")
 
-            if len(messages) < 500:
-                messages.append(np.array(message['space'][0]['boxes'][list(message['space'][0]['boxes'].keys())[0]]['world2box']['pos']))
-            else:
-                break
+            # if len(messages) < 500:
+            #     messages.append(np.array(message['space'][0]['boxes'][list(message['space'][0]['boxes'].keys())[0]]['world2box']['pos']))
+            # else:
+            #     break
 
-    return messages
+    # return messages
 
 def plot_vector_axes(vectors, output_path=None):
     """
@@ -70,7 +77,64 @@ def plot_vector_axes(vectors, output_path=None):
         plt.savefig('vector_components.png')
         plt.close(fig)
 
+class BoxPoseEstimation:
+    def __init__(self, ip_address: str):
+        self.ip_address = ip_address
+        self.message = []
+        self.state_lock = threading.Lock()
+        self.stop_event = threading.Event()
+        
+        # Start the async loop in a separate thread
+        self.thread = threading.Thread(target=self._run_async_loop)
+        self.thread.daemon = True
+        self.thread.start()
+    
+    def _run_async_loop(self):
+        """Run the async event loop in a separate thread"""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(self._read_vision_from_server())
+        except Exception as e:
+            print(f"Error in vision server loop: {e}")
+    
+    async def _read_vision_from_server(self):
+        """
+        Async function to read data from the server containing box pose
+        """
+        while not self.stop_event.is_set():
+            try:
+                async with connect(self.ip_address) as websocket:
+                    message = msgpack.unpackb(await websocket.recv())
+                    
+                    # Safely update the message with a lock
+                    with self.state_lock:
+                        self.message = message['space'][0]['boxes'][
+                            list(message['space'][0]['boxes'].keys())[0]
+                        ]['world2box']['pos']
+                    
+                    await websocket.send("a")
+                    
+            except Exception as e:
+                print(f"Error reading from vision server: {e}")
+                await asyncio.sleep(1)  # Prevent tight error loop
+    
+    def get_box_position(self):
+        """
+        Thread-safe method to get the current box position
+        """
+        with self.state_lock:
+            return np.array(self.message)
+    
+    def stop(self):
+        """
+        Method to gracefully stop the async loop
+        """
+        self.stop_event.set()
+        self.thread.join()
+
+
 if __name__ == "__main__":
     messages = asyncio.run(read_vision_from_server())
 
-    plot_vector_axes(messages)
+    # plot_vector_axes(messages)

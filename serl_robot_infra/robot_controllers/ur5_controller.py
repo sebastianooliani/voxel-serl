@@ -438,6 +438,8 @@ class UrImpedanceController(threading.Thread):
             self._reset.clear()
 
     async def _calibrate_starting_pose(self):
+        self.ur_control.forceModeStop()
+
         async with connect(self.pose_estimation_ip) as websocket:
             message = msgpack.unpackb(await websocket.recv())
 
@@ -452,13 +454,28 @@ class UrImpedanceController(threading.Thread):
             box_position = np.concatenate([box_position, actual_pose[3:]])
             # move to box position
             if self.robot_ip[-2:] == "66":
-                box_position[1] += size[2] / 2 - 0.01
-                self.ur_control.moveJ_IK(box_position, speed=0.5, acceleration=0.3)
+                box_position[1] += size[0] / 2 - 0.01
+                box_position[2] += 0.25
+                success = self.ur_control.moveJ_IK(box_position, speed=0.5, acceleration=0.3)
             elif self.robot_ip[-2:] == "33":
-                box_position[1] += - size[2] / 2 + 0.01
+                box_position[1] += - size[0] / 2 + 0.01
+                box_position[2] += 0.25
                 # go back to robot's frame
-                box_position[:3] = np.linalg.inv(self.T_O1_O2) @ box_position[:3]
-                self.ur_control.moveJ_IK(box_position, speed=0.5, acceleration=0.3)
+                position = np.linalg.inv(self.T_O1_O2) @ np.concatenate([box_position[:3], [1.]])
+                box_position = np.concatenate([position[:3], box_position[3:]])
+                success = self.ur_control.moveJ_IK(box_position, speed=0.5, acceleration=0.3)
+
+            await self._update_robot_state()
+            with self.lock:
+                self.target_pos = self.curr_pos.copy()
+
+            self.ur_control.forceModeSetDamping(self.fm_damping)  # less damping = Faster
+            self.ur_control.zeroFtSensor()
+
+            if not success:     # restart if not successful
+                await self.restart_ur_interface()
+            else:
+                self._reset.clear()
 
     async def run_async(self):
         await self.start_ur_interfaces(gripper=self.gripper)
@@ -478,8 +495,7 @@ class UrImpedanceController(threading.Thread):
                 if self._reset.is_set():
                     await self._update_robot_state()
                     await self._go_to_reset_pose()
-
-                await self._calibrate_starting_pose()
+                    # await self._calibrate_starting_pose()
 
                 t_now = time.monotonic()
 

@@ -16,6 +16,7 @@ class SERLObsWrapper(gym.ObservationWrapper):
             {
                 "state": flatten_space(self.env.observation_space["state"]),
                 **(self.env.observation_space["images"] if "images" in self.env.observation_space.spaces else {}),
+
             }
         )
 
@@ -35,6 +36,21 @@ class SerlObsWrapperNoImages(gym.ObservationWrapper):
 
     def __init__(self, env):
         super().__init__(env)
+        self.observation_space = flatten_space(self.env.observation_space["state"])
+
+    def observation(self, obs):
+        obs = flatten(self.env.observation_space["state"], obs["state"])
+        return obs
+    
+class HERSerlObsWrapperNoImages(gym.ObservationWrapper):
+    """
+    This observation wrapper treats the observation space as a flattened state
+    space, if no images are present but HER is used.
+    """
+
+    def __init__(self, env):
+        super().__init__(env)
+        # account for the bigger observation space
         self.observation_space = flatten_space(self.env.observation_space["state"])
 
     def observation(self, obs):

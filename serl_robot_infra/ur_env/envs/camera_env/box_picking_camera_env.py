@@ -223,8 +223,10 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         if self.camera_mode is not None:
             images = self.get_image()
 
-        # self._update_box_pose_estimate()
-        self.box_position = np.array([0.5, 0.5, 0.5]) # dummy variable for debugging
+        # asyncio.get_running_loop().run_until_complete(self._update_box_pose_estimate())
+        # self.box_position = np.array([0.5, 0.5, 0.5]) # dummy variable for debugging
+        self._update_box_pose_estimate()
+        # print(f"Box position: {self.box_position}")
 
         self._update_currpos()
         state_observation = {
@@ -240,6 +242,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             # motion planning observations
             "goal_box_position": self.goal_position - self.box_position,
             "box_position": self.box_position,
+            "goal_position": self.goal_position,
         }
 
         if images is not None:
