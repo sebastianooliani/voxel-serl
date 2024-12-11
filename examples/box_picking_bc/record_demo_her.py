@@ -207,12 +207,12 @@ if __name__ == "__main__":
                     her_transitions.append(
                         dict(
                             observations=np.concatenate(
-                                [trans['observations'][-6:], last_obs[-3:] - trans['observations'][-3:], trans['observations'][-3:], last_obs[-3:]], 
+                                [trans['observations'][:-6], last_obs[-3:] - trans['observations'][-3:], trans['observations'][-3:], last_obs[-3:]], 
                                 axis=0
                                 ),
                             actions=trans['actions'],
                             next_observations=np.concatenate(
-                                [trans['next_observations'][-6:-3], last_obs[-3:] - trans['next_observations'][-3:], trans['next_observations'][-3:], last_obs[-3:]], 
+                                [trans['next_observations'][:-6], last_obs[-3:] - trans['next_observations'][-3:], trans['next_observations'][-3:], last_obs[-3:]], 
                                 axis=0
                                 ), # TODO: should I recompute the goal_box_position observation?
                             # compute reward based on the new goal state

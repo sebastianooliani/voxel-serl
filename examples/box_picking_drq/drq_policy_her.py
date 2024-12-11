@@ -435,12 +435,12 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                     her_transitions.append(
                         dict(
                             observations=np.concatenate(
-                                [trans['observations'][-6:], last_obs[-3:] - trans['observations'][-3:], trans['observations'][-3:], last_obs[-3:]], 
+                                [trans['observations'][:-6], last_obs[-3:] - trans['observations'][-3:], trans['observations'][-3:], last_obs[-3:]], 
                                 axis=0
                                 ),
                             actions=trans['actions'],
                             next_observations=np.concatenate(
-                                [trans['next_observations'][-6:-3], last_obs[-3:] - trans['next_observations'][-3:], trans['next_observations'][-3:], last_obs[-3:]], 
+                                [trans['next_observations'][:-6], last_obs[-3:] - trans['next_observations'][-3:], trans['next_observations'][-3:], last_obs[-3:]], 
                                 axis=0
                                 ), # TODO: should I recompute the goal_box_position observation?
                             # compute reward based on the new goal state
@@ -477,6 +477,8 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
                 # sample new goal position
                 intersection_points = env.env.env.env.env.env.env.env.sample_goal_positions()
+                her_transitions = []
+                augmented_transitions = []
 
                 stats = {"train": info}  # send stats to the learner to log
                 client.request("send-stats", stats)
