@@ -456,14 +456,14 @@ class UrImpedanceController(threading.Thread):
             if self.robot_ip[-2:] == "66":
                 box_position[1] += max(size) / 2 - 0.01
                 box_position[2] += 0.25
-                success = self.ur_control.moveJ_IK(box_position, speed=0.5, acceleration=0.3)
+                success = self.ur_control.moveJ_IK(box_position, speed=1, acceleration=0.8)
             elif self.robot_ip[-2:] == "33":
                 box_position[1] += - np.max(size) / 2 + 0.01
                 box_position[2] += 0.25
                 # go back to robot's frame
                 position = np.linalg.inv(self.T_O1_O2) @ np.concatenate([box_position[:3], [1.]])
                 box_position = np.concatenate([position[:3], box_position[3:]])
-                success = self.ur_control.moveJ_IK(box_position, speed=0.5, acceleration=0.3)
+                success = self.ur_control.moveJ_IK(box_position, speed=1, acceleration=0.8)
 
             await self._update_robot_state()
             with self.lock:
