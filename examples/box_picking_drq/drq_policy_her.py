@@ -363,7 +363,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
     augmented_transitions = []
 
     for step in tqdm.tqdm(range(FLAGS.max_steps), dynamic_ncols=True):
-        intersection_points = env.env.env.env.env.env.env.env.sample_goal_positions()
+        intersection_point = env.env.env.env.env.env.env.env.sample_goal_positions()
 
         timer.tick("total")
 
@@ -456,12 +456,12 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                     augmented_transitions.append(
                         dict(
                             observations=np.concatenate(
-                                [trans['observations'][:-3], intersection_points[iter]], 
+                                [trans['observations'][:-3], intersection_point], 
                                 axis=0
                                 ), 
                             actions=trans['actions'],
                             next_observations=np.concatenate(
-                                [trans['next_observations'][:-3], intersection_points[iter]], 
+                                [trans['next_observations'][:-3], intersection_point], 
                                 axis=0
                                 ),
                             rewards=trans['rewards'],
@@ -476,7 +476,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                 data_store.insert(augmented_transitions)
 
                 # sample new goal position
-                intersection_points = env.env.env.env.env.env.env.env.sample_goal_positions()
+                intersection_point = env.env.env.env.env.env.env.env.sample_goal_positions()
                 her_transitions = []
                 augmented_transitions = []
 
