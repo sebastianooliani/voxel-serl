@@ -209,19 +209,19 @@ if __name__ == "__main__":
                     her_transitions.append(
                         dict(
                             observations=np.concatenate(
-                                [trans['observations'][-6:], last_obs[-3:] - trans['observations'][-3:], trans['observations'][-3:], last_obs[-3:]], 
+                                [trans['observations'][:-9], last_obs[-6:-3] - trans['observations'][-6:-3], trans['observations'][-6:-3], last_obs[-6:-3]], 
                                 axis=0
                                 ),
                             actions=trans['actions'],
                             next_observations=np.concatenate([
-                                trans['next_observations'][-6:-3], last_obs[-3:] - trans['next_observations'][-3:], trans['next_observations'][-3:], last_obs[-3:]], 
+                                trans['next_observations'][:-9], last_obs[-6:-3] - trans['next_observations'][-6:-3], trans['next_observations'][-6:-3], last_obs[-6:-3]], 
                                 axis=0
                                 ), # TODO: should I recompute the goal_box_position observation?
                             # compute reward based on the new goal state
                             rewards=compute_reward_her(
                                 obs=trans['observations'],
                                 action=trans['actions'], 
-                                goal_position=last_obs[-3:]
+                                goal_position=last_obs[-6:-3]
                                 ), 
                             masks=trans['masks'],
                             dones=trans['dones'],
@@ -230,12 +230,12 @@ if __name__ == "__main__":
                     augmented_transitions.append(
                         dict(
                             observations=np.concatenate(
-                                [trans['observations'], intersection_points[iter]], 
+                                [trans['observations'][:-3], intersection_points[iter]], 
                                 axis=0
                                 ), 
                             actions=trans['actions'],
                             next_observations=np.concatenate(
-                                [trans['next_observations'], intersection_points[iter]], 
+                                [trans['next_observations'][:-3], intersection_points[iter]], 
                                 axis=0
                                 ),
                             rewards=trans['rewards'],
@@ -261,6 +261,7 @@ if __name__ == "__main__":
         with open(file_path, "wb") as f:
             augmented_transitions.extend(her_transitions)
             pkl.dump(augmented_transitions, f)
+            pkl.dump(her_transitions, f"her_transitions_{uuid}.pkl")
             print(f"saved {success_needed} demos to {file_path}")
 
     except KeyboardInterrupt as e:
