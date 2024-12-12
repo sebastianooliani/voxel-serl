@@ -57,7 +57,7 @@ class UrImpedanceController(threading.Thread):
 
         self.config = config
         self.robot_ip = robot_ip
-        self.pose_estimation_ip = self.config.POSE_ESTIMATION_IP
+        self.pose_estimation_ip = self.config.POSE_ESTIMATION_IP if self.config.DUAL else ""
         self.port = port
         self.frequency = frequency
         self.kp = kp
@@ -90,7 +90,7 @@ class UrImpedanceController(threading.Thread):
         self.curr_force = np.zeros((6,), dtype=np.float32)
         self.old_force = np.zeros((6,), dtype=np.float32)
 
-        # self.reset_Q = np.array([0., -np.pi / 2., np.pi / 2., -np.pi / 2., -np.pi / 2., 0.], dtype=np.float32)  # reset state in Joint Space
+        # how to read the reset_Q variable based on the robot used
         if self.robot_ip[-2:] == "66":
             self.reset_Q = config.RESET_Q[0, :6]
             if self.config.DUAL:
@@ -109,7 +109,7 @@ class UrImpedanceController(threading.Thread):
         self.fm_task_frame = config.FORCEMODE_TASK_FRAME
         self.fm_selection_vector = config.FORCEMODE_SELECTION_VECTOR
         self.fm_limits = config.FORCEMODE_LIMITS
-        self.T_O1_O2 = config.T_O1_O2
+        self.T_O1_O2 = config.T_O1_O2 if self.config.DUAL else np.eye(4)
 
         self.ur_control: RTDEControlInterface = None
         self.ur_receive: RTDEReceiveInterface = None
@@ -454,11 +454,11 @@ class UrImpedanceController(threading.Thread):
             box_position = np.concatenate([box_position, actual_pose[3:]])
             # move to box position
             if self.robot_ip[-2:] == "66":
-                box_position[1] += size[0] / 2 - 0.01
+                box_position[1] += max(size) / 2 - 0.01
                 box_position[2] += 0.25
                 success = self.ur_control.moveJ_IK(box_position, speed=0.5, acceleration=0.3)
             elif self.robot_ip[-2:] == "33":
-                box_position[1] += - size[0] / 2 + 0.01
+                box_position[1] += - np.max(size) / 2 + 0.01
                 box_position[2] += 0.25
                 # go back to robot's frame
                 position = np.linalg.inv(self.T_O1_O2) @ np.concatenate([box_position[:3], [1.]])
@@ -495,7 +495,8 @@ class UrImpedanceController(threading.Thread):
                 if self._reset.is_set():
                     await self._update_robot_state()
                     await self._go_to_reset_pose()
-                    # await self._calibrate_starting_pose()
+                    # if self.config.DUAL:
+                    #     await self._calibrate_starting_pose()
 
                 t_now = time.monotonic()
 
