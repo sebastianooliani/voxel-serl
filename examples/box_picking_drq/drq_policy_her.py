@@ -44,13 +44,7 @@ from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, Observ
 from serl_launcher.vision.data_augmentations import batched_random_rot90_state, batched_random_rot90_voxel, \
     batched_random_rot90_action
 
-
-from franka_env.utils.transformations import (
-    construct_homogeneous_matrix
-)
-from fast_kinematics import FastKinematics
-import math
-from scipy.spatial.transform import Rotation as R
+from ur_env.utils.her import HER
 
 # used to debug nan errors (also in jit-ed functions)
 # jax.config.update("jax_debug_nans", True)
@@ -153,87 +147,6 @@ listener.start()
 
 
 ##############################################################################
-
-############################################################################################################
-#                         global variables to speed up HER computation                                     #
-############################################################################################################
-file_name="/home/sebastiano/voxel-serl/serl_robot_infra/robot_controllers/ur5.urdf"
-link="ee_link"
-N=1
-robot_model = FastKinematics(file_name, N, link)
-joint_positions = np.array([[- math.pi / 6. , -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
-                        math.pi + math.pi / 4, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]], dtype=np.float32)
-# output of forward kinematics is position and quaternion
-curr_reset_pose = np.concatenate([robot_model.forward_kinematics(joint_positions[0, :6].transpose()), robot_model.forward_kinematics(joint_positions[0, 6:].transpose())], axis=0)
-# curr_reset_pose = np.concatenate([curr_reset_pose[:3], (R.from_quat(curr_reset_pose[3:7])).as_mrp(), curr_reset_pose[7:10], (R.from_quat(curr_reset_pose[10:])).as_mrp()], axis=0)
-
-############################################################################################################
-#                                        HER: her reward computation                                       #
-############################################################################################################
-def compute_reward_her(obs, 
-                   action, 
-                   goal_position,
-                   last_action=np.zeros((14,)),
-                   T_O1_O2=np.array([[0., 1., 0., -0.945], 
-                        [-1., 0., 0., -0.], 
-                        [0., 0., 1., 0.01], 
-                        [0., 0., 0., 1.]]),
-                    T_EE_SC=np.array([[1., 0., 0., 0.],
-                        [0., 1., 0., 0.],
-                        [0., 0., 1., 0.130],
-                        [0., 0., 0., 1.]]),
-                    ) -> float:
-        
-        def convert_pose_2_7dim(pose):
-            return np.concatenate([pose[:3], (R.from_mrp(pose[3:6])).as_quat(), pose[6:9], (R.from_mrp(pose[9:])).as_quat()], axis=0)
-        
-        def reached_goal_state_her(obs, goal_position) -> bool:
-            return np.linalg.norm(goal_position - obs[69:72]) < 0.05 and 0.1 < obs[14:18][0] < 1. and 0.1 < obs[14:18][2] < 1.
-
-        tcp_pose = obs[39:51]
-        tcp_pose = convert_pose_2_7dim(tcp_pose)
-
-        action_cost = 0.1 * np.sum(np.power(action, 2))
-        action_diff_cost = 0.1 * np.sum(np.power(obs[:14] - last_action, 2))
-        last_action[:] = action
-        
-        # STEP: penalize each step
-        step_cost = 0.1
-
-        # SUCTION: reward for successful grip and cost for unnecessary suctioning
-        suction_reward = 5 * 0.3 * (float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5))
-        suction_cost = 0.5 * 3. * (float(obs[14:18][1] < -0.5) + float(obs[14:18][3] < -0.5))
-
-        # ORIENTATION: penalize deviating too much from the starting pose
-        orientation_cost = 0
-        orientation_cost = 0.5 - sum(tcp_pose[3:7] * curr_reset_pose[3:7]) ** 2
-        orientation_cost += 0.5 - sum(tcp_pose[10:] * curr_reset_pose[10:]) ** 2
-        orientation_cost = max(orientation_cost - 0.005, 0.) * 25.
-
-        # POSITION: penalize deviating too much from the starting pose
-        max_pose_diff = 0.05  # set to 5cm
-        pos_diff = np.concatenate([tcp_pose[:2] - curr_reset_pose[:2], tcp_pose[7:9] - curr_reset_pose[7:9]])
-        position_cost = 10. * np.sum(
-            np.where(np.abs(pos_diff) > max_pose_diff, np.abs(pos_diff - np.sign(pos_diff) * max_pose_diff), 0.0)
-        )
-
-        # 3D DISTANCE: penalize the distance between the two robots' end-effectors
-        # TODO: adjust reference frames and relative base positions
-        T_O1_E1 = construct_homogeneous_matrix(tcp_pose[:7])
-        T_O2_E2 = construct_homogeneous_matrix(tcp_pose[7:])
-        T_O1_SC1 = T_O1_E1 @ T_EE_SC
-        T_O1_SC2 = T_O1_O2 @ T_O2_E2 @ T_EE_SC
-        distance_cost = 1. / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
-                
-        if reached_goal_state_her(obs, goal_position):
-            last_action[:] = 0.
-            R_goal = 100.
-            return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
-        else:
-            return 0. + suction_reward - action_cost - orientation_cost - position_cost - \
-                suction_cost - step_cost - action_diff_cost - distance_cost
-        
-############################################################################################################
 
 def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
     """
@@ -358,6 +271,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
     timer = Timer()
     running_return = 0.0
 
+    her = HER()
     transitions = []
     her_transitions = []
     augmented_transitions = []
@@ -444,7 +358,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                                 axis=0
                                 ), # TODO: should I recompute the goal_box_position observation?
                             # compute reward based on the new goal state
-                            rewards=compute_reward_her(
+                            rewards=her.compute_reward_her(
                                 obs=trans['observations'],
                                 action=trans['actions'], 
                                 goal_position=last_obs[-6:-3]
