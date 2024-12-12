@@ -120,6 +120,7 @@ class UrImpedanceController(threading.Thread):
         self.horizon = [0, 500]
         self.err = 0
         self.noerr = 0
+        self.t_start, self.t_end = 0, 0
 
         # log to file (reset every new run)
         with open("/tmp/console2.txt", 'w') as f:
@@ -465,17 +466,22 @@ class UrImpedanceController(threading.Thread):
                 box_position = np.concatenate([position[:3], box_position[3:]])
                 success = self.ur_control.moveJ_IK(box_position, speed=1, acceleration=0.8)
 
+            print("First check", success)
             await self._update_robot_state()
             with self.lock:
                 self.target_pos = self.curr_pos.copy()
-
+            print("Second check", success)
             self.ur_control.forceModeSetDamping(self.fm_damping)  # less damping = Faster
             self.ur_control.zeroFtSensor()
-
+            print("Third check", success)
             if not success:     # restart if not successful
+                print("Fourth check", success)
                 await self.restart_ur_interface()
             else:
+                print("Fifth check", success)
+                self.t_start = time.time()
                 self._reset.clear()
+                print("Additional check", success)
 
     async def run_async(self):
         await self.start_ur_interfaces(gripper=self.gripper)
@@ -495,23 +501,26 @@ class UrImpedanceController(threading.Thread):
                 if self._reset.is_set():
                     await self._update_robot_state()
                     await self._go_to_reset_pose()
-                    # if self.config.DUAL:
-                    #     await self._calibrate_starting_pose()
+                    if self.config.DUAL:
+                        await self._calibrate_starting_pose()
 
-                t_now = time.monotonic()
+                
 
+                t_now = time.monotonic() 
+                print("Sixth check")
+                # measure delay
+                self.t_end = time.time()
+                print(f"Delay: {self.t_end - self.t_start}") # Delay: 10.019759178161621
                 # update robot state and check for truncation
                 self._truncate_check()
 
                 # only used for plotting
                 if self.do_plot:
                     self.plot()
-
                 # calculate force
                 force = self._calculate_force()
                 # print(self.target_pos, self.curr_pos, force)
                 self.print(f" p:{self.curr_pos}   f:{self.curr_force_lowpass}   gr:{self.gripper_state}")  # log to file
-
                 # send command to robot
                 t_start = self.ur_control.initPeriod()
                 fm_successful = self.ur_control.forceMode(
