@@ -14,7 +14,7 @@ def create_state_mask(mask_str: str) -> jnp.ndarray:
     if not DUAL:
         all = jnp.ones((27,), dtype=jnp.bool)
     elif HER:
-        all = jnp.ones((75,), dtype=jnp.bool)
+        all = jnp.ones((78,), dtype=jnp.bool)
     else:
         all = jnp.ones((69,), dtype=jnp.bool)
     # all = jnp.ones((27,), dtype=jnp.bool) if not DUAL else jnp.ones((69,), dtype=jnp.bool)

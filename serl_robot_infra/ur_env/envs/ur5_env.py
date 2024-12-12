@@ -18,6 +18,7 @@ import open3d as o3d
 
 from ur_env.camera.video_capture import VideoCapture
 from ur_env.camera.rs_capture import RSCapture
+from ur_env.utils.pose_estimation import BoxPoseEstimation
 
 from ur_env.camera.utils import PointCloudFusion, CalibrationTread, PointCloudGenerator
 
@@ -726,7 +727,6 @@ class UR5DualRobotEnv(UR5Env):
             np.ones((14,), dtype=np.float32) * -1,
             np.ones((14,), dtype=np.float32),
         )
-        # print(self.action_space.shape)
 
         self.resetQ = config.RESET_Q
         self.curr_reset_pose = np.zeros((14,), dtype=np.float32)
@@ -737,13 +737,16 @@ class UR5DualRobotEnv(UR5Env):
         self.curr_force = np.zeros((6,), dtype=np.float32)
         self.curr_torque = np.zeros((6,), dtype=np.float32)
         self.last_action = np.zeros(self.action_space.shape)
-        self.box_position = np.zeros((3,), dtype=np.float32)
-        self.goal_position = np.zeros((3,), dtype=np.float32)
 
         self.T_O1_O2 = config.T_O1_O2
         self.T_EE_SC = config.T_EE_SC
         self.WF_rot = config.WF_rot
         self.pose_estimation_ip = config.POSE_ESTIMATION_IP
+
+        # boxes
+        self.box_pose = BoxPoseEstimation(self.pose_estimation_ip)
+        self.goal_position = np.zeros((3,), dtype=np.float32)
+        self.box_position = np.zeros((3,), dtype=np.float32)
 
         self.gripper_state = np.zeros((4,), dtype=np.float32)
         self.random_reset = config.RANDOM_RESET
@@ -872,6 +875,9 @@ class UR5DualRobotEnv(UR5Env):
             state_space["box_position"] = gym.spaces.Box(
                 -np.inf, np.inf, shape=(3,)
             )
+            state_space["goal_position"] = gym.spaces.Box(
+                -np.inf, np.inf, shape=(3,)
+            )
 
         obs_space_definition = {"state": state_space}
 
@@ -944,7 +950,7 @@ class UR5DualRobotEnv(UR5Env):
             self.pointcloud_1 = PointCloudGenerator(voxel_grid_shape=voxel_grid_shape)
             self.pointcloud_2 = PointCloudGenerator(voxel_grid_shape=voxel_grid_shape)
 
-    async def _update_box_pose_estimate(self):
+    async def _update_box_pose_estimate_old(self):
         """
         Function used to read the data from the server containing the pose of the boxes (orientation is expressed with angle-axis representation) in the scene. The unit measure of the output is in meters.
 
@@ -956,10 +962,13 @@ class UR5DualRobotEnv(UR5Env):
 
             # position is in a rotated world frame
             self.box_position = np.array(message['space'][0]['boxes'][list(message['space'][0]['boxes'].keys())[0]]['world2box']['pos'])
-            print(f"box position: {self.box_position}")
             self.box_position = self.WF_rot @ self.box_position
 
             await websocket.send("a")
+
+    def _update_box_pose_estimate(self):
+        self.box_position = self.box_pose.get_box_position()
+        self.box_position = self.WF_rot @ self.box_position
 
     def _get_goal_position(self):
         """

@@ -494,3 +494,7 @@ class SampleGoalPositionsWrapper(gym.Wrapper):
         # print(f"Intersection Points: {intersection_points}")
         self.env.env.env.env.goal_position = intersection_points[0]
         return intersection_points[0]
+    
+    def step(self, action):
+        return self.env.step(action)
+        

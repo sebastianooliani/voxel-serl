@@ -32,10 +32,8 @@ from serl_launcher.utils.launcher import (
     make_replay_buffer,
 )
 
-from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
-from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention
-
-import ur_env
+from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, HERSerlObsWrapperNoImages
+from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention, SampleGoalPositionsWrapper
 
 from franka_env.utils.transformations import (
     construct_homogeneous_matrix
@@ -240,10 +238,16 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
     # print(f"obs:  {obs}")
     done = False
 
+    transitions = []
+    her_transitions = []
+    augmented_transitions = []
+    running_return = 0.0
+
     # training loop
     timer = Timer()
     running_return = 0.0
     for step in tqdm.tqdm(range(FLAGS.max_steps), dynamic_ncols=True):
+        intersection_points = env.env.env.env.env.env.sample_goal_position()
         timer.tick("total")
 
         with timer.context("sample_actions"):
@@ -268,7 +272,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
             running_return += reward
 
-            data_store.insert(
+            transitions.append(
                 dict(
                     observations=obs,
                     actions=actions,
@@ -281,6 +285,60 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
             obs = next_obs
             if done or truncated:
+                last_obs = obs
+
+                # HER transitions
+                for trans in transitions:
+                    # compute reward based on the new goal state
+                    # concatenate the last observation to the current observation
+                    # recompute the goal-box-position observation based on the reached point
+                    her_transitions.append(
+                        dict(
+                            observations=np.concatenate(
+                                [trans['observations'][:-6], last_obs[-3:] - trans['observations'][-3:], trans['observations'][-3:], last_obs[-3:]], 
+                                axis=0
+                                ),
+                            actions=trans['actions'],
+                            next_observations=np.concatenate(
+                                [trans['next_observations'][:-6], last_obs[-3:] - trans['next_observations'][-3:], trans['next_observations'][-3:], last_obs[-3:]], 
+                                axis=0
+                                ), # TODO: should I recompute the goal_box_position observation?
+                            # compute reward based on the new goal state
+                            rewards=compute_reward_her(
+                                obs=trans['observations'],
+                                action=trans['actions'], 
+                                goal_position=last_obs[-3:]
+                                ), # TODO: implement this function
+                            masks=trans['masks'],
+                            dones=trans['dones'],
+                        )
+                    )
+                    augmented_transitions.append(
+                        dict(
+                            observations=np.concatenate(
+                                [trans['observations'], intersection_points], 
+                                axis=0
+                                ), 
+                            actions=trans['actions'],
+                            next_observations=np.concatenate(
+                                [trans['next_observations'], intersection_points], 
+                                axis=0
+                                ),
+                            rewards=trans['rewards'],
+                            masks=trans['masks'],
+                            dones=trans['dones'],
+                        )
+                    )
+
+                transitions = []
+                augmented_transitions.extend(her_transitions)
+
+                data_store.insert(augmented_transitions)
+
+                # sample new goal position
+                intersection_points = env.env.env.env.env.env.sample_goal_position()
+                her_transitions = []
+                augmented_transitions = []
                 # print(f"running return: {running_return}   done:{done}  truncated:{truncated}")
                 running_return = 0.0
                 obs, _ = env.reset()
@@ -401,13 +459,12 @@ def main(_):
         max_episode_length=FLAGS.max_traj_length,
         camera_mode="rgb",
     )
+    env = SampleGoalPositionsWrapper(env) if DUAL_SPACEMOUSE else env
     if FLAGS.actor:
         env = SpacemouseIntervention(env) if not DUAL_SPACEMOUSE else TwoSpacemiceIntervention(env)
     env = RelativeFrame(env) if not DUAL_SPACEMOUSE else DualRelativeFrame(env)
     env = Quat2MrpWrapper(env) if not DUAL_SPACEMOUSE else DualQuat2MrpWrapper(env)
-    env = SerlObsWrapperNoImages(env)
-    # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
-    # env = TransformReward(env, lambda r: FLAGS.reward_scale * r)
+    env = HERSerlObsWrapperNoImages(env)
     env = RecordEpisodeStatistics(env)
 
     rng, sampling_rng = jax.random.split(rng)
@@ -416,7 +473,7 @@ def main(_):
         sample_obs=env.observation_space.sample(),
         sample_action=env.action_space.sample(),
     )
-
+    
     # replicate agent across devices
     # need the jnp.array to avoid a bug where device_put doesn't recognize primitives
     agent: SACAgent = jax.device_put(
