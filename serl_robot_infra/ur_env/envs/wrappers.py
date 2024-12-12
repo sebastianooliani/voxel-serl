@@ -15,9 +15,14 @@ ROT_GENERAL = np.array([np.eye(3), ROT90, ROT90 @ ROT90, ROT90.transpose()])
 
 
 class SpacemouseIntervention(gym.ActionWrapper):
-    def __init__(self, env, gripper_action_span=3, DeviceNumber=1):
+    def __init__(self, env, gripper_action_span=3, DeviceNumber=1, change_orientation=False):
         # Initialize the base class with the provided environment.
         super().__init__(env)
+
+        self.change_orientation = change_orientation
+        self.T = np.array([[0., -1., 0.], 
+                           [1., 0., 0.], 
+                           [0., 0., 1.]])
 
         # Enable gripper control (assumes there's a gripper in the environment).
         self.gripper_enabled = True
@@ -112,6 +117,10 @@ class SpacemouseIntervention(gym.ActionWrapper):
 
         # Optionally: apply the z-axis rotation to the rotational components (next three values).
         action[3:6] = z_rot.apply(action[3:6])
+
+        if self.change_orientation:
+            action[:3] = self.T @ action[:3]
+            action[3:6] = self.T @ action[3:6]
 
         return action
 
@@ -233,7 +242,7 @@ class TwoSpacemiceIntervention(gym.Wrapper):
         super().__init__(env)
 
         self.expert_left = SpacemouseIntervention(env, DeviceNumber=1)
-        self.expert_right = SpacemouseIntervention(env, DeviceNumber=4)
+        self.expert_right = SpacemouseIntervention(env, DeviceNumber=4, change_orientation=True)
 
     def step(self, action):
         action_left = action[:7]
