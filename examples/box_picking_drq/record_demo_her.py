@@ -39,9 +39,9 @@ if __name__ == "__main__":
                    )
     
     DUAL = env.env.env.env.config.DUAL
-    # HER = env.env.env.env.config.HER
+    HER_EPISODE = env.env.env.env.config.HER
     
-    env = SampleGoalPositionsWrapper(env) if HER else env
+    env = SampleGoalPositionsWrapper(env) if HER_EPISODE else env
     env = SpacemouseIntervention(env) if not DUAL else TwoSpacemiceIntervention(env)
     env = RelativeFrame(env) if not DUAL else DualRelativeFrame(env)
     env = Quat2MrpWrapper(env) if not DUAL else DualQuat2MrpWrapper(env)

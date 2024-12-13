@@ -39,8 +39,9 @@ if __name__ == "__main__":
                    camera_mode="none") if DUAL else gym.make("box_picking_camera_env", camera_mode="rgb")
     
     DUAL_SPACEMOUSE = env.env.env.env.config.DUAL
+    HER_EPISODE = env.env.env.env.config.HER
         
-    env = SampleGoalPositionsWrapper(env) if HER else env
+    env = SampleGoalPositionsWrapper(env) if HER_EPISODE else env
     env = TwoSpacemiceIntervention(env) if DUAL_SPACEMOUSE else SpacemouseIntervention(env)
     env = DualRelativeFrame(env) if DUAL_SPACEMOUSE else RelativeFrame(env)
     env = DualQuat2MrpWrapper(env) if DUAL_SPACEMOUSE else Quat2MrpWrapper(env)
