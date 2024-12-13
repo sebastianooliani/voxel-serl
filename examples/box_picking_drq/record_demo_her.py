@@ -144,6 +144,9 @@ if __name__ == "__main__":
             pkl.dump(her_transitions, f"her_transitions_{uuid}.pkl")
             print(f"saved {success_needed} demos to {file_path}")
 
+        with open (f"her_transitions_{uuid}.pkl", 'wb') as f:
+            pkl.dump(her_transitions, f)
+
     except KeyboardInterrupt as e:
         print(f'\nProgram was interrupted, cleaning up...  ', e.__str__())
 
