@@ -84,13 +84,13 @@ if __name__ == "__main__":
         iter = 0
 
         # Sample points in the intersection
-        intersection_points = env.env.env.env.env.env.env.sample_goal_position()
+        intersection_point = env.env.env.env.env.env.env.sample_goal_position()
 
         num_points = 20
         
         while iter < num_points:
             # define goal position
-            env.env.env.env.env.goal_position = intersection_points[iter]
+            env.env.env.env.env.goal_position = intersection_point
             
             if exit_program.is_set():
                 raise KeyboardInterrupt  # stop program, but clean up before
@@ -115,49 +115,13 @@ if __name__ == "__main__":
             running_reward += rew
 
             if done or truncated:
-                last_obs = next_obs
 
-                # HER transitions
-                for trans in transitions:
-                    # compute reward based on the new goal state
-                    # concatenate the last observation to the current observation
-                    # recompute the goal-box-position observation based on the reached point
-                    her_transitions.append(
-                        dict(
-                            observations=np.concatenate(
-                                [trans['observations'][:-9], last_obs[-6:-3] - trans['observations'][-6:-3], trans['observations'][-6:-3], last_obs[-6:-3]], 
-                                axis=0
-                                ),
-                            actions=trans['actions'],
-                            next_observations=np.concatenate([
-                                trans['next_observations'][:-9], last_obs[-6:-3] - trans['next_observations'][-6:-3], trans['next_observations'][-6:-3], last_obs[-6:-3]], 
-                                axis=0
-                                ), # TODO: should I recompute the goal_box_position observation?
-                            # compute reward based on the new goal state
-                            rewards=her.compute_reward_her(
-                                obs=trans['observations'],
-                                action=trans['actions'], 
-                                goal_position=last_obs[-6:-3]
-                                ), 
-                            masks=trans['masks'],
-                            dones=trans['dones'],
-                        )
-                    )
-                    augmented_transitions.append(
-                        dict(
-                            observations=np.concatenate(
-                                [trans['observations'][:-3], intersection_points[iter]], 
-                                axis=0
-                                ), 
-                            actions=trans['actions'],
-                            next_observations=np.concatenate(
-                                [trans['next_observations'][:-3], intersection_points[iter]], 
-                                axis=0
-                                ),
-                            rewards=trans['rewards'],
-                            masks=trans['masks'],
-                            dones=trans['dones'],
-                        )
+                her_transitions, augmented_transitions = her.process_transitions(
+                    transitions=transitions, 
+                    last_obs=next_obs, 
+                    goal_position=intersection_point,
+                    her_transitions=her_transitions,
+                    augmented_transitions=augmented_transitions
                     )
                 
                 # Reset transitions
@@ -165,11 +129,11 @@ if __name__ == "__main__":
                 iter += 1
 
                 # sample new goal position
-                intersection_points = env.env.env.env.env.env.env.sample_goal_position()
+                intersection_point = env.env.env.env.env.env.env.sample_goal_position()
                 
                 total_count += 1
                 print(
-                    f"{rew}\tRecorded {iter}, {success_needed} needed."
+                    f"{rew}\tRecorded {iter}, {num_points} needed."
                 )
                 pbar.update(1)
                 obs, _ = env.reset()

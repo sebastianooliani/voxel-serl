@@ -9,6 +9,7 @@ import gymnasium as gym
 from pynput import keyboard
 import math
 from scipy.spatial.transform import Rotation as R
+from pprint import pprint
 
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention, SampleGoalPositionsWrapper
 from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
@@ -38,15 +39,12 @@ if __name__ == "__main__":
                    camera_mode="none") if DUAL else gym.make("box_picking_camera_env", camera_mode="rgb")
     
     DUAL_SPACEMOUSE = env.env.env.env.config.DUAL
-    HER = env.env.env.env.config.HER
         
     env = SampleGoalPositionsWrapper(env) if HER else env
     env = TwoSpacemiceIntervention(env) if DUAL_SPACEMOUSE else SpacemouseIntervention(env)
     env = DualRelativeFrame(env) if DUAL_SPACEMOUSE else RelativeFrame(env)
     env = DualQuat2MrpWrapper(env) if DUAL_SPACEMOUSE else Quat2MrpWrapper(env)
     env = SerlObsWrapperNoImages(env)
-    # env = TransformReward(env, lambda r: 10. * r)
-    # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
 
     obs, _ = env.reset()
 
@@ -82,7 +80,7 @@ if __name__ == "__main__":
         num_points = 20
 
         # define goal position
-        intersection_points = env.env.env.env.env.sample_goal_position()
+        intersection_point = env.env.env.env.env.sample_goal_position()
 
         while iter < num_points:            
             if exit_program.is_set():
@@ -110,49 +108,13 @@ if __name__ == "__main__":
             obs = next_obs
 
             if done:
-                last_obs = next_obs
 
-                # HER transitions
-                for trans in transitions:
-                    # compute reward based on the new goal state
-                    # concatenate the last observation to the current observation
-                    # recompute the goal-box-position observation based on the reached point
-                    her_transitions.append(
-                        dict(
-                            observations=np.concatenate(
-                                [trans['observations'][:-9], last_obs[-6:-3] - trans['observations'][-6:-3], trans['observations'][-6:-3], last_obs[-6:-3]], 
-                                axis=0
-                                ),
-                            actions=trans['actions'],
-                            next_observations=np.concatenate(
-                                [trans['next_observations'][:-9], last_obs[-6:-3] - trans['next_observations'][-6:-3], trans['next_observations'][-6:-3], last_obs[-6:-3]], 
-                                axis=0
-                                ), # TODO: should I recompute the goal_box_position observation?
-                            # compute reward based on the new goal state
-                            rewards=her.compute_reward_her(
-                                obs=trans['observations'],
-                                action=trans['actions'], 
-                                goal_position=last_obs[-6:-3]
-                                ), # TODO: implement this function
-                            masks=trans['masks'],
-                            dones=trans['dones'],
-                        )
-                    )
-                    augmented_transitions.append(
-                        dict(
-                            observations=np.concatenate(
-                                [trans['observations'][:-3], intersection_points], 
-                                axis=0
-                                ), 
-                            actions=trans['actions'],
-                            next_observations=np.concatenate(
-                                [trans['next_observations'][:-3], intersection_points], 
-                                axis=0
-                                ),
-                            rewards=trans['rewards'],
-                            masks=trans['masks'],
-                            dones=trans['dones'],
-                        )
+                her_transitions, augmented_transitions = her.process_transitions(
+                    transitions=transitions, 
+                    last_obs=next_obs, 
+                    goal_position=intersection_point,
+                    her_transitions=her_transitions,
+                    augmented_transitions=augmented_transitions
                     )
                 
                 # Reset transitions
@@ -160,11 +122,11 @@ if __name__ == "__main__":
                 iter += 1
 
                 # sample new goal position
-                intersection_points = env.env.env.env.env.sample_goal_position()
+                intersection_point = env.env.env.env.env.sample_goal_position()
                 
                 total_count += 1
                 print(
-                    f"{rew}\tRecorded {iter}, {success_needed} needed."
+                    f"{rew}\tRecorded {iter}, {num_points} needed."
                 )
                 pbar.update(1)
                 obs, _ = env.reset()
