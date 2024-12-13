@@ -357,25 +357,6 @@ class UrImpedanceController(threading.Thread):
             asyncio.run(self.run_async())  # gripper has to be awaited, both init and commands
         finally:
             self.stop()
-
-    def old_evaluate_manipulability(self, joint_pos=np.zeros(6), N=1000, d="cuda", dtype=torch.float32):
-        """
-        Evaluate the determinant of the Jacobian of a URDF file at a given link and joint position using
-        the fast_kinematics library.    
-
-        Args:
-            file_name (str): URDF file name
-            link (str): link name, note that any link can be chosen; it doesn't have to be a link with no children
-            joint_pos (np.array): joint positions
-
-        Returns:
-            det (float): determinant of Jacobian
-        """        
-        J = self.chain.jacobian_mixed_frame(joint_pos)
-        J = jnp.reshape(J, (1, 6, 6))
-        det = jnp.linalg.det(J)
-
-        return det
     
     def _compute_manipulability_raw(self, jacobian):
         """
@@ -466,22 +447,15 @@ class UrImpedanceController(threading.Thread):
                 box_position = np.concatenate([position[:3], box_position[3:]])
                 success = self.ur_control.moveJ_IK(box_position, speed=1, acceleration=0.8)
 
-            # print("First check", success)
             await self._update_robot_state()
             with self.lock:
                 self.target_pos = self.curr_pos.copy()
-            # print("Second check", success)
             self.ur_control.forceModeSetDamping(self.fm_damping)  # less damping = Faster
             self.ur_control.zeroFtSensor()
-            # print("Third check", success)
             if not success:     # restart if not successful
-                # print("Fourth check", success)
                 await self.restart_ur_interface()
             else:
-                # print("Fifth check", success)
-                # self.t_start = time.time()
                 self._reset.clear()
-                # print("Additional check", success)
 
     async def run_async(self):
         await self.start_ur_interfaces(gripper=self.gripper)
@@ -504,14 +478,9 @@ class UrImpedanceController(threading.Thread):
                     # if self.config.DUAL and self.config.POSE_ESTIMATION:
                     #     await self._calibrate_starting_pose()
 
-                
-
-                t_now = time.monotonic() 
-                # print("Sixth check")
-                # # measure delay
-                # self.t_end = time.time()
-                # print(f"Delay: {self.t_end - self.t_start}") # Delay: 10.019759178161621
+                t_now = time.monotonic()
                 # update robot state and check for truncation
+                await self._update_robot_state()
                 self._truncate_check()
 
                 # only used for plotting

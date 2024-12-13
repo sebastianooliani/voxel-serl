@@ -643,9 +643,9 @@ class UR5Env(gym.Env):
         """Internal function to send force command to the robot."""
         # move to singularity free configurations only
         state = self.controller.get_state()
-        if np.abs(self.controller.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
-            print("\nSingularity detected! Reset the agent!\n")
-            self.reset()
+        # if np.abs(self.controller.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
+        #     print("\nSingularity detected! Reset the agent!\n")
+        #     self.reset()
 
         self.controller.set_target_pos(target_pos=target_pos)
 
@@ -950,22 +950,6 @@ class UR5DualRobotEnv(UR5Env):
             print(f"\npointcloud resolution set to: {voxel_grid_shape}\n")
             self.pointcloud_1 = PointCloudGenerator(voxel_grid_shape=voxel_grid_shape)
             self.pointcloud_2 = PointCloudGenerator(voxel_grid_shape=voxel_grid_shape)
-
-    async def _update_box_pose_estimate_old(self):
-        """
-        Function used to read the data from the server containing the pose of the boxes (orientation is expressed with angle-axis representation) in the scene. The unit measure of the output is in meters.
-
-        Keys:
-        - space-boxes-box-world2box: pose from the camera frame to the center of the box (exponential coordinates for the orientation)
-        """
-        async with connect(self.pose_estimation_ip) as websocket:
-            message = msgpack.unpackb(await websocket.recv())
-
-            # position is in a rotated world frame
-            self.box_position = np.array(message['space'][0]['boxes'][list(message['space'][0]['boxes'].keys())[0]]['world2box']['pos'])
-            self.box_position = self.WF_rot @ self.box_position
-
-            await websocket.send("a")
 
     def _update_box_pose_estimate(self):
         self.box_position = self.box_pose.get_box_position()
