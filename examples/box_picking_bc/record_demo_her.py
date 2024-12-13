@@ -54,10 +54,9 @@ if __name__ == "__main__":
     her_transitions = []
     augmented_transitions = []
 
-    success_count = 0
-    success_needed = 20
     total_count = 0
-    pbar = tqdm(total=success_needed)
+    num_points = 20
+    pbar = tqdm(total=num_points)
 
     info_dict = {'state': env.unwrapped.curr_pos, 'gripper_state': env.unwrapped.gripper_state,
                  'force': env.unwrapped.curr_force}
@@ -68,7 +67,7 @@ if __name__ == "__main__":
     listener_2.start()
 
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"ur5_test_{success_needed}_demos_{uuid}_her.pkl"
+    file_name = f"ur5_test_{num_points}_demos_{uuid}_her.pkl"
     file_dir = os.path.dirname(os.path.realpath(__file__))  # same dir as this script
     file_path = os.path.join(file_dir, file_name)
 
@@ -77,9 +76,6 @@ if __name__ == "__main__":
 
     try:
         iter = 0
-
-        num_points = 20
-
         # define goal position
         intersection_point = env.env.env.env.env.sample_goal_position()
 
@@ -135,7 +131,7 @@ if __name__ == "__main__":
         with open(file_path, "wb") as f:
             augmented_transitions.extend(her_transitions)
             pkl.dump(augmented_transitions, f)
-            print(f"saved {success_needed} demos to {file_path}")
+            print(f"saved {num_points} demos to {file_path}")
             
         with open (f"her_transitions_{uuid}.pkl", 'wb') as f:
             pkl.dump(her_transitions, f)
