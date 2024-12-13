@@ -7,22 +7,23 @@ from franka_env.utils.transformations import (
 from fast_kinematics import FastKinematics
 import copy
 from pprint import pprint
+import pandas as pd
 
 class HER():
     def __init__(self):
-        self.file_name = "/home/sebastiano/voxel-serl/serl_robot_infra/robot_controllers/ur5.urdf"
-        self. link = "ee_link"
-        self.N = 1
-        self.robot_model = FastKinematics(self.file_name, self.N, self.link)
+        # self.file_name = "/home/sebastiano/voxel-serl/serl_robot_infra/robot_controllers/ur5.urdf"
+        # self. link = "ee_link"
+        # self.N = 1
+        # self.robot_model = FastKinematics(self.file_name, self.N, self.link)
         
-        self.joint_positions = np.array([[- math.pi / 6. , -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
-                                math.pi + math.pi / 4, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]], dtype=np.float32)
+        # self.joint_positions = np.array([[- math.pi / 6. , -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
+        #                         math.pi + math.pi / 4, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]], dtype=np.float32)
         
-        # output of forward kinematics is position and quaternion
-        self.curr_reset_pose = np.concatenate(
-            [self.robot_model.forward_kinematics(self.joint_positions[0, :6].transpose()), 
-             self.robot_model.forward_kinematics(self.joint_positions[0, 6:].transpose())], 
-             axis=0)
+        # # output of forward kinematics is position and quaternion
+        # self.curr_reset_pose = np.concatenate(
+        #     [self.robot_model.forward_kinematics(self.joint_positions[0, :6].transpose()), 
+        #      self.robot_model.forward_kinematics(self.joint_positions[0, 6:].transpose())], 
+        #      axis=0)
         
         self.T_O1_O2=np.array([[0., 1., 0., -0.945], 
                                 [-1., 0., 0., -0.], 
@@ -42,6 +43,7 @@ class HER():
                             obs, 
                             action, 
                             goal_position,
+                            reset_pose
                             ) -> float:
         
         def convert_pose_2_7dim(pose):
@@ -70,13 +72,13 @@ class HER():
 
         # ORIENTATION: penalize deviating too much from the starting pose
         orientation_cost = 0
-        orientation_cost = 0.5 - sum(tcp_pose[3:7] * self.curr_reset_pose[3:7]) ** 2
-        orientation_cost += 0.5 - sum(tcp_pose[10:] * self.curr_reset_pose[10:]) ** 2
+        orientation_cost = 0.5 - sum(tcp_pose[3:7] * reset_pose[3:7]) ** 2
+        orientation_cost += 0.5 - sum(tcp_pose[10:] * reset_pose[10:]) ** 2
         orientation_cost = max(orientation_cost - 0.005, 0.) * 25.
 
         # POSITION: penalize deviating too much from the starting pose
         max_pose_diff = 0.05  # set to 5cm
-        pos_diff = np.concatenate([tcp_pose[:2] - self.curr_reset_pose[:2], tcp_pose[7:9] - self.curr_reset_pose[7:9]])
+        pos_diff = np.concatenate([tcp_pose[:2] - reset_pose[:2], tcp_pose[7:9] - reset_pose[7:9]])
         position_cost = 10. * np.sum(
             np.where(np.abs(pos_diff) > max_pose_diff, np.abs(pos_diff - np.sign(pos_diff) * max_pose_diff), 0.0)
         )
@@ -97,7 +99,7 @@ class HER():
             return 0. + suction_reward - action_cost - orientation_cost - position_cost - \
                 suction_cost - step_cost - action_diff_cost - distance_cost
         
-    def process_transitions(self, transitions, last_obs, goal_position, her_transitions, augmented_transitions):
+    def process_transitions(self, transitions, last_obs, goal_position, her_transitions, augmented_transitions, reset_pose):
         """
         Process transitions. Obtain HER and augment the standard transitions.
         
@@ -144,7 +146,8 @@ class HER():
                             axis=0
                             ), # use the new observation vector
                         action=trans['actions'], 
-                        goal_position=last_obs[-6:-3]
+                        goal_position=last_obs[-6:-3],
+                        reset_pose=reset_pose
                         ), # TODO: implement this function
                     masks=trans['masks'],
                     dones=trans['dones'],
@@ -152,6 +155,8 @@ class HER():
             )
             her_transitions.append(her_dict)
             pprint(her_dict)
+            # df = pd.DataFrame(her_transitions)
+            # df.to_excel("her_dict.xlsx")
             augm_dict = copy.deepcopy(
                 dict(
                     observations=np.concatenate(
@@ -169,5 +174,7 @@ class HER():
                 )
             )
             augmented_transitions.append(augm_dict)
+            # df = pd.DataFrame(augmented_transitions)
+            # df.to_excel("augm_dict.xlsx")
 
         return her_transitions, augmented_transitions

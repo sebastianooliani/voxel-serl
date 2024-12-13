@@ -36,7 +36,7 @@ DUAL = True
 
 if __name__ == "__main__":
     env = gym.make("box_picking_camera_env_dual_robot",
-                   camera_mode="rgb") if DUAL else gym.make("box_picking_camera_env", camera_mode="none")
+                   camera_mode="none") if DUAL else gym.make("box_picking_camera_env", camera_mode="none")
     
     DUAL_SPACEMOUSE = env.env.env.env.config.DUAL
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     transitions = []
     her_transitions = []
     success_count = 0
-    success_needed = 20
+    success_needed = 1
     total_count = 0
     pbar = tqdm(total=success_needed)
 

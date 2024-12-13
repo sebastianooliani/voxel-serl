@@ -110,13 +110,15 @@ if __name__ == "__main__":
             running_reward += rew
 
             if done or truncated:
+                curr_reset_pose = env.env.env.env.env.env.env.env.env.curr_reset_pose
 
                 her_transitions, augmented_transitions = her.process_transitions(
                     transitions=transitions, 
                     last_obs=next_obs, 
                     goal_position=intersection_point,
                     her_transitions=her_transitions,
-                    augmented_transitions=augmented_transitions
+                    augmented_transitions=augmented_transitions,
+                    reset_pose=curr_reset_pose
                     )
                 
                 # Reset transitions

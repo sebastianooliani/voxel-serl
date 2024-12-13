@@ -743,9 +743,10 @@ class UR5DualRobotEnv(UR5Env):
         self.T_EE_SC = config.T_EE_SC
         self.WF_rot = config.WF_rot
         self.pose_estimation_ip = config.POSE_ESTIMATION_IP
+        self.pose_est = config.POSE_ESTIMATION
 
         # boxes
-        self.box_pose = BoxPoseEstimation(self.pose_estimation_ip)
+        self.box_pose = BoxPoseEstimation(self.pose_estimation_ip) if config.POSE_ESTIMATION else None
         self.goal_position = np.zeros((3,), dtype=np.float32)
         self.box_position = np.zeros((3,), dtype=np.float32)
 

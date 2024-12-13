@@ -138,6 +138,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         state = obs["state"]
         # add condition for second robot
         # print(f"{state['tcp_pose'][2] - self.curr_reset_pose[2]}, {state['tcp_pose'][9] - self.curr_reset_pose[9]}")
+        print(f"{0.1 < state['gripper_state'][0] < 1. and state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.05 and 0.1 < state['gripper_state'][2] < 1. and state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.05}")
         return 0.1 < state['gripper_state'][0] < 1. and state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.05 and 0.1 < state['gripper_state'][2] < 1. and state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.05 # +1cm for success
     
     def close(self):
@@ -161,7 +162,10 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             images = self.get_image()
 
         # self.box_position = np.array([0.5, 0.5, 0.5]) # dummy variable for debugging
-        self._update_box_pose_estimate()
+        if self.pose_est:
+            self._update_box_pose_estimate()
+        else:
+            self.box_position = np.array([0.5, 0.5, 0.5])
 
         self._update_currpos()
         state_observation = {

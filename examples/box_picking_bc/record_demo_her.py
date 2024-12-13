@@ -37,7 +37,7 @@ DUAL = True
 if __name__ == "__main__":
     env = gym.make("box_picking_camera_env_dual_robot_motion_planning",
                    camera_mode="none") if DUAL else gym.make("box_picking_camera_env", camera_mode="rgb")
-    
+
     DUAL_SPACEMOUSE = env.env.env.env.config.DUAL
     HER_EPISODE = env.env.env.env.config.HER
         
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     augmented_transitions = []
 
     total_count = 0
-    num_points = 20
+    num_points = 1
     pbar = tqdm(total=num_points)
 
     info_dict = {'state': env.unwrapped.curr_pos, 'gripper_state': env.unwrapped.gripper_state,
@@ -105,13 +105,15 @@ if __name__ == "__main__":
             obs = next_obs
 
             if done:
+                curr_reset_pose = env.env.env.env.env.env.env.env.env.curr_reset_pose
 
                 her_transitions, augmented_transitions = her.process_transitions(
                     transitions=transitions, 
                     last_obs=next_obs, 
                     goal_position=intersection_point,
                     her_transitions=her_transitions,
-                    augmented_transitions=augmented_transitions
+                    augmented_transitions=augmented_transitions,
+                    reset_pose=curr_reset_pose
                     )
                 
                 # Reset transitions

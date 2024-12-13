@@ -140,7 +140,7 @@ class UR5CameraConfigFinalEvaluation(UR5CameraConfigFinal):
 class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     DUAL = True
     TOP = True
-    HER = True
+    HER = False
     # box in horizontal position
     RESET_Q = np.array([[- math.pi / 6. , -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
                         math.pi + math.pi / 4, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]])
@@ -189,7 +189,8 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     ABS_POSE_LIMIT_LOW_ROBOT_2 = np.array([-0.369, 0.295, 0.104, -0.05, -0.05, -0.2])
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
-    POSE_ESTIMATION_IP = "ws://192.168.1.117:7777"
+    POSE_ESTIMATION_IP = "ws://192.168.1.184:7777"
+    POSE_ESTIMATION = False
 
     ROBOT_IP_1: str = "192.168.1.66" # docker "172.17.0.2"
     ROBOT_IP_2: str = "192.168.1.33" # docker "172.17.0.3"
