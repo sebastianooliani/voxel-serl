@@ -738,6 +738,7 @@ class UR5DualRobotEnv(UR5Env):
         self.curr_torque = np.zeros((6,), dtype=np.float32)
         self.last_action = np.zeros(self.action_space.shape)
 
+        # some useful matrices
         self.T_O1_O2 = config.T_O1_O2
         self.T_EE_SC = config.T_EE_SC
         self.WF_rot = config.WF_rot
@@ -815,7 +816,6 @@ class UR5DualRobotEnv(UR5Env):
                 image_space_definition["wrist_2"] = gym.spaces.Box(
                     0, 255, shape=(128, 128, channel), dtype=np.uint8
                 )
-
         if camera_mode in ["depth", "both"]:
             if "wrist" in config.REALSENSE_CAMERAS.keys():
                 image_space_definition["wrist_depth"] = gym.spaces.Box(
@@ -825,7 +825,6 @@ class UR5DualRobotEnv(UR5Env):
                 image_space_definition["wrist_2_depth"] = gym.spaces.Box(
                     0, 255, shape=(128, 128, 1), dtype=np.uint8
                 )
-
         if camera_mode in ["pointcloud"]:
             image_space_definition["wrist_1_pointcloud"] = gym.spaces.Box(
                 0, 255, shape=(50, 50, 40), dtype=np.uint8
@@ -839,6 +838,7 @@ class UR5DualRobotEnv(UR5Env):
         #############################
         # Observation Space         #
         #############################
+        
         state_space = gym.spaces.Dict(
             {
                 "tcp_pose": gym.spaces.Box(

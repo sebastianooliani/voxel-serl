@@ -69,8 +69,6 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
     def __init__(self, load_config=True, **kwargs):
         if load_config:
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
-            self.T_O1_O2 = UR5CameraConfigDualRobot.T_O1_O2
-            self.T_EE_SC = UR5CameraConfigDualRobot.T_EE_SC
         else:
             super().__init__(**kwargs)
     
@@ -152,11 +150,40 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
     def __init__(self, load_config=True, **kwargs):
         if load_config:
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
-            self.T_O1_O2 = UR5CameraConfigDualRobot.T_O1_O2
-            self.T_EE_SC = UR5CameraConfigDualRobot.T_EE_SC
-            self.first = False
         else:
             super().__init__(**kwargs)
+
+    def _get_obs(self, action) -> dict:
+        # get image before state observation, so they match better in time
+
+        images = None
+        if self.camera_mode is not None:
+            images = self.get_image()
+
+        # self.box_position = np.array([0.5, 0.5, 0.5]) # dummy variable for debugging
+        self._update_box_pose_estimate()
+
+        self._update_currpos()
+        state_observation = {
+            "tcp_pose": self.curr_pos,
+            "tcp_vel": self.curr_vel,
+            "gripper_state": self.gripper_state,
+            "tcp_force": self.curr_force,
+            "tcp_torque": self.curr_torque,
+            "action": action,
+            # TODO: add my custom observations here
+            "tcp_pos_diff": self.curr_pos[:3] - self.curr_pos[7:10],
+            "joint_positions": self.curr_Q,
+            # motion planning observations
+            "goal_box_position": self.goal_position - self.box_position,
+            "box_position": self.box_position,
+            "goal_position": self.goal_position,
+        }
+
+        if images is not None:
+            return copy.deepcopy(dict(images=images, state=state_observation))
+        else:
+            return copy.deepcopy(dict(state=state_observation))
 
     def compute_reward(self, obs, action) -> float:
         action_cost = 0.1 * np.sum(np.power(action, 2))
@@ -180,7 +207,9 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         max_pose_diff = 0.05  # set to 5cm
         pos_diff = np.concatenate([obs["state"]["tcp_pose"][:2] - self.curr_reset_pose[:2], obs["state"]["tcp_pose"][7:9] - self.curr_reset_pose[7:9]])
         position_cost = 10. * np.sum(
-            np.where(np.abs(pos_diff) > max_pose_diff, np.abs(pos_diff - np.sign(pos_diff) * max_pose_diff), 0.0)
+            np.where(np.abs(pos_diff) > max_pose_diff, 
+                     np.abs(pos_diff - np.sign(pos_diff) * max_pose_diff), 
+                     0.0)
         )
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
@@ -205,8 +234,6 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         )
         for key, info in cost_info.items():
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])
-
-        # print(f"Action costs: {action_cost}\n, Step costs: {step_cost}\n, Suction reward: {suction_reward}\n, Suction cost: {suction_cost}\n, Orientation cost: {orientation_cost}\n, Position cost: {position_cost}\n, Action difference cost: {action_diff_cost}\n, Distance cost: {distance_cost}\n, Total cost: {cost_info['total_cost']}")
         
         if self.reached_goal_state(obs):
             self.last_action[:] = 0.
@@ -215,40 +242,6 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         else:
             return 0. + suction_reward - action_cost - orientation_cost - position_cost - \
                 suction_cost - step_cost - action_diff_cost - distance_cost
-
-    def _get_obs(self, action) -> dict:
-        # get image before state observation, so they match better in time
-
-        images = None
-        if self.camera_mode is not None:
-            images = self.get_image()
-
-        # asyncio.get_running_loop().run_until_complete(self._update_box_pose_estimate())
-        # self.box_position = np.array([0.5, 0.5, 0.5]) # dummy variable for debugging
-        self._update_box_pose_estimate()
-        # print(f"Box position: {self.box_position}")
-
-        self._update_currpos()
-        state_observation = {
-            "tcp_pose": self.curr_pos,
-            "tcp_vel": self.curr_vel,
-            "gripper_state": self.gripper_state,
-            "tcp_force": self.curr_force,
-            "tcp_torque": self.curr_torque,
-            "action": action,
-            # TODO: add my custom observations here
-            "tcp_pos_diff": self.curr_pos[:3] - self.curr_pos[7:10],
-            "joint_positions": self.curr_Q,
-            # motion planning observations
-            "goal_box_position": self.goal_position - self.box_position,
-            "box_position": self.box_position,
-            "goal_position": self.goal_position,
-        }
-
-        if images is not None:
-            return copy.deepcopy(dict(images=images, state=state_observation))
-        else:
-            return copy.deepcopy(dict(state=state_observation))
     
     def reached_goal_state(self, obs) -> bool:
         state = obs['state']
