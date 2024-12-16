@@ -8,7 +8,7 @@ from pprint import pprint
 import pandas as pd
 
 class HER():
-    def __init__(self):        
+    def __init__(self, scale=False):        
         self.T_O1_O2=np.array([[0., 1., 0., -0.945], 
                                 [-1., 0., 0., -0.], 
                                 [0., 0., 1., 0.01], 
@@ -20,9 +20,16 @@ class HER():
         
         self.last_action = np.zeros((14,))
 
-    ################################################################################################
-    #                                  HER: her reward computation                                 #
-    ################################################################################################
+        self.translation_scale=100.
+        self.rotation_scale=10.
+        self.force_scale=1.
+        self.torque_scale=10.
+
+        self.scale=scale
+
+    ##########################################################################################
+    #                               HER: her reward computation                              #
+    ##########################################################################################
     # observation space
     # action -> 0:14
     # gripper state -> 14:18
@@ -40,7 +47,7 @@ class HER():
                             obs, 
                             action, 
                             goal_position,
-                            reset_pose
+                            reset_pose,
                             ) -> float:
         
         def convert_pose_2_7dim(pose):
@@ -51,7 +58,12 @@ class HER():
                                    axis=0)
         
         def reached_goal_state_her(obs) -> bool:
-            return np.linalg.norm(obs[69:72]) < 0.05 and 0.1 < obs[14:18][0] < 1. and 0.1 < obs[14:18][2] < 1.
+            return np.linalg.norm(obs[69:72]) < 0.05 \
+                and 0.1 < obs[14:18][0] < 1. \
+                    and 0.1 < obs[14:18][2] < 1.
+
+        if self.scale:
+            self.unscale_obs(obs)
 
         tcp_pose = obs[39:51]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
@@ -77,7 +89,9 @@ class HER():
         max_pose_diff = 0.05  # set to 5cm
         pos_diff = np.concatenate([tcp_pose[:2] - reset_pose[:2], tcp_pose[7:9] - reset_pose[7:9]])
         position_cost = 10. * np.sum(
-            np.where(np.abs(pos_diff) > max_pose_diff, np.abs(pos_diff - np.sign(pos_diff) * max_pose_diff), 0.0)
+            np.where(np.abs(pos_diff) > max_pose_diff, 
+                     np.abs(pos_diff - np.sign(pos_diff) * max_pose_diff), 
+                     0.0)
         )
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
@@ -96,7 +110,13 @@ class HER():
             return 0. + suction_reward - action_cost - orientation_cost - position_cost - \
                 suction_cost - step_cost - action_diff_cost - distance_cost
         
-    def process_transitions(self, transitions, last_obs, goal_position, her_transitions, augmented_transitions, reset_pose):
+    def process_transitions(self, 
+                            transitions, 
+                            last_obs, 
+                            goal_position, 
+                            her_transitions, 
+                            augmented_transitions, 
+                            reset_pose):
         """
         Process transitions. Obtain HER and augment the standard transitions.
         
@@ -190,3 +210,51 @@ class HER():
             # df.to_excel("augm_dict.xlsx")
 
         return her_transitions, augmented_transitions
+
+    def unscale_obs(self, obs):
+        """
+        Unscale the observation before computing the episode reward.
+        """
+        obs[30:36] /= self.force_scale
+
+        obs[36:39] /= self.translation_scale
+
+        obs[39:42] /= self.translation_scale
+        obs[42:45] /= self.rotation_scale
+        obs[45:48] /= self.translation_scale
+        obs[48:51] /= self.rotation_scale
+
+        obs[51:57] /= self.torque_scale
+
+        obs[57:60] /= self.translation_scale
+        obs[60:63] /= self.rotation_scale
+        obs[63:66] /= self.translation_scale
+        obs[66:69] /= self.rotation_scale
+
+        obs[69:72] /= self.translation_scale
+        obs[72:75] /= self.translation_scale
+        obs[75:78] /= self.translation_scale
+
+    def scale_obs(self, obs):
+        """
+        Scale the observation before saving the episode's transitions.
+        """
+        obs[30:36] *= self.force_scale
+
+        obs[36:39] *= self.translation_scale
+
+        obs[39:42] *= self.translation_scale
+        obs[42:45] *= self.rotation_scale
+        obs[45:48] *= self.translation_scale
+        obs[48:51] *= self.rotation_scale
+
+        obs[51:57] *= self.torque_scale
+
+        obs[57:60] *= self.translation_scale
+        obs[60:63] *= self.rotation_scale
+        obs[63:66] *= self.translation_scale
+        obs[66:69] *= self.rotation_scale
+
+        obs[69:72] *= self.translation_scale
+        obs[72:75] *= self.translation_scale
+        obs[75:78] *= self.translation_scale

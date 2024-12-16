@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
     obs, _ = env.reset()
 
-    her = HER()
+    her = HER(scale=True)
     transitions = []
     her_transitions = []
     augmented_transitions = []

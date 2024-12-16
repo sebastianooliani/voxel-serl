@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     obs, _ = env.reset()
 
-    her = HER()
+    her = HER(scale=False)
     transitions = []
     her_transitions = []
     augmented_transitions = []
@@ -100,7 +100,7 @@ if __name__ == "__main__":
                 )
             )
             transitions.append(transition)
-            # pprint(transition)
+            pprint(transition)
 
             obs = next_obs
 

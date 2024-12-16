@@ -92,7 +92,6 @@ class ScaleObservationWrapper(gym.ObservationWrapper):
         obs["state"]["tcp_vel"][3:] *= self.rotation_scale
         obs["state"]["tcp_force"] *= self.force_scale
         obs["state"]["tcp_torque"] *= self.torque_scale
-        # TODO: Add scaling for dual set up observations
         return obs
 
 class ScaleDualObservationWrapper(ScaleObservationWrapper):
@@ -129,6 +128,7 @@ class ScaleDualObservationWrapper(ScaleObservationWrapper):
         try:
             obs['state']['goal_box_position'] *= self.translation_scale
             obs['state']['box_position'] *= self.translation_scale
+            obs['state']['goal_position'] *= self.translation_scale
         except:
             pass
 
