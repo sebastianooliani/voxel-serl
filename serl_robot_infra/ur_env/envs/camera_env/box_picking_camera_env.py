@@ -225,6 +225,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         #     f.write(f"distance_cost: {distance_cost}, orientation_cost: {orientation_cost}, position_cost: {position_cost}, action_diff_cost: {action_diff_cost}, action_cost: {action_cost}, suction_cost: {suction_cost}, step_cost: {step_cost}, suction_reward: {suction_reward}\n")
         # with open('/home/sebastiano/voxel-serl/serl_robot_infra/ur_env/utils/std_obs.txt', 'a') as f:
         #     f.write(f"{obs}\n")
+
         # TOTAL COST
         cost_info = dict(
             action_cost=action_cost,

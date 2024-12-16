@@ -63,10 +63,10 @@ class HER():
                     and 0.1 < obs[14:18][2] < 1.
 
         if self.scale:
-            self.unscale_obs(obs)
+            obs = self.unscale_obs(obs)
 
         obs = self.transform_obs(tcp_pose=obs[39:51], obs=obs)
-        
+
         tcp_pose = obs[39:51]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
 
@@ -194,7 +194,7 @@ class HER():
             )
             her_transitions.append(her_dict)
 
-            pprint(her_dict)
+            # pprint(her_dict)
             # df = pd.DataFrame(her_transitions)
             # df.to_excel("her_dict.xlsx")
             augm_dict = copy.deepcopy(
@@ -243,6 +243,8 @@ class HER():
         obs[72:75] /= self.translation_scale
         obs[75:78] /= self.translation_scale
 
+        return obs
+
     def scale_obs(self, obs):
         """
         Scale the observation before saving the episode's transitions.
@@ -272,7 +274,7 @@ class HER():
         Transform the observation before computing the episode reward.
         """
         self.R_1 = R.from_mrp(tcp_pose[3:6]).as_matrix()
-        self.R_2 = R.from_mrp(tcp_pose[9:]).as_matrix()
+        self.R_2 = R.from_mrp(tcp_pose[9:12]).as_matrix()
 
         # action -> 0:14
         obs[0:3] = self.R_1 @ obs[0:3]
@@ -300,6 +302,6 @@ class HER():
         obs[63:66] = self.R_2 @ obs[63:66]
         obs[66:69] = self.R_2 @ obs[66:69]
 
-        return obs
+        return obs.copy()
 
 
