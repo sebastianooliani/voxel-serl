@@ -85,7 +85,6 @@ if __name__ == "__main__":
         
         while iter < num_points:
             # define goal position
-            env.env.env.env.env.goal_position = intersection_point
             
             if exit_program.is_set():
                 raise KeyboardInterrupt  # stop program, but clean up before
@@ -110,7 +109,7 @@ if __name__ == "__main__":
             running_reward += rew
 
             if done or truncated:
-                curr_reset_pose = env.env.env.env.env.env.env.env.env.curr_reset_pose
+                curr_reset_pose = env.unwrapped.curr_reset_pose
 
                 her_transitions, augmented_transitions = her.process_transitions(
                     transitions=transitions, 

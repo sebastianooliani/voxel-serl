@@ -64,7 +64,7 @@ class HER():
 
         if self.scale:
             self.unscale_obs(obs)
-
+        
         tcp_pose = obs[39:51]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
 
@@ -101,7 +101,13 @@ class HER():
         T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
         T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
         distance_cost = 1. / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
-                
+
+        # print(f"distance_cost: {distance_cost}, orientation_cost: {orientation_cost}, position_cost: {position_cost}, action_diff_cost: {action_diff_cost}, action_cost: {action_cost}, suction_cost: {suction_cost}, step_cost: {step_cost}, suction_reward: {suction_reward}")
+        # with open('/home/sebastiano/voxel-serl/serl_robot_infra/ur_env/utils/her_costs.txt', 'a') as f:
+        #     f.write(f"distance_cost: {distance_cost}, orientation_cost: {orientation_cost}, position_cost: {position_cost}, action_diff_cost: {action_diff_cost}, action_cost: {action_cost}, suction_cost: {suction_cost}, step_cost: {step_cost}, suction_reward: {suction_reward}\n")
+        # with open('/home/sebastiano/voxel-serl/serl_robot_infra/ur_env/utils/her_obs.txt', 'a') as f:
+        #     f.write(f"{obs}\n")
+
         if reached_goal_state_her(obs):
             self.last_action[:] = 0.
             R_goal = 100.
@@ -186,7 +192,7 @@ class HER():
             )
             her_transitions.append(her_dict)
 
-            pprint(her_dict)
+            # pprint(her_dict)
             # df = pd.DataFrame(her_transitions)
             # df.to_excel("her_dict.xlsx")
             augm_dict = copy.deepcopy(
