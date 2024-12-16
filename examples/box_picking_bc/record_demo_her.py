@@ -105,7 +105,7 @@ if __name__ == "__main__":
             obs = next_obs
 
             if done:
-                curr_reset_pose = env.env.env.env.env.env.env.env.env.curr_reset_pose
+                curr_reset_pose = env.unwrapped.curr_reset_pose
 
                 her_transitions, augmented_transitions = her.process_transitions(
                     transitions=transitions, 

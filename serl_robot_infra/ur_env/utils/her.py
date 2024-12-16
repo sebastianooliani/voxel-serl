@@ -1,30 +1,14 @@
 import numpy as np
-import math
 from scipy.spatial.transform import Rotation as R
 from franka_env.utils.transformations import (
     construct_homogeneous_matrix
 )
-from fast_kinematics import FastKinematics
 import copy
 from pprint import pprint
 import pandas as pd
 
 class HER():
-    def __init__(self):
-        # self.file_name = "/home/sebastiano/voxel-serl/serl_robot_infra/robot_controllers/ur5.urdf"
-        # self. link = "ee_link"
-        # self.N = 1
-        # self.robot_model = FastKinematics(self.file_name, self.N, self.link)
-        
-        # self.joint_positions = np.array([[- math.pi / 6. , -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
-        #                         math.pi + math.pi / 4, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]], dtype=np.float32)
-        
-        # # output of forward kinematics is position and quaternion
-        # self.curr_reset_pose = np.concatenate(
-        #     [self.robot_model.forward_kinematics(self.joint_positions[0, :6].transpose()), 
-        #      self.robot_model.forward_kinematics(self.joint_positions[0, 6:].transpose())], 
-        #      axis=0)
-        
+    def __init__(self):        
         self.T_O1_O2=np.array([[0., 1., 0., -0.945], 
                                 [-1., 0., 0., -0.], 
                                 [0., 0., 1., 0.01], 
@@ -39,6 +23,19 @@ class HER():
     ################################################################################################
     #                                  HER: her reward computation                                 #
     ################################################################################################
+    # observation space
+    # action -> 0:14
+    # gripper state -> 14:18
+    # joint position -> 18:30
+    # tcp force -> 30:36
+    # tcp pos diff -> 36:39
+    # tcp pose -> 39:51
+    # tcp torque -> 51:57
+    # tcp velocity -> 57:69
+    # goal box position -> 69:72
+    # box position -> 72:75
+    # goal position -> 75:78
+
     def compute_reward_her(self, 
                             obs, 
                             action, 
@@ -53,8 +50,8 @@ class HER():
                                    (R.from_mrp(pose[9:])).as_quat()], 
                                    axis=0)
         
-        def reached_goal_state_her(obs, goal_position) -> bool:
-            return np.linalg.norm(goal_position - obs[69:72]) < 0.05 and 0.1 < obs[14:18][0] < 1. and 0.1 < obs[14:18][2] < 1.
+        def reached_goal_state_her(obs) -> bool:
+            return np.linalg.norm(obs[69:72]) < 0.05 and 0.1 < obs[14:18][0] < 1. and 0.1 < obs[14:18][2] < 1.
 
         tcp_pose = obs[39:51]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
@@ -67,7 +64,7 @@ class HER():
         step_cost = 0.1
 
         # SUCTION: reward for successful grip and cost for unnecessary suctioning
-        suction_reward = 5 * 0.3 * (float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5))
+        suction_reward = 0.5 * 3 * (float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5))
         suction_cost = 0.5 * 3. * (float(obs[14:18][1] < -0.5) + float(obs[14:18][3] < -0.5))
 
         # ORIENTATION: penalize deviating too much from the starting pose
@@ -91,7 +88,7 @@ class HER():
         T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
         distance_cost = 1. / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
                 
-        if reached_goal_state_her(obs, goal_position):
+        if reached_goal_state_her(obs):
             self.last_action[:] = 0.
             R_goal = 100.
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
@@ -119,6 +116,20 @@ class HER():
             # compute reward based on the new goal state
             # concatenate the last observation to the current observation
             # recompute the goal-box-position observation based on the reached position
+
+            # observation space
+            # action -> 0:14
+            # gripper state -> 14:18
+            # joint position -> 18:30
+            # tcp force -> 30:36
+            # tcp pos diff -> 36:39
+            # tcp pose -> 39:51
+            # tcp torque -> 51:57
+            # tcp velocity -> 57:69
+            # goal box position -> 69:72
+            # box position -> 72:75
+            # goal position -> 75:78
+
             her_dict = copy.deepcopy(
                 dict(
                     observations=np.concatenate(
@@ -154,6 +165,7 @@ class HER():
                 )
             )
             her_transitions.append(her_dict)
+
             pprint(her_dict)
             # df = pd.DataFrame(her_transitions)
             # df.to_excel("her_dict.xlsx")

@@ -776,10 +776,11 @@ class UR5DualRobotEnv(UR5Env):
             config.ABS_POSE_RANGE_LIMITS[1],
             dtype=np.float64,
         )
-        ###########################################################################
-        # pay attention that you are not clipping the single value of the angles, 
-        # but the orientation difference
-        ###########################################################################
+
+        #################################################################################
+        # pay attention that you are not clipping the "absolute" value of the angles,   #
+        # but the orientation difference with the starting orientation                  #
+        #################################################################################
         self.mrp_bounding_box_1 = gym.spaces.Box(
             config.ABS_POSE_LIMIT_LOW_ROBOT_1[3:],
             config.ABS_POSE_LIMIT_HIGH_ROBOT_1[3:],
@@ -1059,7 +1060,7 @@ class UR5DualRobotEnv(UR5Env):
         reward = self.compute_reward(obs, action)
         truncated = self._is_truncated()
         reward = reward if not truncated else reward - 100.  # truncation penalty
-        done = self.curr_path_length >= self.max_episode_length or self.reached_goal_state(obs) or truncated
+        done = (self.curr_path_length >= self.max_episode_length) or (self.reached_goal_state(obs)) or (truncated)
 
         dt = time.time() - start_time
         to_sleep = max(0, (1.0 / self.hz) - dt)
@@ -1136,7 +1137,7 @@ class UR5DualRobotEnv(UR5Env):
         state = self.controller_1.get_state()
 
         # move to singularity free configurations only
-        if abs(self.controller_1.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
+        if np.abs(self.controller_1.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
             self.controller_1._is_truncated.set()
             print("\nSingularity detected! Reset the agent!\n")
             self.controller_1.restart_ur_interface()
@@ -1145,7 +1146,7 @@ class UR5DualRobotEnv(UR5Env):
         state = self.controller_2.get_state()
 
         # move to singularity free configurations only
-        if abs(self.controller_2.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
+        if np.abs(self.controller_2.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
             self.controller_2._is_truncated.set()
             print("\nSingularity detected! Reset the agent!\n")
             self.controller_1.restart_ur_interface()
@@ -1172,11 +1173,6 @@ class UR5DualRobotEnv(UR5Env):
         """
         state = self.controller_1.get_state()
 
-        # move to singularity free configurations only
-        # if abs(self.controller_1.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
-        #     print("\nSingularity detected! Reset the agent!\n")
-        #     self.reset()
-
         self.curr_pos[:7] = state['pos']
         self.curr_vel[:6] = state['vel']
         self.curr_force[:3] = state['force']
@@ -1186,11 +1182,6 @@ class UR5DualRobotEnv(UR5Env):
         self.gripper_state[:2] = state['gripper']
 
         state = self.controller_2.get_state()
-
-        # move to singularity free configurations only
-        # if abs(self.controller_2.evaluate_manipulability(joint_pos=state['Q']))  < 0.001:
-        #     print("\nSingularity detected! Reset the agent!\n")
-        #     self.reset()
 
         self.curr_pos[7:] = state['pos']
         self.curr_vel[6:] = state['vel']
@@ -1219,7 +1210,7 @@ class UR5DualRobotEnv(UR5Env):
             "tcp_torque": self.curr_torque,
             "action": action,
             # TODO: add my custom observations here
-            "tcp_pos_diff": self.curr_pos[:3] - self.curr_pos[7:10],
+            "tcp_pos_diff": self.curr_pos[:3] - (self.T_O1_O2 @ np.concatenate([self.curr_pos[7:10], [1.]]))[:3],
             "joint_positions": self.curr_Q,
         }
 
@@ -1229,7 +1220,9 @@ class UR5DualRobotEnv(UR5Env):
             return copy.deepcopy(dict(state=state_observation))
         
     def clip_safety_box(self, next_pos: np.ndarray) -> np.ndarray:
-        """Clip the pose to be within the safety box."""
+        """
+        Clip the pose to be within the safety box.
+        """
         next_pos[:3] = np.clip(
             next_pos[:3], self.xyz_bounding_box_1.low, self.xyz_bounding_box_1.high
         )

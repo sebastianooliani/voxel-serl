@@ -158,7 +158,6 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         if self.camera_mode is not None:
             images = self.get_image()
 
-        # self.box_position = np.array([0.5, 0.5, 0.5]) # dummy variable for debugging
         if self.pose_est:
             self._update_box_pose_estimate()
         else:
@@ -173,7 +172,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             "tcp_torque": self.curr_torque,
             "action": action,
             # TODO: add my custom observations here
-            "tcp_pos_diff": self.curr_pos[:3] - self.curr_pos[7:10],
+            "tcp_pos_diff": self.curr_pos[:3] - (self.T_O1_O2 @ np.concatenate([self.curr_pos[7:10], [1.]]))[:3],
             "joint_positions": self.curr_Q,
             # motion planning observations
             "goal_box_position": self.goal_position - self.box_position,
