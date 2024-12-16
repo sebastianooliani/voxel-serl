@@ -64,6 +64,8 @@ class HER():
 
         if self.scale:
             self.unscale_obs(obs)
+
+        obs = self.transform_obs(tcp_pose=obs[39:51], obs=obs)
         
         tcp_pose = obs[39:51]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
@@ -192,7 +194,7 @@ class HER():
             )
             her_transitions.append(her_dict)
 
-            # pprint(her_dict)
+            pprint(her_dict)
             # df = pd.DataFrame(her_transitions)
             # df.to_excel("her_dict.xlsx")
             augm_dict = copy.deepcopy(
@@ -264,3 +266,40 @@ class HER():
         obs[69:72] *= self.translation_scale
         obs[72:75] *= self.translation_scale
         obs[75:78] *= self.translation_scale
+
+    def transform_obs(self, tcp_pose, obs):
+        """
+        Transform the observation before computing the episode reward.
+        """
+        self.R_1 = R.from_mrp(tcp_pose[3:6]).as_matrix()
+        self.R_2 = R.from_mrp(tcp_pose[9:]).as_matrix()
+
+        # action -> 0:14
+        obs[0:3] = self.R_1 @ obs[0:3]
+        obs[3:6] = self.R_1 @ obs[3:6]
+        obs[7:10] = self.R_2 @ obs[7:10]
+        obs[10:13] = self.R_2 @ obs[10:13]
+
+        # tcp force -> 30:36
+        obs[30:33] = self.R_1 @ obs[30:33]
+        obs[33:36] = self.R_2 @ obs[33:36]
+
+        # tcp pose -> 39:51
+        obs[39:42] = self.R_1 @ obs[39:42]
+        obs[42:45] = self.R_1 @ obs[42:45]
+        obs[45:48] = self.R_2 @ obs[46:49]
+        obs[48:51] = self.R_2 @ obs[48:51]
+
+        # tcp torque -> 51:57
+        obs[51:54] = self.R_1 @ obs[51:54]
+        obs[54:57] = self.R_2 @ obs[54:57]
+
+        # tcp velocity -> 57:69
+        obs[57:60] = self.R_1 @ obs[57:60]
+        obs[60:63] = self.R_1 @ obs[60:63]
+        obs[63:66] = self.R_2 @ obs[63:66]
+        obs[66:69] = self.R_2 @ obs[66:69]
+
+        return obs
+
+
