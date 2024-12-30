@@ -27,6 +27,9 @@ class HER():
 
         self.scale=scale
 
+        self.R_1 = None
+        self.R_2 = None
+
     ##########################################################################################
     #                               HER: her reward computation                              #
     ##########################################################################################
@@ -52,9 +55,9 @@ class HER():
         
         def convert_pose_2_7dim(pose):
             return np.concatenate([pose[:3], 
-                                   (R.from_mrp(pose[3:6])).as_quat(), 
+                                   R.from_mrp(pose[3:6]).as_quat(), 
                                    pose[6:9], 
-                                   (R.from_mrp(pose[9:])).as_quat()], 
+                                   R.from_mrp(pose[9:]).as_quat()], 
                                    axis=0)
         
         def reached_goal_state_her(obs) -> bool:
@@ -64,8 +67,7 @@ class HER():
 
         if self.scale:
             obs = self.unscale_obs(obs)
-
-        obs = self.transform_obs(tcp_pose=obs[39:51], obs=obs)
+            obs = self.transform_obs(tcp_pose=obs[39:51], obs=obs)
 
         tcp_pose = obs[39:51]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
@@ -277,6 +279,41 @@ class HER():
         self.R_2 = R.from_mrp(tcp_pose[9:12]).as_matrix()
 
         # action -> 0:14
+        obs[0:3] = self.R_1.T @ obs[0:3]
+        obs[3:6] = self.R_1.T @ obs[3:6]
+        obs[7:10] = self.R_2.T @ obs[7:10]
+        obs[10:13] = self.R_2.T @ obs[10:13]
+
+        # tcp force -> 30:36
+        obs[30:33] = self.R_1.T @ obs[30:33]
+        obs[33:36] = self.R_2.T @ obs[33:36]
+
+        # tcp pose -> 39:51
+        obs[39:42] = self.R_1.T @ obs[39:42]
+        obs[42:45] = self.R_1.T @ obs[42:45]
+        obs[45:48] = self.R_2.T @ obs[45:48]
+        obs[48:51] = self.R_2.T @ obs[48:51]
+
+        # tcp torque -> 51:57
+        obs[51:54] = self.R_1.T @ obs[51:54]
+        obs[54:57] = self.R_2.T @ obs[54:57]
+
+        # tcp velocity -> 57:69
+        obs[57:60] = self.R_1.T @ obs[57:60]
+        obs[60:63] = self.R_1.T @ obs[60:63]
+        obs[63:66] = self.R_2.T @ obs[63:66]
+        obs[66:69] = self.R_2.T @ obs[66:69]
+
+        return obs.copy()
+    
+    def transform_obs_dummy(self, tcp_pose, obs):
+        """
+        Transform the observation before computing the episode reward.
+        """
+        self.R_1 = R.from_mrp(tcp_pose[3:6]).as_matrix()
+        self.R_2 = R.from_mrp(tcp_pose[9:12]).as_matrix()
+
+        # action -> 0:14
         obs[0:3] = self.R_1 @ obs[0:3]
         obs[3:6] = self.R_1 @ obs[3:6]
         obs[7:10] = self.R_2 @ obs[7:10]
@@ -289,7 +326,7 @@ class HER():
         # tcp pose -> 39:51
         obs[39:42] = self.R_1 @ obs[39:42]
         obs[42:45] = self.R_1 @ obs[42:45]
-        obs[45:48] = self.R_2 @ obs[46:49]
+        obs[45:48] = self.R_2 @ obs[45:48]
         obs[48:51] = self.R_2 @ obs[48:51]
 
         # tcp torque -> 51:57
@@ -305,3 +342,46 @@ class HER():
         return obs.copy()
 
 
+
+if __name__ == "__main__":
+    # debug costs
+    her = HER()
+    obs = np.array([0., 0., -0.9529,  0.0862,  0.3405,  0.,  0.,
+                    0., 0., -0.7378,  0.,  0.,  0.,  0.,
+                    0., 0., 0., 0.,
+                    -0.5235, -1.4399, 2.0943, -2.2251, -1.5709, 0.,  3.927 , -1.4402, 2.0944, -2.2252, -1.5707, -0.,
+                    -0.1146, 0.1362, -0.0112,  0.1005, -0.0989,  0.0105,
+                    0.0516, 0.3551, -0.0107,
+                    -0.4699,  0.119 ,  0.2453, -0.86561667, -0.499106, -0.00149882,
+                    0.236 ,  0.4235,  0.246 , -0.92264671,  0.38174008,  0.00139795,
+                    -0.0006, -0.0052,  0.0018,  0.0021,  0.0034, -0.0017,
+                    -0.0003, 0.0001, 0.0005, 0.0006, 0.0009, -0., -0.0001, 0.0001, 0., 0.0003, 0.0003, 0.0003,
+                    0.034, -0.3169, 0.3567,
+                    -0.4448, -0.0514, -0.0554,
+                    -0.4107, -0.3683, 0.3012])
+    
+    action = np.array([0., 0., -0.9529, 0.0862, 0.3405, 0., 0.,
+                        0., 0., -0.7378, 0., 0., 0., 0.])
+    goal_pos = np.array([-0.4107, -0.3683,  0.3012])
+    reset_pose = np.array([-0.4699, 0.119, 0.2453, -0.8663, -0.4995, -0.0015, 0.0008,
+                            0.236, 0.4235, 0.246, -0.924, 0.3823, 0.0014, 0.0015])
+    
+    rew = her.compute_reward_her(obs=obs,
+                           action=action,
+                           goal_position=goal_pos,
+                           reset_pose=reset_pose)
+    
+    print("Correct reward: ", rew)
+    tcp_pose = np.array([-0.4699, 0.119, 0.2453, -0.8656, -0.4991, -0.0015,
+                    0.236, 0.4235, 0.246, -0.9226, 0.3817, 0.0014])
+    
+    obs = her.transform_obs_dummy(tcp_pose=tcp_pose, obs=obs)
+
+    new_her = HER(scale=True)
+
+    rew = new_her.compute_reward_her(obs=obs,
+                                 action=action,
+                                 goal_position=goal_pos,
+                                 reset_pose=reset_pose)
+    
+    print("Reward after transformation: ", rew)
