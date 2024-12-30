@@ -149,21 +149,10 @@ class PointCloudGenerator:
         else:
             points = self.crop_pointcloud(points)
 
-        # Calculate voxel indices
-        dimensions = np.ceil((self.max_bounds - self.min_bounds) / self.voxel_size).astype(int)
-        voxel_indices = ((points - self.min_bounds) / self.voxel_size).astype(int)
-
-        # Create voxel grid
-        voxel_grid = np.zeros(dimensions, dtype=np.bool_)
-        valid_indices = np.all((voxel_indices >= 0) & (voxel_indices < dimensions), axis=1)
-        
-        voxel_grid[
-            voxel_indices[valid_indices, 0], 
-            voxel_indices[valid_indices, 1], 
-            voxel_indices[valid_indices, 2]
-        ] = True
-
-        return voxel_grid, voxel_indices[valid_indices, :].astype(np.uint8)
+        grid, indices = pointcloud_to_voxel_grid(
+            points, self.voxel_size, self.min_bounds, self.max_bounds
+        )
+        return grid, indices
 
     def get_voxelgrid_shape(self):
         """
@@ -173,6 +162,31 @@ class PointCloudGenerator:
             np.ndarray: Voxel grid dimensions
         """
         return np.ceil((self.max_bounds - self.min_bounds) / self.voxel_size).astype(int)
+    
+    def get_pointcloud_representation(self):
+        return self.voxelize(self.original_pcd)
+    
+    def append(self, pcd: np.ndarray):
+        """
+        Append point cloud to generator.
+        
+        Args:
+            pcd (np.ndarray): Point cloud to append
+        """
+        if self.original_pcd is None:
+            self.original_pcd = pcd
+            self.processed_pcd = pcd
+        else:
+            raise NotImplementedError("Only one point cloud supported")
+
+    def clear(self):
+        self.original_pcds = None
+
+    def is_complete(self):
+        return self.pcd is not None
+
+    def is_empty(self):
+        return self.pcd is None 
 
     def visualize(self, points=None):
         """

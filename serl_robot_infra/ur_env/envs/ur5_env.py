@@ -1005,7 +1005,9 @@ class UR5DualRobotEnv(UR5Env):
                     display_images[depth_key + "_full"] = cv2.applyColorMap(cropped_depth, cv2.COLORMAP_JET)
 
                 if self.camera_mode in ["pointcloud"]:
-                    self.pointcloud_1.capture_pointcloud(image) if key == "wrist" else self.pointcloud_2.capture_pointcloud(image)
+                    pointcloud = image
+                    self.pointcloud_1.append(pointcloud) if key == "wrist" else self.pointcloud_2.append(pointcloud)
+                    # self.pointcloud_1.capture_pointcloud(image) if key == "wrist" else self.pointcloud_2.capture_pointcloud(image)
 
             except queue.Empty:
                 input(f"{key} camera frozen. Check connect, then press enter to relaunch...")
