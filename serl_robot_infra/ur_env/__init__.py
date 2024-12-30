@@ -1,6 +1,8 @@
 from gymnasium.envs.registration import register
 import numpy as np
 
+# single arm
+
 register(
     id="box_picking_basic_env",
     entry_point="ur_env.envs.basic_env:UR5BasicEnv",
@@ -31,6 +33,8 @@ register(
     max_episode_steps=100,
 )
 
+# Dual robot
+
 register(
     id="box_picking_camera_env_dual_robot",
     entry_point="ur_env.envs.camera_env:UR5CameraEnvDualRobot",
@@ -40,5 +44,11 @@ register(
 register(
     id="box_picking_camera_env_dual_robot_motion_planning",
     entry_point="ur_env.envs.camera_env:UR5CameraEnvDualRobotMotionPlanning",
+    max_episode_steps=100,
+)
+
+register(
+    id="box_picking_camera_env_dual_robot_reorientation",
+    entry_point="ur_env.envs.camera_env:UR5CameraEnvDualRobotReorientation",
     max_episode_steps=100,
 )
