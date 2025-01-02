@@ -13,12 +13,14 @@ DUAL = True
 def create_state_mask(mask_str: str) -> jnp.ndarray:
     # for the future: just 'all' is considered for now
     all = jnp.ones((27,), dtype=jnp.bool)
+
     if UR5CameraConfigDualRobot.TASK == "motion":
         all = jnp.ones((78,), dtype=jnp.bool)
     elif UR5CameraConfigDualRobot.TASK == "reorient":
         all = jnp.ones((72,), dtype=jnp.bool)
     elif DUAL:
         all = jnp.ones((69,), dtype=jnp.bool)
+        
     # all = jnp.ones((27,), dtype=jnp.bool) if not DUAL else jnp.ones((69,), dtype=jnp.bool)
     none = jnp.zeros_like(all)
     no_action = all.at[:7].set(False) if not DUAL else all.at[:14].set(False)

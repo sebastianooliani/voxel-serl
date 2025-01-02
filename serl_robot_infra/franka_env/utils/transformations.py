@@ -53,3 +53,30 @@ def pose_2_homogeneous_matrix(tcp_pose):
     T[:3, :3] = rotation
     T[:3, 3] = translation
     return T
+
+def orientation_difference_angle_axis(angle_axis1, angle_axis2):
+    """
+    Compute the orientation difference between two angle-axis representations.
+
+    Args:
+        angle_axis1 (array-like): First angle-axis representation (3 elements: axis * angle).
+        angle_axis2 (array-like): Second angle-axis representation (3 elements: axis * angle).
+
+    Returns:
+        tuple: (angle_difference, axis_difference)
+            - angle_difference (float): Angle of rotation difference in radians.
+            - axis_difference (numpy.ndarray): Axis of the relative rotation (unit vector).
+    """
+    # Convert angle-axis to scipy Rotation objects
+    r1 = R.from_rotvec(angle_axis1)
+    r2 = R.from_rotvec(angle_axis2)
+    
+    # Compute the relative rotation
+    r_rel = r2 * r1.inv()
+    
+    # Extract the angle-axis representation of the relative rotation
+    angle_axis_rel = r_rel.as_rotvec()
+    angle_difference = np.linalg.norm(angle_axis_rel)  # Magnitude of rotation
+    axis_difference = angle_axis_rel / angle_difference if angle_difference > 1e-6 else np.array([0, 0, 0])
+    
+    return angle_difference, axis_difference

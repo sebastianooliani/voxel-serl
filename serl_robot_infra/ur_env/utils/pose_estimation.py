@@ -80,7 +80,9 @@ def plot_vector_axes(vectors, output_path=None):
 class BoxPoseEstimation:
     def __init__(self, ip_address: str):
         self.ip_address = ip_address
-        self.message = []
+        self.pos = []
+        self.orient = []
+        
         self.state_lock = threading.Lock()
         self.stop_event = threading.Event()
         
@@ -109,9 +111,12 @@ class BoxPoseEstimation:
                     
                     # Safely update the message with a lock
                     with self.state_lock:
-                        self.message = message['space'][0]['boxes'][
+                        self.pos = message['space'][0]['boxes'][
                             list(message['space'][0]['boxes'].keys())[0]
                         ]['world2box']['pos']
+                        self.orient = message['space'][0]['boxes'][
+                            list(message['space'][0]['boxes'].keys())[0]
+                        ]['world2box']['orient']
                     
                     await websocket.send("a")
                     
@@ -124,7 +129,14 @@ class BoxPoseEstimation:
         Thread-safe method to get the current box position
         """
         with self.state_lock:
-            return np.array(self.message)
+            return np.array(self.pos)
+        
+    def get_box_orientation(self):
+        """
+        Thread-safe method to get the current box orientation
+        """
+        with self.state_lock:
+            return np.array(self.orient)
     
     def stop(self):
         """
@@ -133,8 +145,5 @@ class BoxPoseEstimation:
         self.stop_event.set()
         self.thread.join()
 
-
 if __name__ == "__main__":
     messages = asyncio.run(read_vision_from_server())
-
-    # plot_vector_axes(messages)
