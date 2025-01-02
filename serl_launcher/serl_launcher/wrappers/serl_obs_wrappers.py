@@ -3,6 +3,7 @@ from gymnasium import spaces
 from gymnasium.core import ObsType, WrapperObsType
 from gymnasium.spaces import flatten_space, flatten
 
+from serl_robot_infra.ur_env.envs.camera_env.config import UR5CameraConfigDualRobot
 
 class SERLObsWrapper(gym.ObservationWrapper):
     """
@@ -109,6 +110,8 @@ class ScaleDualObservationWrapper(ScaleObservationWrapper):
                  ):
         super().__init__(env, translation_scale, rotation_scale, force_scale, torque_scale)
 
+        self.task = UR5CameraConfigDualRobot.TASK
+
     def observation(self, obs):
         obs["state"]["tcp_pose"][:3] *= self.translation_scale
         obs["state"]["tcp_pose"][3:6] *= self.rotation_scale
@@ -125,11 +128,13 @@ class ScaleDualObservationWrapper(ScaleObservationWrapper):
 
         obs['state']['tcp_pos_diff'] *= self.translation_scale
         # obs['state']['joint_position'] *= self.rotation_scale # TODO: Check if this is needed
-        try:
+
+        # TODO: write this in a better way, maybe using the config variable TASK
+        if self.task == "motion":
             obs['state']['goal_box_position'] *= self.translation_scale
             obs['state']['box_position'] *= self.translation_scale
             obs['state']['goal_position'] *= self.translation_scale
-        except:
-            pass
+        elif self.task == "reorient":
+            obs['state']['box_orientation'] *= self.rotation_scale
 
         return obs
