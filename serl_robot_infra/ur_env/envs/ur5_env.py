@@ -642,7 +642,7 @@ class UR5Env(gym.Env):
     def _send_pos_command(self, target_pos: np.ndarray):
         """Internal function to send force command to the robot."""
         # move to singularity free configurations only
-        state = self.controller.get_state()
+        # state = self.controller.get_state()
         # if np.abs(self.controller.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
         #     print("\nSingularity detected! Reset the agent!\n")
         #     self.reset()
@@ -749,6 +749,8 @@ class UR5DualRobotEnv(UR5Env):
         self.box_pose = BoxPoseEstimation(self.pose_estimation_ip) if config.POSE_ESTIMATION else None
         self.goal_position = np.zeros((3,), dtype=np.float32)
         self.box_position = np.zeros((3,), dtype=np.float32)
+        self.box_orientation = np.zeros((3,), dtype=np.float32)
+        self.init_box_orientation = np.zeros((3,), dtype=np.float32)
 
         self.gripper_state = np.zeros((4,), dtype=np.float32)
         self.random_reset = config.RANDOM_RESET
@@ -870,7 +872,7 @@ class UR5DualRobotEnv(UR5Env):
             }
         )
 
-        if self.config.HER:
+        if self.config.TASK == "motion":
             state_space["goal_box_position"] = gym.spaces.Box(
                 -np.inf, np.inf, shape=(3,)
             )
@@ -878,6 +880,11 @@ class UR5DualRobotEnv(UR5Env):
                 -np.inf, np.inf, shape=(3,)
             )
             state_space["goal_position"] = gym.spaces.Box(
+                -np.inf, np.inf, shape=(3,)
+            )
+
+        if self.config.TASK == "reorient":
+            state_space["box_orientation"] = gym.spaces.Box(
                 -np.inf, np.inf, shape=(3,)
             )
 
@@ -952,9 +959,13 @@ class UR5DualRobotEnv(UR5Env):
             self.pointcloud_1 = PointCloudGenerator(voxel_grid_shape=voxel_grid_shape)
             self.pointcloud_2 = PointCloudGenerator(voxel_grid_shape=voxel_grid_shape)
 
-    def _update_box_pose_estimate(self):
+    def _update_box_pos_estimate(self):
         self.box_position = self.box_pose.get_box_position()
         self.box_position = self.WF_rot @ self.box_position
+
+    def _update_box_orientation_estimate(self):
+        self.box_orientation = self.box_pose.get_box_orientation()
+        self.box_orientation = self.WF_rot @ self.box_orientation
 
     def _get_goal_position(self):
         """

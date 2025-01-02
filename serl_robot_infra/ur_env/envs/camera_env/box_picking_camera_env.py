@@ -6,7 +6,8 @@ from ur_env.envs.ur5_env import UR5Env, UR5DualRobotEnv
 from ur_env.envs.camera_env.config import UR5CameraConfigFinal, UR5CameraConfigFinalTests, UR5CameraConfigFinalEvaluation, UR5CameraConfigDemo, UR5CameraConfigDualRobot
 
 from franka_env.utils.transformations import (
-    construct_homogeneous_matrix
+    construct_homogeneous_matrix,
+    orientation_difference_angle_axis,
 )
 
 class UR5CameraEnv(UR5Env):
@@ -159,7 +160,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             images = self.get_image()
 
         if self.pose_est:
-            self._update_box_pose_estimate()
+            self._update_box_pos_estimate()
         else:
             self.box_position = np.array([0.5, 0.5, 0.5])
 
@@ -259,6 +260,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
     def __init__(self, load_config=True, **kwargs):
         if load_config:
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
+            self.init = True
         else:
             super().__init__(**kwargs)
 
@@ -270,10 +272,11 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             images = self.get_image()
 
         if self.pose_est:
-            self._update_box_pose_estimate()
-        else:
-            self.box_position = np.array([0.5, 0.5, 0.5])
-
+            self._update_box_orientation_estimate()
+            if self.init:
+                self.init_box_orientation = self.box_orientation
+                self.init = False
+                
         self._update_currpos()
         state_observation = {
             "tcp_pose": self.curr_pos,
@@ -285,10 +288,8 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             # TODO: add my custom observations here
             "tcp_pos_diff": self.curr_pos[:3] - (self.T_O1_O2 @ np.concatenate([self.curr_pos[7:10], [1.]]))[:3],
             "joint_positions": self.curr_Q,
-            # motion planning observations
-            "goal_box_position": self.goal_position - self.box_position,
-            "box_position": self.box_position,
-            "goal_position": self.goal_position,
+            # TODO: reorientation observations
+            "box_orientation": self.box_orientation,
         }
 
         if images is not None:
@@ -356,7 +357,10 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
     def reached_goal_state(self, obs) -> bool:
         state = obs['state']
         # TODO: fix orientation error threshold
-        return np.linalg.norm(state['goal_box_position']) < 0.05 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
+        # perform a 90° degrees rotation around the z-axis
+        rot_angle, _ = orientation_difference_angle_axis(self.init_box_orientation, state['box_orientation'])
+        # 0.09 rad = 5° tolerance
+        return np.abs(rot_angle) - np.pi/2 < 0.09 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
 
 ############################################################################################################
 
