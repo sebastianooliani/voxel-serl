@@ -12,5 +12,5 @@ python /home/nico/real-world-rl/serl/examples/box_picking_drq/drq_policy.py "$@"
     --eval_n_trajs 30 \
     \
     --encoder_type none \
-    --state_mask all \
+    --state_mask dual \
 #    --debug

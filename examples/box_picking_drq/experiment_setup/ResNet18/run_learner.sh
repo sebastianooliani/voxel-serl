@@ -22,7 +22,7 @@ python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy.py "$@" \
     \
     --encoder_type resnet-pretrained-18 \
     --encoder_bottleneck_dim 128 \
-    --state_mask all \
+    --state_mask dual \
     --encoder_kwargs pooling_method \
     --encoder_kwargs feature_reduction \
     --encoder_kwargs num_kp \

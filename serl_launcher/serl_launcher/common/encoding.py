@@ -8,25 +8,30 @@ from einops import rearrange, repeat
 
 from serl_robot_infra.ur_env.envs.camera_env.config import UR5CameraConfigDualRobot
 
-DUAL = True
 
 def create_state_mask(mask_str: str) -> jnp.ndarray:
-    # for the future: just 'all' is considered for now
-    all = jnp.ones((27,), dtype=jnp.bool)
+    # for the future: just 'all' and 'dual' are considered for now
+    if mask_str in ["all"]:
+        all = jnp.ones((27,), dtype=jnp.bool)
+        dual = False
 
-    if UR5CameraConfigDualRobot.TASK == "motion":
-        all = jnp.ones((78,), dtype=jnp.bool)
-    elif UR5CameraConfigDualRobot.TASK == "reorient":
-        all = jnp.ones((72,), dtype=jnp.bool)
-    elif DUAL:
-        all = jnp.ones((69,), dtype=jnp.bool)
+    elif mask_str in ["dual"]:
+        dual = True
+        if UR5CameraConfigDualRobot.TASK in ["motion"]:
+            all = jnp.ones((78,), dtype=jnp.bool)
+        elif UR5CameraConfigDualRobot.TASK in ["reorient"]:
+            all = jnp.ones((72,), dtype=jnp.bool)
+        elif UR5CameraConfigDualRobot.TASK in ["lift"]:
+            all = jnp.ones((69,), dtype=jnp.bool)
+        else:
+            raise NotImplementedError(f"{UR5CameraConfigDualRobot.TASK} not implemented yet!\n")
         
     # all = jnp.ones((27,), dtype=jnp.bool) if not DUAL else jnp.ones((69,), dtype=jnp.bool)
     none = jnp.zeros_like(all)
-    no_action = all.at[:7].set(False) if not DUAL else all.at[:14].set(False)
-    gripper = none.at[0+7:2+7].set(True) if not DUAL else none.at[0+14:4+14].set(True)
-    no_ForceTorque = all.at[7+2:7+5].set(False).at[7+11:7+14].set(False) if not DUAL else all.at[14+4:14+9].set(False)
-    action_only = none.at[:7].set(True) if not DUAL else none.at[:14].set(True)
+    no_action = all.at[:7].set(False) if not dual else all.at[:14].set(False)
+    gripper = none.at[0+7:2+7].set(True) if not dual else none.at[0+14:4+14].set(True)
+    no_ForceTorque = all.at[7+2:7+5].set(False).at[7+11:7+14].set(False) if not dual else all.at[14+4:14+9].set(False)
+    action_only = none.at[:7].set(True) if not dual else none.at[:14].set(True)
     masks = dict(
         all=all,
         none=none,

@@ -280,7 +280,7 @@ class DrQAgent(SACAgent):
         else:
             raise NotImplementedError(f"Unknown encoder type: {encoder_type}")
 
-        state_mask_arr = create_state_mask(state_mask)
+        state_mask_arr = create_state_mask(state_mask) # 'all' or 'dual'
         print(f"state_mask: {state_mask}  {state_mask_arr.astype(jnp.int32)}")
         encoder_def = EncodingWrapper(
             encoder=encoders,

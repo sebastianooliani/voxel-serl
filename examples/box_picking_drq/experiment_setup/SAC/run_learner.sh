@@ -17,5 +17,5 @@ python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy.py "$@" \
     --demo_path /home/sebastiano/voxel-serl/examples/box_picking_drq/box_picking_20_demos_2024-10-31_14-40-40.pkl \
     \
     --encoder_type none \
-    --state_mask all \
+    --state_mask dual \
     --debug

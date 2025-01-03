@@ -130,11 +130,11 @@ class ScaleDualObservationWrapper(ScaleObservationWrapper):
         # obs['state']['joint_position'] *= self.rotation_scale # TODO: Check if this is needed
 
         # TODO: write this in a better way, maybe using the config variable TASK
-        if self.task == "motion":
+        if self.task in ["motion"]:
             obs['state']['goal_box_position'] *= self.translation_scale
             obs['state']['box_position'] *= self.translation_scale
             obs['state']['goal_position'] *= self.translation_scale
-        elif self.task == "reorient":
+        elif self.task in ["reorient"]:
             obs['state']['box_orientation'] *= self.rotation_scale
 
         return obs

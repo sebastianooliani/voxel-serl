@@ -15,5 +15,5 @@ python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy.py "$@" \
     --eval_period 0 \
     \
     --encoder_type none \
-    --state_mask all \
+    --state_mask dual \
     --debug
