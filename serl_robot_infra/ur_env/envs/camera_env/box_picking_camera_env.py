@@ -1,6 +1,7 @@
 import numpy as np
 import copy
 import asyncio
+from scipy.spatial.transform import Rotation as R
 
 from ur_env.envs.ur5_env import UR5Env, UR5DualRobotEnv
 from ur_env.envs.camera_env.config import UR5CameraConfigFinal, UR5CameraConfigFinalTests, UR5CameraConfigFinalEvaluation, UR5CameraConfigDemo, UR5CameraConfigDualRobot
@@ -102,11 +103,14 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
-        T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
-        T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
-        T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
-        T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
-        distance_cost = 1. / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
+        if self.camera_mode in ["none"]:
+            distance_cost = 0
+        else:
+            T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
+            T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
+            T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
+            T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
+            distance_cost = 1. / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
 
         # TOTAL COST
         cost_info = dict(
@@ -289,7 +293,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             "tcp_pos_diff": self.curr_pos[:3] - (self.T_O1_O2 @ np.concatenate([self.curr_pos[7:10], [1.]]))[:3],
             "joint_positions": self.curr_Q,
             # TODO: reorientation observations
-            "box_orientation": self.box_orientation,
+            "box_orientation": R.from_rotvec(self.box_orientation).as_mrp(), # in the neural network, orientation is represented in MRP
         }
 
         if images is not None:
@@ -325,11 +329,14 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         )
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
-        T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
-        T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
-        T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
-        T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
-        distance_cost = 1. / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
+        if self.camera_mode in ["none"]:
+            distance_cost = 0
+        else:
+            T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
+            T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
+            T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
+            T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
+            distance_cost = 1. / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
 
         # TOTAL COST
         cost_info = dict(
@@ -360,7 +367,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         # perform a 90° degrees rotation around the z-axis
         rot_angle, _ = orientation_difference_angle_axis(self.init_box_orientation, state['box_orientation'])
         # 0.09 rad = 5° tolerance
-        return np.abs(rot_angle) - np.pi/2 < 0.09 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
+        return (np.abs(rot_angle) - np.pi/2) < 0.09 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
 
 ############################################################################################################
 
