@@ -280,15 +280,16 @@ class UR5Env(gym.Env):
             # voxel_grid_shape[-1] *= 8     # do not use compacting for now
             # voxel_grid_shape *= 2
             print(f"pointcloud resolution set to: {voxel_grid_shape}")
-            self.pointcloud_fusion = PointCloudFusion(angle=30.5, x_distance=0.185, y_distance=-0.01, voxel_grid_shape=voxel_grid_shape)
+            self.pointcloud_fusion = PointCloudGenerator(voxel_grid_shape=voxel_grid_shape)
+            # self.pointcloud_fusion = PointCloudFusion(angle=30.5, x_distance=0.185, y_distance=-0.01, voxel_grid_shape=voxel_grid_shape)
 
-            # load pre calibrated, else calibrate
-            if not self.pointcloud_fusion.load_finetuned():
-                # TODO make calibration more robust!
-                self.calibration_thread = CalibrationTread(pc_fusion=self.pointcloud_fusion, verbose=True)
-                self.calibration_thread.start()
+            # # load pre calibrated, else calibrate
+            # if not self.pointcloud_fusion.load_finetuned():
+            #     # TODO make calibration more robust!
+            #     self.calibration_thread = CalibrationTread(pc_fusion=self.pointcloud_fusion, verbose=True)
+            #     self.calibration_thread.start()
 
-                self.calibrate_pointcloud_fusion(visualize=True)
+            #     self.calibrate_pointcloud_fusion(visualize=True)
 
     def clip_safety_box(self, next_pos: np.ndarray) -> np.ndarray:
         """Clip the pose to be within the safety box."""
