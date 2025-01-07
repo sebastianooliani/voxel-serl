@@ -96,8 +96,11 @@ class UrImpedanceController(threading.Thread):
             if self.config.DUAL:
                 self.mid_reset_Q = config.MID_RESET_Q[0, :6]
         elif self.robot_ip[-2:] == "33":
-            self.reset_Q = config.RESET_Q[0, 6:]
-            self.mid_reset_Q = config.MID_RESET_Q[0, 6:]
+            if self.config.DUAL:
+                self.reset_Q = config.RESET_Q[0, 6:]
+                self.mid_reset_Q = config.MID_RESET_Q[0, 6:]
+            else:
+                self.reset_Q = config.RESET_Q[0, :6]
         elif self.robot_ip[:3] == "172":
             self.reset_Q = config.RESET_Q[0, :6]
 
