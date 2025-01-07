@@ -141,7 +141,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     DUAL = True
     TOP = True
     HER = True
-    TASK = "lift" # "lift", "reorient", "motion"
+    TASK = "motion" # "lift", "reorient", "motion"
     
     # box in horizontal position
     RESET_Q = np.array([[- math.pi / 6. , -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,

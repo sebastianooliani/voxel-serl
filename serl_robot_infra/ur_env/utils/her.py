@@ -196,7 +196,7 @@ class HER():
             )
             her_transitions.append(her_dict)
 
-            # pprint(her_dict)
+            pprint(her_dict)
             # df = pd.DataFrame(her_transitions)
             # df.to_excel("her_dict.xlsx")
             augm_dict = copy.deepcopy(

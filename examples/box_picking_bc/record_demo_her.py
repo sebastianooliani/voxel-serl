@@ -100,7 +100,7 @@ if __name__ == "__main__":
                 )
             )
             transitions.append(transition)
-            # pprint(transition)
+            pprint(transition)
 
             obs = next_obs
 
