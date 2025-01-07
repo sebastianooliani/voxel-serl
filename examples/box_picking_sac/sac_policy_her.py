@@ -151,7 +151,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
     done = False
 
-    her = HER()
+    her = HER(scale=False)
     transitions = []
     her_transitions = []
     augmented_transitions = []

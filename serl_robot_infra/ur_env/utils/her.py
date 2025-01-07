@@ -67,7 +67,8 @@ class HER():
 
         if self.scale:
             obs = self.unscale_obs(obs)
-            obs = self.transform_obs(tcp_pose=obs[39:51], obs=obs)
+        
+        obs = self.transform_obs(tcp_pose=obs[39:51], obs=obs)
 
         tcp_pose = obs[39:51]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
@@ -196,7 +197,7 @@ class HER():
             )
             her_transitions.append(her_dict)
 
-            pprint(her_dict)
+            # pprint(her_dict)
             # df = pd.DataFrame(her_transitions)
             # df.to_excel("her_dict.xlsx")
             augm_dict = copy.deepcopy(
@@ -360,9 +361,22 @@ if __name__ == "__main__":
                     -0.4448, -0.0514, -0.0554,
                     -0.4107, -0.3683, 0.3012])
     
-    action = np.array([0., 0., -0.9529, 0.0862, 0.3405, 0., 0.,
-                        0., 0., -0.7378, 0., 0., 0., 0.])
-    goal_pos = np.array([-0.4107, -0.3683,  0.3012])
+    obs = np.array([ 0.    ,  0.    ,  0.6908,  0.    ,  0.    ,  0.    ,  0.    ,
+        0.    ,  0.    ,  1.    , -0.0194, -0.0766,  0.    ,  0.    ,
+        0.6224,  1.    ,  0.6939,  1.    , -0.5237, -1.5339,  1.9949,
+       -2.0342, -1.5708, -0.0003,  3.9276, -1.5515,  1.9681, -1.9923,
+       -1.574 ,  0.0003,  0.4091, -0.4793, -0.557 , -0.1666,  0.7899,
+        3.0626,  0.0508,  0.3562, -0.0268,  0.0004, -0.0007, -0.0679,
+        0.0006, -0.    ,  0.0002, -0.0001, -0.0008, -0.084 ,  0.0012,
+        0.0008, -0.0001,  0.0897,  0.0267,  0.0091, -0.0156, -0.0247,
+       -0.053 ,  0.0003,  0.0021, -0.0238,  0.0019,  0.0027,  0.    ,
+       -0.0001, -0.0003, -0.0103, -0.0096,  0.0006, -0.    ,  0.    ,
+        0.    ,  0.    ,  0.5   ,  0.5   ,  0.5   ,  0.5   ,  0.5   ,
+        0.5   ])
+    
+    action = np.array([0.0022,  0.    , -0.6471,  0.    ,  0.    ,  0.    ,  0.    ,
+       -0.0036, -0.0016, -1.    ,  0.054 ,  0.091 , -0.0003,  0.])
+    goal_pos = np.array([0.5, 0.5, 0.5])
     reset_pose = np.array([-0.4699, 0.119, 0.2453, -0.8663, -0.4995, -0.0015, 0.0008,
                             0.236, 0.4235, 0.246, -0.924, 0.3823, 0.0014, 0.0015])
     
@@ -372,12 +386,12 @@ if __name__ == "__main__":
                            reset_pose=reset_pose)
     
     print("Correct reward: ", rew)
-    tcp_pose = np.array([-0.4699, 0.119, 0.2453, -0.8656, -0.4991, -0.0015,
-                    0.236, 0.4235, 0.246, -0.9226, 0.3817, 0.0014])
-    
+    # tcp_pose = np.array([-0.4699, 0.119, 0.2453, -0.8656, -0.4991, -0.0015,
+    #                 0.236, 0.4235, 0.246, -0.9226, 0.3817, 0.0014])
+    tcp_pose = obs[39:51]
     obs = her.transform_obs_dummy(tcp_pose=tcp_pose, obs=obs)
 
-    new_her = HER(scale=True)
+    new_her = HER()
 
     rew = new_her.compute_reward_her(obs=obs,
                                  action=action,
