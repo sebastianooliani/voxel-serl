@@ -3,7 +3,7 @@ from gymnasium import spaces
 from gymnasium.core import ObsType, WrapperObsType
 from gymnasium.spaces import flatten_space, flatten
 
-from serl_robot_infra.ur_env.envs.camera_env.config import UR5CameraConfigDualRobot
+from ur_env.envs.camera_env.config import UR5CameraConfigDualRobot
 
 class SERLObsWrapper(gym.ObservationWrapper):
     """
