@@ -72,15 +72,15 @@ class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
     #     [0.1815, - 1.2945, 1.8964, - 2.1719, - 1.5658, - 1.3841],
     # ])
     # horizontal box
-    RESET_Q = np.array([[- math.pi / 12, -math.pi/2 + math.pi/12, math.pi/2 + math.pi/12, -math.pi/2 - math.pi/6, -math.pi/2, 0.]])
+    RESET_Q = np.array([[- math.pi / 6. , -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]])
     # vertical box
     # RESET_Q = np.array([[math.radians(241.46), math.radians(-75.78), math.radians(107.78), math.radians(-38.43), math.radians(-24.73), math.radians(33.13)]])
 
     RANDOM_RESET = True
     RANDOM_XY_RANGE = (0.0,)
     RANDOM_ROT_RANGE = (0.04,)
-    ABS_POSE_LIMIT_HIGH = np.array([-0.276, 0.329, 0.503, 0.05, 0.05, 0.2])
-    ABS_POSE_LIMIT_LOW = np.array([-0.590, -0.418, 0.008, -0.05, -0.05, -0.2])
+    ABS_POSE_LIMIT_HIGH = np.array([-0.263, 0.363, 0.377, 0.05, 0.05, 0.2])
+    ABS_POSE_LIMIT_LOW = np.array([-0.605, -0.533, 0.128, -0.05, -0.05, -0.2])
     # ABS_POSE_LIMIT_HIGH = np.array([0.6, 0.1, 0.25, 0.05, 0.05, 0.2])
     # ABS_POSE_LIMIT_LOW = np.array([-0.7, -0.85, -0.006, -0.05, -0.05, -0.2])
     ABS_POSE_RANGE_LIMITS = np.array([0.36, 0.83])
@@ -141,7 +141,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     DUAL = True
     TOP = True
     HER = True
-    TASK = "motion" # "lift", "reorient", "motion"
+    TASK = "lift" # "lift", "reorient", "motion"
     
     # box in horizontal position
     RESET_Q = np.array([[- math.pi / 6. , -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
@@ -192,7 +192,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
     POSE_ESTIMATION_IP = "ws://192.168.1.184:7777"
-    POSE_ESTIMATION = True
+    POSE_ESTIMATION = False
 
     ROBOT_IP_1: str = "192.168.1.66" # docker "172.17.0.2"
     ROBOT_IP_2: str = "192.168.1.33" # docker "172.17.0.3"
