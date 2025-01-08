@@ -47,9 +47,7 @@ def pointcloud_to_voxel_grid(points: np.ndarray, voxel_size: float, min_bounds: 
 
 def crop_pointcloud(points: np.ndarray, min_bounds: np.ndarray, max_bounds: np.ndarray):
     within_bounds = np.all((points >= min_bounds) & (points <= max_bounds), axis=1)
-    print(points)
-    print(within_bounds)
-    return points[within_bounds[0]]
+    return points[within_bounds]
 
 
 def transform_point_cloud(points, transform_matrix):
@@ -115,27 +113,6 @@ class PointCloudGenerator:
         self.processed_pcd = pcd
         return np.asarray(pcd.points)
 
-    def crop_pointcloud(self, points: np.ndarray):
-        """
-        Crop point cloud to specified bounds.
-        
-        Args:
-            points (np.ndarray, optional): Point cloud to crop. 
-                                           Uses stored point cloud if None.
-        
-        Returns:
-            np.ndarray: Cropped point cloud
-        """
-        # if points is None:
-        #     points = np.asarray(self.processed_pcd.points)
-
-        within_bounds = np.all(
-            (points >= self.min_bounds) & (points <= self.max_bounds), 
-            axis=1
-        )
-        
-        return points[within_bounds]
-
     def voxelize(self, points: np.ndarray):
         """
         Convert point cloud to voxel grid.
@@ -162,7 +139,7 @@ class PointCloudGenerator:
         return np.ceil((self.max_bounds - self.min_bounds) / self.voxel_size).astype(int)
     
     def get_pointcloud_representation(self, voxelize=True):
-        return self.voxelize(self.original_pcd)
+        return self.voxelize(self.processed_pcd)
     
     def append(self, pcd: np.ndarray):
         """
