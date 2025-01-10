@@ -84,34 +84,9 @@ class PointCloudGenerator:
         assert np.all(np.isclose(vox_size, vox_size[0]))
         self.voxel_size: float = float(vox_size[0])
 
-        # Intrinsic for point cloud generation
-        self.intrinsic = o3d.camera.PinholeCameraIntrinsic(
-            o3d.camera.PinholeCameraIntrinsicParameters.PrimeSenseDefault
-        )
-
         # Store original and processed point cloud
         self.original_pcd = []
         self.processed_pcd = None
-
-    def capture_pointcloud(self, rgbd_image):
-        """
-        Capture point cloud from RealSense camera.
-        
-        Args:
-            depth_scale (float): Scale to convert depth to meters
-            depth_trunc (float): Maximum depth to consider
-        
-        Returns:
-            np.ndarray: Captured point cloud
-        """
-        # Generate point cloud
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(rgbd_image)
-
-        # Store and convert to numpy
-        self.original_pcd = pcd
-        self.processed_pcd = pcd
-        return np.asarray(pcd.points)
 
     def voxelize(self, points: np.ndarray):
         """
@@ -128,18 +103,12 @@ class PointCloudGenerator:
             points, self.voxel_size, self.min_bounds, self.max_bounds
         )
         return grid, indices
-
-    def get_voxelgrid_shape(self):
-        """
-        Get the shape of the voxel grid.
-        
-        Returns:
-            np.ndarray: Voxel grid dimensions
-        """
-        return np.ceil((self.max_bounds - self.min_bounds) / self.voxel_size).astype(int)
     
     def get_pointcloud_representation(self, voxelize=True):
-        return self.voxelize(self.processed_pcd)
+        if self.is_complete():
+            return self.voxelize(self.processed_pcd)
+        elif not self.is_empty():
+            return self.get_first(voxelize=voxelize)
     
     def append(self, pcd: np.ndarray):
         """
@@ -148,35 +117,21 @@ class PointCloudGenerator:
         Args:
             pcd (np.ndarray): Point cloud to append
         """
-        # if self.original_pcd is None:
-        self.original_pcd.append(pcd)
-        self.processed_pcd = pcd
-        # else:
-        #     raise NotImplementedError("Only one point cloud supported")
+        if self.processed_pcd is None:
+            self.original_pcd.append(pcd)
+            self.processed_pcd = pcd
+    
+    def get_first(self, voxelize=True):
+        return self.voxelize(self.processed_pcd) if voxelize else self.crop(self.processed_pcd)
 
     def clear(self):
         self.original_pcds = []
 
     def is_complete(self):
-        return self.pcd is not None
+        return self.processed_pcd is not None
 
     def is_empty(self):
-        return self.pcd is None 
-
-    def visualize(self, points=None):
-        """
-        Visualize point cloud.
-        
-        Args:
-            points (np.ndarray, optional): Point cloud to visualize. 
-                                           Uses stored point cloud if None.
-        """
-        if points is None and self.processed_pcd is not None:
-            o3d.visualization.draw_geometries([self.processed_pcd])
-        elif points is not None:
-            pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(points)
-            o3d.visualization.draw_geometries([pcd])
+        return self.processed_pcd is None
 
 
 class PointCloudFusion:

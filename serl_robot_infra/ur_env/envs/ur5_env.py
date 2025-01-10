@@ -280,16 +280,16 @@ class UR5Env(gym.Env):
             # voxel_grid_shape[-1] *= 8     # do not use compacting for now
             # voxel_grid_shape *= 2
             print(f"pointcloud resolution set to: {voxel_grid_shape}")
-            self.pointcloud_fusion = PointCloudGenerator(voxel_grid_shape=voxel_grid_shape)
-            # self.pointcloud_fusion = PointCloudFusion(angle=30.5, x_distance=0.185, y_distance=-0.01, voxel_grid_shape=voxel_grid_shape)
+            # self.pointcloud_fusion = PointCloudGenerator(voxel_grid_shape=voxel_grid_shape)
+            self.pointcloud_fusion = PointCloudFusion(angle=30.5, x_distance=0.185, y_distance=-0.01, voxel_grid_shape=voxel_grid_shape)
 
-            # # load pre calibrated, else calibrate
-            # if not self.pointcloud_fusion.load_finetuned():
-            #     # TODO make calibration more robust!
-            #     self.calibration_thread = CalibrationTread(pc_fusion=self.pointcloud_fusion, verbose=True)
-            #     self.calibration_thread.start()
+            # load pre calibrated, else calibrate
+            if not self.pointcloud_fusion.load_finetuned():
+                # TODO make calibration more robust!
+                self.calibration_thread = CalibrationTread(pc_fusion=self.pointcloud_fusion, verbose=True)
+                self.calibration_thread.start()
 
-            #     self.calibrate_pointcloud_fusion(visualize=True)
+                self.calibrate_pointcloud_fusion(visualize=True)
 
     def clip_safety_box(self, next_pos: np.ndarray) -> np.ndarray:
         """Clip the pose to be within the safety box."""
@@ -831,12 +831,14 @@ class UR5DualRobotEnv(UR5Env):
                     0, 255, shape=(128, 128, 1), dtype=np.uint8
                 )
         if camera_mode in ["pointcloud"]:
-            image_space_definition["wrist_1_pointcloud"] = gym.spaces.Box(
-                0, 255, shape=(50, 50, 40), dtype=np.uint8
-            )
-            image_space_definition["wrist_2_pointcloud"] = gym.spaces.Box(
-                0, 255, shape=(50, 50, 40), dtype=np.uint8
-            )
+            if "wrist" in config.REALSENSE_CAMERAS.keys():
+                image_space_definition["wrist_1_pointcloud"] = gym.spaces.Box(
+                    0, 255, shape=(50, 50, 40), dtype=np.uint8
+                )
+            if "wrist_2" in config.REALSENSE_CAMERAS.keys():
+                image_space_definition["wrist_2_pointcloud"] = gym.spaces.Box(
+                    0, 255, shape=(50, 50, 40), dtype=np.uint8
+                )
         if camera_mode is not None and camera_mode not in ["rgb", "both", "depth", "pointcloud", "grey"]:
             raise NotImplementedError(f"camera mode {camera_mode} not implemented")
 
@@ -937,7 +939,8 @@ class UR5DualRobotEnv(UR5Env):
             self.init_cameras(config.REALSENSE_CAMERAS)
             self.img_queue = queue.Queue()
             if self.camera_mode in ["pointcloud"]:
-                # self.displayer = PointCloudDisplayer()  # o3d displayer cannot be threaded :/
+                # self.displayer_1 = PointCloudDisplayer()  # o3d displayer cannot be threaded :/
+                # self.displayer_2 = PointCloudDisplayer()
                 pass
             else:
                 self.displayer = ImageDisplayer(self.img_queue)
@@ -1027,16 +1030,16 @@ class UR5DualRobotEnv(UR5Env):
                 return self.get_image()
 
         if self.camera_mode in ["pointcloud"]:
-            voxel_grid, voxel_indices = self.pointcloud_1.voxelize()
+            voxel_grid, voxel_indices = self.pointcloud_1.get_pointcloud_representation(voxelize=True)
             images["wrist_1_pointcloud"] = voxel_grid.astype(np.uint8)
-            self.pointcloud_1.visualize()
+            # self.displayer_1.display(voxel_indices)
 
             # downsample on 2x2x2 grid with sum of points (8 as max)
             # vs = self.observation_space["images"]["wrist_pointcloud"].shape
             # voxel_grid = np.sum(np.reshape(voxel_grid, (vs[0], 2, vs[1], 2, vs[2], 2)), axis=(1, 3, 5))
-            voxel_grid, voxel_indices = self.pointcloud_2.voxelize()
+            voxel_grid, voxel_indices = self.pointcloud_2.get_pointcloud_representation(voxelize=True)
             images["wrist_2_pointcloud"] = voxel_grid.astype(np.uint8)
-            self.pointcloud_2.visualize()
+            # self.displayer_2.display(voxel_indices)
             
         self.img_queue.put(display_images)
 
@@ -1144,7 +1147,7 @@ class UR5DualRobotEnv(UR5Env):
         ee_distance = np.linalg.norm(T_O1_E1[:3, 3] - T_O1_E2[:3, 3])
 
         # Check if the distance is less than 5 cm (0.05 meters)
-        if ee_distance < 0.05 or grippers_distance < 0.03: # TODO: adjust this param because it depends on the box size too
+        if ee_distance < 0.1 or grippers_distance < 0.03: # TODO: adjust this param because it depends on the box size too
             print("\nDistance between end effectors is too small. Resetting episode.\n")
             self.reset()
 

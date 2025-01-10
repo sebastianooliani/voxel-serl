@@ -2,8 +2,8 @@ export XLA_PYTHON_CLIENT_PREALLOCATE=false && \
 export XLA_PYTHON_CLIENT_MEM_FRACTION=.1 && \
 python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy.py "$@" \
     --actor \
-    --env box_picking_camera_env \
-    --exp_name="voxnet pretrained" \
+    --env box_picking_camera_env_dual_robot \
+    --exp_name="dual lift voxnet pretrained" \
     --camera_mode pointcloud \
     --max_traj_length 100 \
     --seed 1 \
@@ -13,8 +13,8 @@ python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy.py "$@" \
     --utd_ratio 8 \
     --batch_size 128 \
     --eval_period 0 \
-    \
+    --dual \
     --encoder_type voxnet-pretrained \
-    --state_mask all \
+    --state_mask dual \
     --encoder_bottleneck_dim 128 \
     --debug

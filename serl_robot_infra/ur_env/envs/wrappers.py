@@ -140,109 +140,15 @@ class SpacemouseIntervention(gym.ActionWrapper):
         info["right"] = self.right.any()  # Whether the right button is pressed.
 
         # Return the observation, reward, done flag, truncation flag, and info dictionary.
-        return obs, rew, done, truncated, info
-    
+        return obs, rew, done, truncated, info    
 
-class TwoSpacemiceIntervention_new(gym.Wrapper):
-    def __init__(self, env, gripper_action_span=3):
-        super().__init__(env)
-
-        self.gripper_enabled = True
-
-        self.last_intervene = 0
-        self.left_left = np.array([False] * gripper_action_span, dtype=np.bool_)
-        self.right_left = self.left_left.copy()
-        self.left_right = self.left_left.copy()
-        self.right_right = self.left_left.copy()
-
-        self.invert_axes = [-1, -1, 1, -1, -1, 1]
-        self.deadspace = 0.15
-        self.experts = TwoSpaceMiceExperts(DeviceNumber_1=12, DeviceNumber_2=0)
-
-    def get_deadspace_action(self) -> np.ndarray:
-        expert_a, buttons_a, expert_b, buttons_b = self.experts.get_action()
-
-        positive = np.clip((expert_a - self.deadspace) / (1. - self.deadspace), a_min=0.0, a_max=1.0)
-        negative = np.clip((expert_a + self.deadspace) / (1. - self.deadspace), a_min=-1.0, a_max=0.0)
-        expert_a = positive + negative
-
-        positive = np.clip((expert_b - self.deadspace) / (1. - self.deadspace), a_min=0.0, a_max=1.0)
-        negative = np.clip((expert_b + self.deadspace) / (1. - self.deadspace), a_min=-1.0, a_max=0.0)
-        expert_b = positive + negative
-
-        self.left_left, self.right_left = np.roll(self.left_left, -1), np.roll(self.right_left, -1)
-        self.left_right, self.right_right = np.roll(self.left_right, -1), np.roll(self.right_right, -1)
-        self.left_left[-1], self.right_left[-1] = tuple(buttons_a)
-        self.left_right[-1], self.right_right[-1] = tuple(buttons_b)
-
-        return np.array(expert_a, dtype=np.float32), np.array(expert_b, dtype=np.float32)
-    
-    def action(self, action: np.ndarray) -> np.ndarray:
-        """
-        Input:
-        - action: policy action
-        Output:
-        - action: spacemouse action if nonezero; else, policy action
-        """
-        expert_a, expert_b = self.experts.get_deadspace_action()
-        policy_a = action[:6]
-        policy_b = action[6:]
-
-        if np.linalg.norm(
-                expert_a) > 0.001 or np.linalg.norm(
-                    expert_b) > 0.001 or self.left.any() or self.right.any():  # also read buttons with no movement
-            self.last_intervene = time.time()
-
-        if self.gripper_enabled:
-            gripper_action = np.zeros((1,)) + int(self.left_left.any()) - int(self.right_left.any())
-            expert_a = np.concatenate((expert_a, gripper_action), axis=0)
-
-            gripper_action = np.zeros((1,)) + int(self.left_right.any()) - int(self.right_right.any())
-            expert_b = np.concatenate((expert_b, gripper_action), axis=0)
-
-        if time.time() - self.last_intervene < 0.5:
-            expert_a = self.adapt_spacemouse_output(expert_a)
-            expert_b = self.adapt_spacemouse_output(expert_b)
-            return np.concatenate((expert_a, expert_b), axis=0)
-
-        return action
-    
-    def adapt_spacemouse_output(self, action: np.ndarray) -> np.ndarray:
-        """
-        Adjust the SpaceMouse output to align with the robot's action space, considering rotations.
-        Input:
-        - action: raw SpaceMouse output (position and orientation changes)
-        Output:
-        - action: transformed action for the robot's coordinate space
-        """
-
-        # Get the current position of the robot (e.g., end-effector).
-        position = self.unwrapped.curr_pos
-
-        # Calculate the z-axis rotation angle based on the robot's current position.
-        z_angle = np.arctan2(position[1], position[0])
-
-        # Create a rotation object for the z-axis.
-        z_rot = R.from_rotvec(np.array([0, 0, z_angle]))
-
-        # Invert certain axes of the SpaceMouse output, based on the configured axis inversions.
-        action[:6] *= self.invert_axes
-
-        # Apply the z-axis rotation to the translation components (first three values).
-        action[:3] = z_rot.apply(action[:3])
-
-        # Optionally: apply the z-axis rotation to the rotational components (next three values).
-        action[3:6] = z_rot.apply(action[3:6])
-
-        return action
-    
 
 class TwoSpacemiceIntervention(gym.Wrapper):
     def __init__(self, env):
         super().__init__(env)
 
-        self.expert_left = SpacemouseIntervention(env, DeviceNumber=1)
-        self.expert_right = SpacemouseIntervention(env, DeviceNumber=4, change_orientation=True)
+        self.expert_left = SpacemouseIntervention(env, DeviceNumber=1, change_orientation=False)
+        self.expert_right = SpacemouseIntervention(env, DeviceNumber=4, change_orientation=False)
 
     def step(self, action):
         action_left = action[:7]

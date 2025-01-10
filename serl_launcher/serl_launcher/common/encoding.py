@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 from einops import rearrange, repeat
 
-from serl_robot_infra.ur_env.envs.camera_env.config import UR5CameraConfigDualRobot
+from ur_env.envs.camera_env.config import UR5CameraConfigDualRobot
 
 
 def create_state_mask(mask_str: str) -> jnp.ndarray:
@@ -16,6 +16,7 @@ def create_state_mask(mask_str: str) -> jnp.ndarray:
         dual = False
 
     elif mask_str in ["dual"]:
+        mask_str = "all"
         dual = True
         if UR5CameraConfigDualRobot.TASK in ["motion"]:
             all = jnp.ones((78,), dtype=jnp.bool)

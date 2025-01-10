@@ -9,9 +9,9 @@ import pandas as pd
 
 class HER():
     def __init__(self, scale=False):        
-        self.T_O1_O2=np.array([[0., 1., 0., -0.945], 
-                                [-1., 0., 0., -0.], 
-                                [0., 0., 1., 0.01], 
+        self.T_O1_O2=np.array([[1., 0., 0., -0.915], 
+                                [0., 1., 0., -0.08], 
+                                [0., 0., 1., 0.02], 
                                 [0., 0., 0., 1.]], dtype=np.float32)
         self.T_EE_SC=np.array([[1., 0., 0., 0.],
                                 [0., 1., 0., 0.],
@@ -65,11 +65,13 @@ class HER():
                 and 0.1 < obs[14:18][0] < 1. \
                     and 0.1 < obs[14:18][2] < 1.
 
-        if self.scale:
+        if self.scale: # with DRQ
             obs = self.unscale_obs(obs)
         
+        # transform the observation
+        # print(f"obs: {obs}")
         obs = self.transform_obs(tcp_pose=obs[39:51], obs=obs)
-
+        # print(f"obs after transformation: {obs}")
         tcp_pose = obs[39:51]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
 
@@ -278,32 +280,35 @@ class HER():
         """
         self.R_1 = R.from_mrp(tcp_pose[3:6]).as_matrix()
         self.R_2 = R.from_mrp(tcp_pose[9:12]).as_matrix()
+        # print(tcp_pose)
+        # print(f"R_1: {self.R_1}")
+        # print(f"R_2: {self.R_2}")
 
         # action -> 0:14
-        obs[0:3] = self.R_1.T @ obs[0:3]
-        obs[3:6] = self.R_1.T @ obs[3:6]
-        obs[7:10] = self.R_2.T @ obs[7:10]
-        obs[10:13] = self.R_2.T @ obs[10:13]
+        obs[0:3] = np.linalg.inv(self.R_1) @ obs[0:3]
+        obs[3:6] = np.linalg.inv(self.R_1) @ obs[3:6]
+        obs[7:10] = np.linalg.inv(self.R_2) @ obs[7:10]
+        obs[10:13] = np.linalg.inv(self.R_2) @ obs[10:13]
 
         # tcp force -> 30:36
-        obs[30:33] = self.R_1.T @ obs[30:33]
-        obs[33:36] = self.R_2.T @ obs[33:36]
+        obs[30:33] = np.linalg.inv(self.R_1) @ obs[30:33]
+        obs[33:36] = np.linalg.inv(self.R_2) @ obs[33:36]
 
         # tcp pose -> 39:51
-        obs[39:42] = self.R_1.T @ obs[39:42]
-        obs[42:45] = self.R_1.T @ obs[42:45]
-        obs[45:48] = self.R_2.T @ obs[45:48]
-        obs[48:51] = self.R_2.T @ obs[48:51]
+        obs[39:42] = np.linalg.inv(self.R_1) @ obs[39:42]
+        obs[42:45] = np.linalg.inv(self.R_1) @ obs[42:45]
+        obs[45:48] = np.linalg.inv(self.R_2) @ obs[45:48]
+        obs[48:51] = np.linalg.inv(self.R_2) @ obs[48:51]
 
         # tcp torque -> 51:57
-        obs[51:54] = self.R_1.T @ obs[51:54]
-        obs[54:57] = self.R_2.T @ obs[54:57]
+        obs[51:54] = np.linalg.inv(self.R_1) @ obs[51:54]
+        obs[54:57] = np.linalg.inv(self.R_2) @ obs[54:57]
 
         # tcp velocity -> 57:69
-        obs[57:60] = self.R_1.T @ obs[57:60]
-        obs[60:63] = self.R_1.T @ obs[60:63]
-        obs[63:66] = self.R_2.T @ obs[63:66]
-        obs[66:69] = self.R_2.T @ obs[66:69]
+        obs[57:60] = np.linalg.inv(self.R_1) @ obs[57:60]
+        obs[60:63] = np.linalg.inv(self.R_1) @ obs[60:63]
+        obs[63:66] = np.linalg.inv(self.R_2) @ obs[63:66]
+        obs[66:69] = np.linalg.inv(self.R_2) @ obs[66:69]
 
         return obs.copy()
     
@@ -347,35 +352,22 @@ class HER():
 if __name__ == "__main__":
     # debug costs
     her = HER()
-    obs = np.array([0., 0., -0.9529,  0.0862,  0.3405,  0.,  0.,
-                    0., 0., -0.7378,  0.,  0.,  0.,  0.,
-                    0., 0., 0., 0.,
-                    -0.5235, -1.4399, 2.0943, -2.2251, -1.5709, 0.,  3.927 , -1.4402, 2.0944, -2.2252, -1.5707, -0.,
-                    -0.1146, 0.1362, -0.0112,  0.1005, -0.0989,  0.0105,
-                    0.0516, 0.3551, -0.0107,
-                    -0.4699,  0.119 ,  0.2453, -0.86561667, -0.499106, -0.00149882,
-                    0.236 ,  0.4235,  0.246 , -0.92264671,  0.38174008,  0.00139795,
-                    -0.0006, -0.0052,  0.0018,  0.0021,  0.0034, -0.0017,
-                    -0.0003, 0.0001, 0.0005, 0.0006, 0.0009, -0., -0.0001, 0.0001, 0., 0.0003, 0.0003, 0.0003,
-                    0.034, -0.3169, 0.3567,
-                    -0.4448, -0.0514, -0.0554,
-                    -0.4107, -0.3683, 0.3012])
-    
-    obs = np.array([ 0.    ,  0.    ,  0.6908,  0.    ,  0.    ,  0.    ,  0.    ,
-        0.    ,  0.    ,  1.    , -0.0194, -0.0766,  0.    ,  0.    ,
-        0.6224,  1.    ,  0.6939,  1.    , -0.5237, -1.5339,  1.9949,
-       -2.0342, -1.5708, -0.0003,  3.9276, -1.5515,  1.9681, -1.9923,
-       -1.574 ,  0.0003,  0.4091, -0.4793, -0.557 , -0.1666,  0.7899,
-        3.0626,  0.0508,  0.3562, -0.0268,  0.0004, -0.0007, -0.0679,
-        0.0006, -0.    ,  0.0002, -0.0001, -0.0008, -0.084 ,  0.0012,
-        0.0008, -0.0001,  0.0897,  0.0267,  0.0091, -0.0156, -0.0247,
-       -0.053 ,  0.0003,  0.0021, -0.0238,  0.0019,  0.0027,  0.    ,
-       -0.0001, -0.0003, -0.0103, -0.0096,  0.0006, -0.    ,  0.    ,
+        
+    obs = np.array([0.1614,  0.637 , -0.237 ,  0.4904, -0.1243,  0.    ,  0.    ,
+       -0.3073,  0.9153, -0.042 ,  0.    ,  0.    ,  0.    ,  0.    ,
+        0.    ,  0.    ,  0.    ,  0.    , -0.5241, -1.4397,  2.0944,
+       -2.2256, -1.5714, -0.0003,  2.618 , -1.4402,  2.0947, -2.2255,
+       -1.5708,  0.0003, -0.478 , -0.1696, -0.2226,  0.1979, -0.4382,
+        0.2885, -0.0249,  0.3177, -0.0207,  0.0002, -0.0001,  0.0001,
+        0.    ,  0.0002,  0.    , -0.0001,  0.0001,  0.    ,  0.    ,
+        0.    ,  0.    ,  0.0004, -0.0123,  0.0173,  0.0135,  0.0062,
+       -0.0146,  0.0379, -0.0135,  0.0085,  0.0324,  0.0964,  0.0115,
+       -0.0233,  0.0271,  0.0021, -0.0044, -0.0016, -0.0046,  0.    ,
         0.    ,  0.    ,  0.5   ,  0.5   ,  0.5   ,  0.5   ,  0.5   ,
-        0.5   ])
+        0.5])
     
-    action = np.array([0.0022,  0.    , -0.6471,  0.    ,  0.    ,  0.    ,  0.    ,
-       -0.0036, -0.0016, -1.    ,  0.054 ,  0.091 , -0.0003,  0.])
+    action = np.array([0.3311, -0.0939,  0.1003,  0.1242,  0.4382,  0.0004,  0.    ,
+       -0.6617,  0.6944,  0.0501,  0.    ,  0.    ,  0.    ,  0.])
     goal_pos = np.array([0.5, 0.5, 0.5])
     reset_pose = np.array([-0.4699, 0.119, 0.2453, -0.8663, -0.4995, -0.0015, 0.0008,
                             0.236, 0.4235, 0.246, -0.924, 0.3823, 0.0014, 0.0015])
@@ -388,14 +380,14 @@ if __name__ == "__main__":
     print("Correct reward: ", rew)
     # tcp_pose = np.array([-0.4699, 0.119, 0.2453, -0.8656, -0.4991, -0.0015,
     #                 0.236, 0.4235, 0.246, -0.9226, 0.3817, 0.0014])
-    tcp_pose = obs[39:51]
-    obs = her.transform_obs_dummy(tcp_pose=tcp_pose, obs=obs)
+    # tcp_pose = obs[39:51]
+    # obs = her.transform_obs_dummy(tcp_pose=tcp_pose, obs=obs)
 
-    new_her = HER()
+    # new_her = HER()
 
-    rew = new_her.compute_reward_her(obs=obs,
-                                 action=action,
-                                 goal_position=goal_pos,
-                                 reset_pose=reset_pose)
+    # rew = new_her.compute_reward_her(obs=obs,
+    #                              action=action,
+    #                              goal_position=goal_pos,
+    #                              reset_pose=reset_pose)
     
-    print("Reward after transformation: ", rew)
+    # print("Reward after transformation: ", rew)

@@ -117,6 +117,8 @@ if __name__ == "__main__":
                     )
                 
                 # Reset transitions
+                with open('/home/sebastiano/voxel-serl/serl_robot_infra/ur_env/utils/transitions.txt', 'a') as f:
+                    f.write(f"{transitions}\n")
                 transitions = []
                 iter += 1
 
@@ -137,6 +139,9 @@ if __name__ == "__main__":
             
         with open (f"her_transitions_{uuid}.pkl", 'wb') as f:
             pkl.dump(her_transitions, f)
+
+        with open('/home/sebastiano/voxel-serl/serl_robot_infra/ur_env/utils/her_transitions.txt', 'a') as f:
+                f.write(f"{her_transitions}\n")
 
     except KeyboardInterrupt as e:
         print(f'\nProgram was interrupted from keyboard, cleaning up...  ', e.__str__())
