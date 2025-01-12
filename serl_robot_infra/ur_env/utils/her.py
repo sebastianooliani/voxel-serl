@@ -1,7 +1,8 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from franka_env.utils.transformations import (
-    construct_homogeneous_matrix
+    construct_homogeneous_matrix,
+    pose_2_homogeneous_matrix
 )
 import copy
 from pprint import pprint
@@ -69,9 +70,7 @@ class HER():
             obs = self.unscale_obs(obs)
         
         # transform the observation
-        # print(f"obs: {obs}")
-        obs = self.transform_obs(tcp_pose=obs[39:51], obs=obs)
-        # print(f"obs after transformation: {obs}")
+        obs = self.transform_obs(tcp_pose=obs[39:51], obs=obs, reset_pose=reset_pose)
         tcp_pose = obs[39:51]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
 
@@ -83,7 +82,7 @@ class HER():
         step_cost = 0.1
 
         # SUCTION: reward for successful grip and cost for unnecessary suctioning
-        suction_reward = 0.5 * 3 * (float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5))
+        suction_reward = 0.5 * 3. * (float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5))
         suction_cost = 0.5 * 3. * (float(obs[14:18][1] < -0.5) + float(obs[14:18][3] < -0.5))
 
         # ORIENTATION: penalize deviating too much from the starting pose
@@ -227,6 +226,9 @@ class HER():
     def unscale_obs(self, obs):
         """
         Unscale the observation before computing the episode reward.
+
+        Args:
+            obs: observation
         """
         obs[30:36] /= self.force_scale
 
@@ -253,6 +255,9 @@ class HER():
     def scale_obs(self, obs):
         """
         Scale the observation before saving the episode's transitions.
+
+        Args:
+            obs: observation
         """
         obs[30:36] *= self.force_scale
 
@@ -273,67 +278,43 @@ class HER():
         obs[69:72] *= self.translation_scale
         obs[72:75] *= self.translation_scale
         obs[75:78] *= self.translation_scale
-
-    def transform_obs(self, tcp_pose, obs):
-        """
-        Transform the observation before computing the episode reward.
-        """
-        self.R_1 = R.from_mrp(tcp_pose[3:6]).as_matrix()
-        self.R_2 = R.from_mrp(tcp_pose[9:12]).as_matrix()
-        # print(tcp_pose)
-        # print(f"R_1: {self.R_1}")
-        # print(f"R_2: {self.R_2}")
-
-        # action -> 0:14
-        obs[0:3] = np.linalg.inv(self.R_1) @ obs[0:3]
-        obs[3:6] = np.linalg.inv(self.R_1) @ obs[3:6]
-        obs[7:10] = np.linalg.inv(self.R_2) @ obs[7:10]
-        obs[10:13] = np.linalg.inv(self.R_2) @ obs[10:13]
-
-        # tcp force -> 30:36
-        obs[30:33] = np.linalg.inv(self.R_1) @ obs[30:33]
-        obs[33:36] = np.linalg.inv(self.R_2) @ obs[33:36]
-
-        # tcp pose -> 39:51
-        obs[39:42] = np.linalg.inv(self.R_1) @ obs[39:42]
-        obs[42:45] = np.linalg.inv(self.R_1) @ obs[42:45]
-        obs[45:48] = np.linalg.inv(self.R_2) @ obs[45:48]
-        obs[48:51] = np.linalg.inv(self.R_2) @ obs[48:51]
-
-        # tcp torque -> 51:57
-        obs[51:54] = np.linalg.inv(self.R_1) @ obs[51:54]
-        obs[54:57] = np.linalg.inv(self.R_2) @ obs[54:57]
-
-        # tcp velocity -> 57:69
-        obs[57:60] = np.linalg.inv(self.R_1) @ obs[57:60]
-        obs[60:63] = np.linalg.inv(self.R_1) @ obs[60:63]
-        obs[63:66] = np.linalg.inv(self.R_2) @ obs[63:66]
-        obs[66:69] = np.linalg.inv(self.R_2) @ obs[66:69]
-
-        return obs.copy()
     
-    def transform_obs_dummy(self, tcp_pose, obs):
+    def transform_obs(self, tcp_pose, obs, reset_pose):
         """
         Transform the observation before computing the episode reward.
+
+        Args:
+            tcp_pose: TCP pose (orientation in MRP)
+            obs: observation
+            reset_pose: reset pose (orientation in quaternion)
         """
-        self.R_1 = R.from_mrp(tcp_pose[3:6]).as_matrix()
-        self.R_2 = R.from_mrp(tcp_pose[9:12]).as_matrix()
+        assert len(tcp_pose) == 12, "TCP pose must be of length 12"
+        assert len(reset_pose) == 14, "Reset pose must be of length 14"
+
+        self.T_1 = pose_2_homogeneous_matrix(tcp_pose[:6])
+        self.T_2 = pose_2_homogeneous_matrix(tcp_pose[6:])
+        # compute the relative pose
+        self.T_1_temp = construct_homogeneous_matrix(reset_pose[:7]) @ np.linalg.inv(self.T_1)
+        self.T_2_temp = construct_homogeneous_matrix(reset_pose[7:]) @ np.linalg.inv(self.T_2)
+
+        # tcp_pose -> 39:51
+        obs[39:42] = self.T_1_temp[:3, 3]
+        obs[42:45] = R.from_matrix(self.T_1_temp[:3, :3]).as_mrp()
+        obs[45:48] = self.T_2_temp[:3, 3]
+        obs[48:51] = R.from_matrix(self.T_2_temp[:3, :3]).as_mrp()
+
+        self.R_1 = self.T_1_temp[:3, :3]
+        self.R_2 = self.T_2_temp[:3, :3]
 
         # action -> 0:14
-        obs[0:3] = self.R_1 @ obs[0:3]
-        obs[3:6] = self.R_1 @ obs[3:6]
-        obs[7:10] = self.R_2 @ obs[7:10]
-        obs[10:13] = self.R_2 @ obs[10:13]
+        obs[0:3] = self.R_1.T @ obs[0:3]
+        obs[3:6] = self.R_1.T @ obs[3:6]
+        obs[7:10] = self.R_2.T @ obs[7:10]
+        obs[10:13] = self.R_2.T @ obs[10:13]
 
         # tcp force -> 30:36
         obs[30:33] = self.R_1 @ obs[30:33]
         obs[33:36] = self.R_2 @ obs[33:36]
-
-        # tcp pose -> 39:51
-        obs[39:42] = self.R_1 @ obs[39:42]
-        obs[42:45] = self.R_1 @ obs[42:45]
-        obs[45:48] = self.R_2 @ obs[45:48]
-        obs[48:51] = self.R_2 @ obs[48:51]
 
         # tcp torque -> 51:57
         obs[51:54] = self.R_1 @ obs[51:54]
