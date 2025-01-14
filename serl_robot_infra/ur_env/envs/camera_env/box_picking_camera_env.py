@@ -126,8 +126,6 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         )
         for key, info in cost_info.items():
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])
-
-        # print(f"Action costs: {action_cost}\n, Step costs: {step_cost}\n, Suction reward: {suction_reward}\n, Suction cost: {suction_cost}\n, Orientation cost: {orientation_cost}\n, Position cost: {position_cost}\n, Action difference cost: {action_diff_cost}\n, Distance cost: {distance_cost}\n, Total cost: {cost_info['total_cost']}")
         
         if self.reached_goal_state(obs):
             self.last_action[:] = 0.
@@ -225,12 +223,6 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
         distance_cost = 1. / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
 
-        # print(f"distance_cost: {distance_cost}, orientation_cost: {orientation_cost}, position_cost: {position_cost}, action_diff_cost: {action_diff_cost}, action_cost: {action_cost}, suction_cost: {suction_cost}, step_cost: {step_cost}, suction_reward: {suction_reward}")
-        # with open('/home/sebastiano/voxel-serl/serl_robot_infra/ur_env/utils/std_costs.txt', 'a') as f:
-        #     f.write(f"distance_cost: {distance_cost}, orientation_cost: {orientation_cost}, position_cost: {position_cost}, action_diff_cost: {action_diff_cost}, action_cost: {action_cost}, suction_cost: {suction_cost}, step_cost: {step_cost}, suction_reward: {suction_reward}\n")
-        with open('/home/sebastiano/voxel-serl/serl_robot_infra/ur_env/utils/std_obs.txt', 'a') as f:
-            f.write(f"{obs}\n")
-
         # TOTAL COST
         cost_info = dict(
             action_cost=action_cost,
@@ -264,7 +256,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
     def __init__(self, load_config=True, **kwargs):
         if load_config:
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
-            self.init = True
+            self.init = True # read and write the initial box orientation
         else:
             super().__init__(**kwargs)
 
@@ -365,7 +357,8 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         state = obs['state']
         # TODO: fix orientation error threshold
         # perform a 90° degrees rotation around the z-axis
-        rot_angle, _ = orientation_difference_angle_axis(self.init_box_orientation, state['box_orientation'])
+        # convert obs from MRP to rotation vector
+        rot_angle, _ = orientation_difference_angle_axis(self.init_box_orientation, R.from_mrp(state['box_orientation']).as_rotvec())
         # 0.09 rad = 5° tolerance
         return (np.abs(rot_angle) - np.pi/2) < 0.09 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
 

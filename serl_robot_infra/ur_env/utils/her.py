@@ -108,11 +108,6 @@ class HER():
         T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
         distance_cost = 1. / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
 
-        # print(f"distance_cost: {distance_cost}, orientation_cost: {orientation_cost}, position_cost: {position_cost}, action_diff_cost: {action_diff_cost}, action_cost: {action_cost}, suction_cost: {suction_cost}, step_cost: {step_cost}, suction_reward: {suction_reward}")
-        # with open('/home/sebastiano/voxel-serl/serl_robot_infra/ur_env/utils/her_costs.txt', 'a') as f:
-        #     f.write(f"distance_cost: {distance_cost}, orientation_cost: {orientation_cost}, position_cost: {position_cost}, action_diff_cost: {action_diff_cost}, action_cost: {action_cost}, suction_cost: {suction_cost}, step_cost: {step_cost}, suction_reward: {suction_reward}\n")
-        # with open('/home/sebastiano/voxel-serl/serl_robot_infra/ur_env/utils/her_obs.txt', 'a') as f:
-        #     f.write(f"{obs}\n")
 
         if reached_goal_state_her(obs):
             self.last_action[:] = 0.
@@ -198,9 +193,6 @@ class HER():
             )
             her_transitions.append(her_dict)
 
-            # pprint(her_dict)
-            # df = pd.DataFrame(her_transitions)
-            # df.to_excel("her_dict.xlsx")
             augm_dict = copy.deepcopy(
                 dict(
                     observations=np.concatenate(
@@ -218,8 +210,6 @@ class HER():
                 )
             )
             augmented_transitions.append(augm_dict)
-            # df = pd.DataFrame(augmented_transitions)
-            # df.to_excel("augm_dict.xlsx")
 
         return her_transitions, augmented_transitions
 
@@ -359,16 +349,3 @@ if __name__ == "__main__":
                            reset_pose=reset_pose)
     
     print("Correct reward: ", rew)
-    # tcp_pose = np.array([-0.4699, 0.119, 0.2453, -0.8656, -0.4991, -0.0015,
-    #                 0.236, 0.4235, 0.246, -0.9226, 0.3817, 0.0014])
-    # tcp_pose = obs[39:51]
-    # obs = her.transform_obs_dummy(tcp_pose=tcp_pose, obs=obs)
-
-    # new_her = HER()
-
-    # rew = new_her.compute_reward_her(obs=obs,
-    #                              action=action,
-    #                              goal_position=goal_pos,
-    #                              reset_pose=reset_pose)
-    
-    # print("Reward after transformation: ", rew)
