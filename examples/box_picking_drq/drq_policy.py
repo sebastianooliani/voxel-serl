@@ -113,6 +113,7 @@ flags.DEFINE_boolean(
     "debug", False, "Debug mode."
 )  # debug mode will disable wandb logging
 flags.DEFINE_boolean("dual", True, "Dual robot mode.")
+flags.DEFINE_string("wandb_project", "drq_rgb_top", "Wandb project name.")
 
 
 def print_green(x):
@@ -582,7 +583,7 @@ def main(_):
         )
         # set up wandb and logging
         wandb_logger = make_wandb_logger(
-            project="drq_rgb_top",  # TODO only temporary
+            project=FLAGS.wandb_project,  # TODO only temporary
             description=FLAGS.exp_name or FLAGS.env,
             debug=FLAGS.debug,
         )

@@ -69,6 +69,7 @@ flags.DEFINE_string(
     "Path to reward classifier checkpoint. Default: None",
 )
 flags.DEFINE_boolean("dual", False, "Dual robot mode.")
+flags.DEFINE_string("wandb_project", "dual_robot_first_bc", "Wandb project name.")
 
 devices = jax.local_devices()
 num_devices = len(devices)
@@ -179,7 +180,7 @@ def main(_):
         agent = agent.replace(state=ckpt)
 
         wandb_logger = make_wandb_logger(
-            project="dual_robot_first_bc",
+            project=FLAGS.wandb_project,
             description=FLAGS.exp_name or FLAGS.env,
             debug=False,
         )
