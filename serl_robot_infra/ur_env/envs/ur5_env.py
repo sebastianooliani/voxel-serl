@@ -642,12 +642,6 @@ class UR5Env(gym.Env):
 
     def _send_pos_command(self, target_pos: np.ndarray):
         """Internal function to send force command to the robot."""
-        # move to singularity free configurations only
-        # state = self.controller.get_state()
-        # if np.abs(self.controller.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
-        #     print("\nSingularity detected! Reset the agent!\n")
-        #     self.reset()
-
         self.controller.set_target_pos(target_pos=target_pos)
 
     def _send_gripper_command(self, gripper_pos: np.ndarray):
@@ -769,37 +763,42 @@ class UR5DualRobotEnv(UR5Env):
 
         self.cost_infos = {}
 
-        self.xyz_bounding_box_1 = gym.spaces.Box(
-            config.ABS_POSE_LIMIT_LOW_ROBOT_1[:3],
-            config.ABS_POSE_LIMIT_HIGH_ROBOT_1[:3],
-            dtype=np.float64,
-        )
-        self.xy_range_1 = gym.spaces.Box(
-            config.ABS_POSE_RANGE_LIMITS[0],
-            config.ABS_POSE_RANGE_LIMITS[1],
-            dtype=np.float64,
-        )
-
         #################################################################################
         # pay attention that you are not clipping the "absolute" value of the angles,   #
         # but the orientation difference with the starting orientation                  #
         #################################################################################
+        if self.config.TASK in ["lift"]:
+            # use shinked bounding boxes for the lift task
+            self.xyz_bounding_box_1 = gym.spaces.Box(
+                config.ABS_POSE_LIMIT_LOW_ROBOT_1_LIFT[:3],
+                config.ABS_POSE_LIMIT_HIGH_ROBOT_1_LIFT[:3],
+                dtype=np.float64,
+            )
+
+            self.xyz_bounding_box_2 = gym.spaces.Box(
+                config.ABS_POSE_LIMIT_LOW_ROBOT_2_LIFT[:3],
+                config.ABS_POSE_LIMIT_HIGH_ROBOT_2_LIFT[:3],
+                dtype=np.float64,
+            )
+        else:
+            self.xyz_bounding_box_1 = gym.spaces.Box(
+                config.ABS_POSE_LIMIT_LOW_ROBOT_1[:3],
+                config.ABS_POSE_LIMIT_HIGH_ROBOT_1[:3],
+                dtype=np.float64,
+            )
+
+            self.xyz_bounding_box_2 = gym.spaces.Box(
+                config.ABS_POSE_LIMIT_LOW_ROBOT_2[:3],
+                config.ABS_POSE_LIMIT_HIGH_ROBOT_2[:3],
+                dtype=np.float64,
+            )
+
         self.mrp_bounding_box_1 = gym.spaces.Box(
             config.ABS_POSE_LIMIT_LOW_ROBOT_1[3:],
             config.ABS_POSE_LIMIT_HIGH_ROBOT_1[3:],
             dtype=np.float64,
         )
-
-        self.xyz_bounding_box_2 = gym.spaces.Box(
-            config.ABS_POSE_LIMIT_LOW_ROBOT_2[:3],
-            config.ABS_POSE_LIMIT_HIGH_ROBOT_2[:3],
-            dtype=np.float64,
-        )
-        self.xy_range_2 = gym.spaces.Box(
-            config.ABS_POSE_RANGE_LIMITS[0],
-            config.ABS_POSE_RANGE_LIMITS[1],
-            dtype=np.float64,
-        )
+        
         self.mrp_bounding_box_2 = gym.spaces.Box(
             config.ABS_POSE_LIMIT_LOW_ROBOT_2[3:],
             config.ABS_POSE_LIMIT_HIGH_ROBOT_2[3:],
@@ -1154,20 +1153,20 @@ class UR5DualRobotEnv(UR5Env):
         state = self.controller_1.get_state()
 
         # move to singularity free configurations only
-        if np.abs(self.controller_1.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
-            self.controller_1._is_truncated.set()
-            print("\nSingularity detected! Reset the agent!\n")
-            self.controller_1.restart_ur_interface()
-            self.controller_2.restart_ur_interface()
+        # if np.abs(self.controller_1.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
+        #     self.controller_1._is_truncated.set()
+        #     print("\nSingularity detected! Reset the agent!\n")
+        #     self.controller_1.restart_ur_interface()
+        #     self.controller_2.restart_ur_interface()
 
         state = self.controller_2.get_state()
 
         # move to singularity free configurations only
-        if np.abs(self.controller_2.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
-            self.controller_2._is_truncated.set()
-            print("\nSingularity detected! Reset the agent!\n")
-            self.controller_1.restart_ur_interface()
-            self.controller_2.restart_ur_interface()
+        # if np.abs(self.controller_2.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
+        #     self.controller_2._is_truncated.set()
+        #     print("\nSingularity detected! Reset the agent!\n")
+        #     self.controller_1.restart_ur_interface()
+        #     self.controller_2.restart_ur_interface()
 
         self.controller_1.set_target_pos(target_pos=target_pos[:7])
         self.controller_2.set_target_pos(target_pos=target_pos[7:])

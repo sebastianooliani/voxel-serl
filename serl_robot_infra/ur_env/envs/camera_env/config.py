@@ -141,18 +141,21 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     DUAL = True
     TOP = True
     HER = True
-    TASK = "motion" # "lift", "reorient", "motion"
+    TASK = "lift" # "lift", "reorient", "motion"
     
     # box in horizontal position
-    RESET_Q = np.array([[- math.pi / 6., -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
-                        math.pi - math.pi / 6, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]])
-
+    # RESET_Q = np.array([[- math.pi / 6., -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
+    #                     math.pi - math.pi / 6, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]])
+    # higher version
+    RESET_Q = np.array([[- math.pi / 6., math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.),
+                         math.radians(147.55), math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.)]])
+    
     # box in vertical position
     # RESET_Q = np.array([[math.radians(-48.84), math.radians(-53.56), math.radians(99.53), math.radians(-51.25), math.radians(-50.28), math.radians(1.62),
     #                      math.radians(148.59), math.radians(-54.08), math.radians(110.62), math.radians(-59.62), math.radians(-31.03), math.radians(32.72)]])
     
     # mid reset position
-    MID_RESET_Q = np.array([[math.radians(-40), math.radians(-136.), math.radians(116.), math.radians(-65.), math.radians(-85.4), math.radians(0),
+    MID_RESET_Q = np.array([[math.radians(-40.), math.radians(-136.), math.radians(116.), math.radians(-65.), math.radians(-85.4), math.radians(0),
                             math.radians(143.25), math.radians(-120.69), math.radians(117.43), math.radians(-83.28), math.radians(-101.91), math.radians(0.)]])
     
     RANDOM_RESET = False
@@ -184,15 +187,23 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     # pay attention that you are not clipping the single value of the angles, # 
     # but the orientation difference                                          #
     ###########################################################################
-    ABS_POSE_LIMIT_HIGH_ROBOT_1 = np.array([-0.263, 0.363, 0.377, 0.05, 0.05, 0.2])
+    # for 3D motion, these workspaces are fine
+    ABS_POSE_LIMIT_HIGH_ROBOT_1 = np.array([-0.335, 0.463, 0.377, 0.05, 0.05, 0.2])
     ABS_POSE_LIMIT_LOW_ROBOT_1 = np.array([-0.605, -0.533, 0.128, -0.05, -0.05, -0.2])
-    ABS_POSE_LIMIT_HIGH_ROBOT_2 = np.array([0.652, 0.363, 0.377, 0.05, 0.05, 0.2])
-    ABS_POSE_LIMIT_LOW_ROBOT_2 = np.array([0.31, -0.533, 0.128, -0.05, -0.05, -0.2])
+    ABS_POSE_LIMIT_HIGH_ROBOT_2 = np.array([0.602, 0.463, 0.377, 0.05, 0.05, 0.2])
+    ABS_POSE_LIMIT_LOW_ROBOT_2 = np.array([0.301, -0.533, 0.128, -0.05, -0.05, -0.2])
+
+    # for lift, these shrinked workspaces are better
+    ABS_POSE_LIMIT_HIGH_ROBOT_1_LIFT = np.array([-0.263, 0.363, 0.377, 0.05, 0.05, 0.2])
+    ABS_POSE_LIMIT_LOW_ROBOT_1_LIFT = np.array([-0.675, 0.030, 0.128, -0.05, -0.05, -0.2])
+    ABS_POSE_LIMIT_HIGH_ROBOT_2_LIFT = np.array([0.622, 0.116, 0.377, 0.05, 0.05, 0.2])
+    ABS_POSE_LIMIT_LOW_ROBOT_2_LIFT = np.array([0.290, -0.315, 0.128, -0.05, -0.05, -0.2])
+
     # ABS_POSE_LIMIT_HIGH_ROBOT_2 = np.array([0.569, 0.593, 0.377, 0.05, 0.05, 0.2])
     # ABS_POSE_LIMIT_LOW_ROBOT_2 = np.array([-0.369, 0.295, 0.104, -0.05, -0.05, -0.2])
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
-    POSE_ESTIMATION_IP = "ws://192.168.1.184:7777"
+    POSE_ESTIMATION_IP = "ws://192.168.1.240:7777"
     POSE_ESTIMATION = False
 
     ROBOT_IP_1: str = "192.168.1.66" # docker "172.17.0.2"
