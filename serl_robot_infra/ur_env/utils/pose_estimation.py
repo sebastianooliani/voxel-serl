@@ -13,7 +13,7 @@ async def read_vision_from_server():
     - space-boxes-box-world2box: pose from the camera frame to the center of the box (exponential coordinates for the orientation)
     """
     messages = []
-    async with connect("ws://192.168.1.184:7777") as websocket:
+    async with connect("ws://192.168.1.240:7777") as websocket:
         while True:
             message = msgpack.unpackb(await websocket.recv())
             # box_position = message['space'][0]['boxes'][list(message['space'][0]['boxes'].keys())[0]]['world2box']['pos']
@@ -116,11 +116,12 @@ class BoxPoseEstimation:
                         ]['world2box']['pos']
                         self.orient = message['space'][0]['boxes'][
                             list(message['space'][0]['boxes'].keys())[0]
-                        ]['world2box']['orient']
+                        ]['world2box']['rot']
                     
-                    await websocket.send("a")
+                    # await websocket.send("a")
                     
             except Exception as e:
+                # if the box is not detected, the last self.pos is kept (dict key doesn't exist)
                 print(f"Error reading from vision server: {e}")
                 await asyncio.sleep(1)  # Prevent tight error loop
     
