@@ -72,15 +72,15 @@ class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
     #     [0.1815, - 1.2945, 1.8964, - 2.1719, - 1.5658, - 1.3841],
     # ])
     # horizontal box
-    RESET_Q = np.array([[math.pi / 2. + math.pi / 4, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]])
+    RESET_Q = np.array([[math.radians(147.55), math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.)]])
     # vertical box
     # RESET_Q = np.array([[math.radians(241.46), math.radians(-75.78), math.radians(107.78), math.radians(-38.43), math.radians(-24.73), math.radians(33.13)]])
 
     RANDOM_RESET = True
     RANDOM_XY_RANGE = (0.0,)
     RANDOM_ROT_RANGE = (0.04,)
-    ABS_POSE_LIMIT_HIGH = np.array([0.652, 0.363, 0.377, 0.05, 0.05, 0.2])
-    ABS_POSE_LIMIT_LOW = np.array([0.31, -0.533, 0.128, -0.05, -0.05, -0.2])
+    ABS_POSE_LIMIT_HIGH = np.array([0.612, 0.116, 0.377, 0.05, 0.05, 0.2])
+    ABS_POSE_LIMIT_LOW = np.array([0.300, -0.315, 0.128, -0.05, -0.05, -0.2])
     # ABS_POSE_LIMIT_HIGH = np.array([0.6, 0.1, 0.25, 0.05, 0.05, 0.2])
     # ABS_POSE_LIMIT_LOW = np.array([-0.7, -0.85, -0.006, -0.05, -0.05, -0.2])
     ABS_POSE_RANGE_LIMITS = np.array([0.36, 0.83])
@@ -171,7 +171,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
                         [0., 1., 0., -0.08],
                         [0., 0., 1., 0.02],
                         [0, 0, 0, 1.]], dtype=np.float32)
-    # 13cm
+    # 13cm - distance end effector to suction cup
     T_EE_SC = np.array([[1., 0., 0., 0.],
                         [0., 1., 0., 0.],
                         [0., 0., 1., 0.130],
@@ -180,6 +180,11 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     WF_rot = np.array([[-1,  0,  0],
                         [ 0,  0, -1],
                         [ 0, -1,  0]], dtype=np.float32)
+    # transformations between robot links
+    T_J5_EE = np.array([[1., 0., 0., 0.],
+                        [0., 1., 0., 0.],
+                        [0., 0., 1., 0.0996],
+                        [0., 0., 0., 1.]], dtype=np.float32)
     
     GOAL_POSITION = np.array([0., 0., 0.])
     
@@ -194,10 +199,10 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     ABS_POSE_LIMIT_LOW_ROBOT_2 = np.array([0.301, -0.533, 0.128, -0.05, -0.05, -0.2])
 
     # for lift, these shrinked workspaces are better
-    ABS_POSE_LIMIT_HIGH_ROBOT_1_LIFT = np.array([-0.263, 0.363, 0.377, 0.05, 0.05, 0.2])
-    ABS_POSE_LIMIT_LOW_ROBOT_1_LIFT = np.array([-0.675, 0.030, 0.128, -0.05, -0.05, -0.2])
-    ABS_POSE_LIMIT_HIGH_ROBOT_2_LIFT = np.array([0.622, 0.116, 0.377, 0.05, 0.05, 0.2])
-    ABS_POSE_LIMIT_LOW_ROBOT_2_LIFT = np.array([0.290, -0.315, 0.128, -0.05, -0.05, -0.2])
+    ABS_POSE_LIMIT_HIGH_ROBOT_1_LIFT = np.array([-0.290, 0.363, 0.377, 0.05, 0.05, 0.2])
+    ABS_POSE_LIMIT_LOW_ROBOT_1_LIFT = np.array([-0.640, 0.030, 0.128, -0.05, -0.05, -0.2])
+    ABS_POSE_LIMIT_HIGH_ROBOT_2_LIFT = np.array([0.612, 0.116, 0.377, 0.05, 0.05, 0.2])
+    ABS_POSE_LIMIT_LOW_ROBOT_2_LIFT = np.array([0.300, -0.315, 0.128, -0.05, -0.05, -0.2])
 
     # ABS_POSE_LIMIT_HIGH_ROBOT_2 = np.array([0.569, 0.593, 0.377, 0.05, 0.05, 0.2])
     # ABS_POSE_LIMIT_LOW_ROBOT_2 = np.array([-0.369, 0.295, 0.104, -0.05, -0.05, -0.2])
