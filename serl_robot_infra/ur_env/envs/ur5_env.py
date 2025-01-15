@@ -54,9 +54,9 @@ class ImageDisplayer(threading.Thread):
 
 
 class PointCloudDisplayer:
-    def __init__(self):
+    def __init__(self, x=50, y=50, window_name='Open3D'):
         self.window = o3d.visualization.Visualizer()
-        self.window.create_window(height=400, width=400, visible=True)
+        self.window.create_window(window_name=window_name, height=400, width=400, left=x, top=y, visible=True)
 
         self.pc = o3d.geometry.PointCloud()
         self.window.get_render_option().load_from_json(
@@ -714,6 +714,7 @@ class UR5DualRobotEnv(UR5Env):
         self.config = config
 
         self.dual = config.DUAL
+        self._is_collided = False
 
         #############################
         # Action Space              #
@@ -736,6 +737,7 @@ class UR5DualRobotEnv(UR5Env):
         # some useful matrices
         self.T_O1_O2 = config.T_O1_O2
         self.T_EE_SC = config.T_EE_SC
+        self.T_J5_EE = config.T_J5_EE
         self.WF_rot = config.WF_rot
         self.pose_estimation_ip = config.POSE_ESTIMATION_IP
         self.pose_est = config.POSE_ESTIMATION
@@ -938,8 +940,8 @@ class UR5DualRobotEnv(UR5Env):
             self.init_cameras(config.REALSENSE_CAMERAS)
             self.img_queue = queue.Queue()
             if self.camera_mode in ["pointcloud"]:
-                # self.displayer_1 = PointCloudDisplayer()  # o3d displayer cannot be threaded :/
-                # self.displayer_2 = PointCloudDisplayer()
+                self.displayer_1 = PointCloudDisplayer(window_name=config.ROBOT_IP_1)  # o3d displayer cannot be threaded :/
+                self.displayer_2 = PointCloudDisplayer(window_name=config.ROBOT_IP_2, x=50, y=500)  # o3d displayer cannot be threaded :/
                 pass
             else:
                 self.displayer = ImageDisplayer(self.img_queue)
@@ -1031,14 +1033,14 @@ class UR5DualRobotEnv(UR5Env):
         if self.camera_mode in ["pointcloud"]:
             voxel_grid, voxel_indices = self.pointcloud_1.get_pointcloud_representation(voxelize=True)
             images["wrist_1_pointcloud"] = voxel_grid.astype(np.uint8)
-            # self.displayer_1.display(voxel_indices)
+            self.displayer_1.display(voxel_indices)
 
             # downsample on 2x2x2 grid with sum of points (8 as max)
             # vs = self.observation_space["images"]["wrist_pointcloud"].shape
             # voxel_grid = np.sum(np.reshape(voxel_grid, (vs[0], 2, vs[1], 2, vs[2], 2)), axis=(1, 3, 5))
             voxel_grid, voxel_indices = self.pointcloud_2.get_pointcloud_representation(voxelize=True)
             images["wrist_2_pointcloud"] = voxel_grid.astype(np.uint8)
-            # self.displayer_2.display(voxel_indices)
+            self.displayer_2.display(voxel_indices)
             
         self.img_queue.put(display_images)
 
@@ -1075,7 +1077,10 @@ class UR5DualRobotEnv(UR5Env):
 
         reward = self.compute_reward(obs, action)
         truncated = self._is_truncated()
+        collided = self._is_collided
         reward = reward if not truncated else reward - 100.  # truncation penalty
+        reward = reward if not collided else reward - 100.  # collision penalty
+        self._is_collided = False
         done = (self.curr_path_length >= self.max_episode_length) or (self.reached_goal_state(obs)) or (truncated)
 
         dt = time.time() - start_time
@@ -1139,18 +1144,29 @@ class UR5DualRobotEnv(UR5Env):
         # Calculate the distance between the two end effectors - collision check
         T_O1_E1 = construct_homogeneous_matrix(target_pos[:7])
         T_O2_E2 = construct_homogeneous_matrix(target_pos[7:])
+
         T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
         T_O1_E2 = self.T_O1_O2 @ T_O2_E2
         T_O1_SC2 = T_O1_E2 @ self.T_EE_SC
+
+        T_O1_J5 = T_O1_E1 @ np.linalg.inv(self.T_J5_EE)
+        T_O2_J5 = T_O1_E2 @ np.linalg.inv(self.T_J5_EE)
+
+        j5_distance = np.linalg.norm(T_O1_J5[:3, 3] - T_O2_J5[:3, 3])
+        ee1_j5_distance = np.linalg.norm(T_O1_E1[:3, 3] - T_O2_J5[:3, 3])
+        ee2_j5_distance = np.linalg.norm(T_O1_E2[:3, 3] - T_O1_J5[:3, 3])
         grippers_distance = np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
         ee_distance = np.linalg.norm(T_O1_E1[:3, 3] - T_O1_E2[:3, 3])
+        distances = np.array([j5_distance, ee1_j5_distance, ee2_j5_distance, grippers_distance, ee_distance])
 
         # Check if the distance is less than 5 cm (0.05 meters)
-        if ee_distance < 0.1 or grippers_distance < 0.03: # TODO: adjust this param because it depends on the box size too
+        # more added after removing singularity checks
+        if np.any(np.where(distances < 0.1, True, False)): # TODO: adjust this param because it depends on the box size too
             print("\nDistance between end effectors is too small. Resetting episode.\n")
+            self._is_collided = True
             self.reset()
 
-        state = self.controller_1.get_state()
+        # state = self.controller_1.get_state()
 
         # move to singularity free configurations only
         # if np.abs(self.controller_1.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
@@ -1159,7 +1175,7 @@ class UR5DualRobotEnv(UR5Env):
         #     self.controller_1.restart_ur_interface()
         #     self.controller_2.restart_ur_interface()
 
-        state = self.controller_2.get_state()
+        # state = self.controller_2.get_state()
 
         # move to singularity free configurations only
         # if np.abs(self.controller_2.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
