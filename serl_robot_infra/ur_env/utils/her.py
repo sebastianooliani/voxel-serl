@@ -9,7 +9,7 @@ from pprint import pprint
 import pandas as pd
 
 class HER():
-    def __init__(self, scale=False):        
+    def __init__(self, scale=False, trans=False):        
         self.T_O1_O2=np.array([[1., 0., 0., -0.915], 
                                 [0., 1., 0., -0.08], 
                                 [0., 0., 1., 0.02], 
@@ -27,6 +27,7 @@ class HER():
         self.torque_scale=10.
 
         self.scale=scale
+        self.trans=trans
 
         self.R_1 = None
         self.R_2 = None
@@ -70,7 +71,9 @@ class HER():
             obs = self.unscale_obs(obs)
         
         # transform the observation
-        obs = self.transform_obs(tcp_pose=obs[39:51], obs=obs, reset_pose=reset_pose)
+        if self.trans:
+            obs = self.transform_obs(tcp_pose=obs[39:51], obs=obs, reset_pose=reset_pose)
+            
         tcp_pose = obs[39:51]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
 
