@@ -20,6 +20,7 @@ from ur_env.utils.rotations import rotvec_2_quat, quat_2_rotvec, pose2rotvec, po
 
 from websockets.asyncio.client import connect
 import msgpack
+from ur_env.utils.pose_estimation import BoxPoseEstimation
 
 np.set_printoptions(precision=4, suppress=True)
 
@@ -76,8 +77,7 @@ class UrImpedanceController(threading.Thread):
         # Create a static JIT-compiled function for the computation part
         self._compute_manipulability = jax.jit(self._compute_manipulability_raw)
         self.J = jnp.zeros((1, 6, 6))
-        # self.singularity = False
-        # self.collision = False
+        self.box = BoxPoseEstimation(ip_address=self.config.pose_estimation_ip)
 
         self.target_pos = np.zeros((7,), dtype=np.float32)  # new as quat to avoid +- problems with axis angle repr.
         self.target_grip = np.zeros((1,), dtype=np.float32)
@@ -425,40 +425,35 @@ class UrImpedanceController(threading.Thread):
     async def _calibrate_starting_pose(self):
         self.ur_control.forceModeStop()
 
-        async with connect(self.pose_estimation_ip) as websocket:
-            message = msgpack.unpackb(await websocket.recv())
+        # position is in a rotated world frame
+        box_position = self.box.get_box_position()
+        size = self.box.get_box_size()
+        box_position = self.config.WF_rot @ box_position
 
-            # position is in a rotated world frame
-            box_position = np.array(message['space'][0]['boxes'][list(message['space'][0]['boxes'].keys())[0]]['world2box']['pos'])
-            size = np.array(message['space'][0]['boxes'][list(message['space'][0]['boxes'].keys())[0]]['size'])
-            box_position = self.config.WF_rot @ box_position
+        actual_pose = np.array(self.ur_receive.getActualTCPPose())
+        box_position = np.concatenate([box_position, actual_pose[3:]])
+        # move to box position
+        if self.robot_ip[-2:] == "66":
+            box_position[1] += size[1] / 2 - 0.02
+            box_position[2] += size[2] / 2 + 0.05 
+            success = self.ur_control.moveJ_IK(box_position, speed=1, acceleration=0.8)
+        elif self.robot_ip[-2:] == "33":
+            box_position[1] += - size[1] / 2 + 0.02
+            box_position[2] += size[2] / 2 + 0.05
+            # go back to robot's frame
+            position = np.linalg.inv(self.T_O1_O2) @ np.concatenate([box_position[:3], [1.]])
+            box_position = np.concatenate([position[:3], box_position[3:]])
+            success = self.ur_control.moveJ_IK(box_position, speed=1, acceleration=0.8)
 
-            await websocket.send("a")
-
-            actual_pose = np.array(self.ur_receive.getActualTCPPose())
-            box_position = np.concatenate([box_position, actual_pose[3:]])
-            # move to box position
-            if self.robot_ip[-2:] == "66":
-                box_position[1] += max(size) / 2 - 0.01
-                box_position[2] += 0.25
-                success = self.ur_control.moveJ_IK(box_position, speed=1, acceleration=0.8)
-            elif self.robot_ip[-2:] == "33":
-                box_position[1] += - np.max(size) / 2 + 0.01
-                box_position[2] += 0.25
-                # go back to robot's frame
-                position = np.linalg.inv(self.T_O1_O2) @ np.concatenate([box_position[:3], [1.]])
-                box_position = np.concatenate([position[:3], box_position[3:]])
-                success = self.ur_control.moveJ_IK(box_position, speed=1, acceleration=0.8)
-
-            await self._update_robot_state()
-            with self.lock:
-                self.target_pos = self.curr_pos.copy()
-            self.ur_control.forceModeSetDamping(self.fm_damping)  # less damping = Faster
-            self.ur_control.zeroFtSensor()
-            if not success:     # restart if not successful
-                await self.restart_ur_interface()
-            else:
-                self._reset.clear()
+        await self._update_robot_state()
+        with self.lock:
+            self.target_pos = self.curr_pos.copy()
+        self.ur_control.forceModeSetDamping(self.fm_damping)  # less damping = Faster
+        self.ur_control.zeroFtSensor()
+        if not success:     # restart if not successful
+            await self.restart_ur_interface()
+        else:
+            self._reset.clear()
 
     async def run_async(self):
         await self.start_ur_interfaces(gripper=self.gripper)

@@ -82,6 +82,7 @@ class BoxPoseEstimation:
         self.ip_address = ip_address
         self.pos = []
         self.orient = []
+        self.size = []
         
         self.state_lock = threading.Lock()
         self.stop_event = threading.Event()
@@ -117,8 +118,9 @@ class BoxPoseEstimation:
                         self.orient = message['space'][0]['boxes'][
                             list(message['space'][0]['boxes'].keys())[0]
                         ]['world2box']['rot']
-                    
-                    # await websocket.send("a")
+                        self.size = message['space'][0]['boxes'][
+                            list(message['space'][0]['boxes'].keys())[0]
+                        ]['size']
                     
             except Exception as e:
                 # if the box is not detected, the last self.pos is kept (dict key doesn't exist)
@@ -138,6 +140,13 @@ class BoxPoseEstimation:
         """
         with self.state_lock:
             return np.array(self.orient)
+        
+    def get_box_size(self):
+        """
+        Thread-safe method to get the current box size
+        """
+        with self.state_lock:
+            return np.array(self.size)
     
     def stop(self):
         """
