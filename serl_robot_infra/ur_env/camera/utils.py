@@ -88,6 +88,9 @@ class PointCloudGenerator:
         self.original_pcd = []
         self.processed_pcd = None
 
+    def get_voxelgrid_shape(self):
+        return np.ceil((self.max_bounds - self.min_bounds) / self.voxel_size).astype(int)
+
     def voxelize(self, points: np.ndarray):
         """
         Convert point cloud to voxel grid.
@@ -125,13 +128,20 @@ class PointCloudGenerator:
         return self.voxelize(self.processed_pcd) if voxelize else self.crop(self.processed_pcd)
 
     def clear(self):
-        self.original_pcds = []
+        self.original_pcd = []
+        self.processed_pcd = None
 
     def is_complete(self):
         return self.processed_pcd is not None
 
     def is_empty(self):
         return self.processed_pcd is None
+    
+    def get_original_pcds(self):
+        if len(self.original_pcd) == 1:
+            return self.original_pcd[0]
+        else:
+            return self.original_pcd
 
 
 class PointCloudFusion:

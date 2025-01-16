@@ -77,7 +77,11 @@ class UrImpedanceController(threading.Thread):
         # Create a static JIT-compiled function for the computation part
         self._compute_manipulability = jax.jit(self._compute_manipulability_raw)
         self.J = jnp.zeros((1, 6, 6))
-        self.box = BoxPoseEstimation(ip_address=self.config.pose_estimation_ip)
+        self.box = (
+            BoxPoseEstimation(ip_address=self.config.pose_estimation_ip) 
+            if self.config.POSE_ESTIMATION 
+            else 0
+            )
 
         self.target_pos = np.zeros((7,), dtype=np.float32)  # new as quat to avoid +- problems with axis angle repr.
         self.target_grip = np.zeros((1,), dtype=np.float32)
@@ -434,11 +438,11 @@ class UrImpedanceController(threading.Thread):
         box_position = np.concatenate([box_position, actual_pose[3:]])
         # move to box position
         if self.robot_ip[-2:] == "66":
-            box_position[1] += size[1] / 2 - 0.02
+            box_position[1] += size[1] / 2 - 0.2
             box_position[2] += size[2] / 2 + 0.05 
             success = self.ur_control.moveJ_IK(box_position, speed=1, acceleration=0.8)
         elif self.robot_ip[-2:] == "33":
-            box_position[1] += - size[1] / 2 + 0.02
+            box_position[1] += - size[1] / 2 + 0.2
             box_position[2] += size[2] / 2 + 0.05
             # go back to robot's frame
             position = np.linalg.inv(self.T_O1_O2) @ np.concatenate([box_position[:3], [1.]])
@@ -473,8 +477,8 @@ class UrImpedanceController(threading.Thread):
                 if self._reset.is_set():
                     await self._update_robot_state()
                     await self._go_to_reset_pose()
-                    # if self.config.DUAL and self.config.POSE_ESTIMATION:
-                    #     await self._calibrate_starting_pose()
+                    if self.config.DUAL and self.config.POSE_ESTIMATION:
+                        await self._calibrate_starting_pose()
 
                 t_now = time.monotonic()
                 # update robot state and check for truncation

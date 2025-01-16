@@ -568,7 +568,7 @@ class UR5Env(gym.Env):
 
         if self.camera_mode in ["pointcloud"]:
             voxel_grid, voxel_indices = self.pointcloud_fusion.get_pointcloud_representation(voxelize=True)
-
+            
             # downsample on 2x2x2 grid with sum of points (8 as max)
             # vs = self.observation_space["images"]["wrist_pointcloud"].shape
             # voxel_grid = np.sum(np.reshape(voxel_grid, (vs[0], 2, vs[1], 2, vs[2], 2)), axis=(1, 3, 5))
@@ -940,8 +940,8 @@ class UR5DualRobotEnv(UR5Env):
             self.init_cameras(config.REALSENSE_CAMERAS)
             self.img_queue = queue.Queue()
             if self.camera_mode in ["pointcloud"]:
-                self.displayer_1 = PointCloudDisplayer(window_name=config.ROBOT_IP_1)  # o3d displayer cannot be threaded :/
-                self.displayer_2 = PointCloudDisplayer(window_name=config.ROBOT_IP_2, x=50, y=500)  # o3d displayer cannot be threaded :/
+                # self.displayer_1 = PointCloudDisplayer(window_name=config.ROBOT_IP_1)  # o3d displayer cannot be threaded :/
+                # self.displayer_2 = PointCloudDisplayer(window_name=config.ROBOT_IP_2, x=50, y=500)  # o3d displayer cannot be threaded :/
                 pass
             else:
                 self.displayer = ImageDisplayer(self.img_queue)
@@ -982,6 +982,10 @@ class UR5DualRobotEnv(UR5Env):
         """Get images from the realsense cameras."""
         images = {}
         display_images = {}
+
+        if self.camera_mode == "pointcloud":
+            self.pointcloud_1.clear()
+            self.pointcloud_2.clear()
 
         for key, cap in self.cap.items():
             try:
@@ -1033,14 +1037,14 @@ class UR5DualRobotEnv(UR5Env):
         if self.camera_mode in ["pointcloud"]:
             voxel_grid, voxel_indices = self.pointcloud_1.get_pointcloud_representation(voxelize=True)
             images["wrist_1_pointcloud"] = voxel_grid.astype(np.uint8)
-            self.displayer_1.display(voxel_indices)
+            # self.displayer_1.display(voxel_indices)
 
             # downsample on 2x2x2 grid with sum of points (8 as max)
             # vs = self.observation_space["images"]["wrist_pointcloud"].shape
             # voxel_grid = np.sum(np.reshape(voxel_grid, (vs[0], 2, vs[1], 2, vs[2], 2)), axis=(1, 3, 5))
             voxel_grid, voxel_indices = self.pointcloud_2.get_pointcloud_representation(voxelize=True)
             images["wrist_2_pointcloud"] = voxel_grid.astype(np.uint8)
-            self.displayer_2.display(voxel_indices)
+            # self.displayer_2.display(voxel_indices)
             
         self.img_queue.put(display_images)
 
