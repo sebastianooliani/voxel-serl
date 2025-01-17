@@ -738,6 +738,7 @@ class UR5DualRobotEnv(UR5Env):
         self.T_O1_O2 = config.T_O1_O2
         self.T_EE_SC = config.T_EE_SC
         self.T_J5_EE = config.T_J5_EE
+        self.T_J4_J5 = config.T_J4_J5
         self.WF_rot = config.WF_rot
         self.pose_estimation_ip = config.POSE_ESTIMATION_IP
         self.pose_est = config.POSE_ESTIMATION
@@ -1155,17 +1156,22 @@ class UR5DualRobotEnv(UR5Env):
 
         T_O1_J5 = T_O1_E1 @ np.linalg.inv(self.T_J5_EE)
         T_O2_J5 = T_O1_E2 @ np.linalg.inv(self.T_J5_EE)
+        T_O1_J4 = T_O1_J5 @ np.linalg.inv(self.T_J4_J5)
+        T_O2_J4 = T_O2_J5 @ np.linalg.inv(self.T_J4_J5)
 
+        j4_distance = np.linalg.norm(T_O1_J4[:3, 3] - T_O2_J4[:3, 3])
+        j4_j5_distance = np.linalg.norm(T_O1_J4[:3, 3] - T_O2_J5[:3, 3])
+        j5_j4_distance = np.linalg.norm(T_O1_J5[:3, 3] - T_O2_J4[:3, 3])
         j5_distance = np.linalg.norm(T_O1_J5[:3, 3] - T_O2_J5[:3, 3])
         ee1_j5_distance = np.linalg.norm(T_O1_E1[:3, 3] - T_O2_J5[:3, 3])
         ee2_j5_distance = np.linalg.norm(T_O1_E2[:3, 3] - T_O1_J5[:3, 3])
         grippers_distance = np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
         ee_distance = np.linalg.norm(T_O1_E1[:3, 3] - T_O1_E2[:3, 3])
-        distances = np.array([j5_distance, ee1_j5_distance, ee2_j5_distance, grippers_distance, ee_distance])
+        distances = np.array([j4_distance, j4_j5_distance, j5_j4_distance, j5_distance, ee1_j5_distance, ee2_j5_distance, grippers_distance, ee_distance])
 
         # Check if the distance is less than 5 cm (0.05 meters)
         # more added after removing singularity checks
-        if np.any(np.where(distances < 0.1, True, False)): # TODO: adjust this param because it depends on the box size too
+        if np.any(np.where(distances < 0.12, True, False)): # TODO: adjust this param because it depends on the box size too
             print("\nDistance between end effectors is too small. Resetting episode.\n")
             self._is_collided = True
             self.reset()

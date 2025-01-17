@@ -59,6 +59,7 @@ class UR5CameraConfigBox5(DefaultEnvConfig):
 
 class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
     DUAL = False
+    POSE_ESTIMATION = False
     # RESET_Q = np.array([
     #     [0.6331, -1.5022, 2.1151, -2.183, -1.5664, -0.4762],
     #     [1.983, -1.2533, 1.9069, -2.2314, -1.5495, 0.4462],
@@ -72,21 +73,21 @@ class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
     #     [0.1815, - 1.2945, 1.8964, - 2.1719, - 1.5658, - 1.3841],
     # ])
     # horizontal box
-    RESET_Q = np.array([[math.radians(147.55), math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.)]])
+    RESET_Q = np.array([[- math.pi / 6., math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.)]])
     # vertical box
     # RESET_Q = np.array([[math.radians(241.46), math.radians(-75.78), math.radians(107.78), math.radians(-38.43), math.radians(-24.73), math.radians(33.13)]])
 
     RANDOM_RESET = True
     RANDOM_XY_RANGE = (0.0,)
     RANDOM_ROT_RANGE = (0.04,)
-    ABS_POSE_LIMIT_HIGH = np.array([0.612, 0.116, 0.377, 0.05, 0.05, 0.2])
-    ABS_POSE_LIMIT_LOW = np.array([0.300, -0.315, 0.128, -0.05, -0.05, -0.2])
-    # ABS_POSE_LIMIT_HIGH = np.array([0.6, 0.1, 0.25, 0.05, 0.05, 0.2])
-    # ABS_POSE_LIMIT_LOW = np.array([-0.7, -0.85, -0.006, -0.05, -0.05, -0.2])
+    # ABS_POSE_LIMIT_HIGH = np.array([0.612, 0.116, 0.377, 0.05, 0.05, 0.2])
+    # ABS_POSE_LIMIT_LOW = np.array([0.300, -0.315, 0.128, -0.05, -0.05, -0.2])
+    ABS_POSE_LIMIT_HIGH = np.array([-0.290, 0.363, 0.377, 0.05, 0.05, 0.2])
+    ABS_POSE_LIMIT_LOW = np.array([-0.640, 0.030, 0.128, -0.05, -0.05, -0.2])
     ABS_POSE_RANGE_LIMITS = np.array([0.36, 0.83])
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
-    ROBOT_IP: str = "192.168.1.33" #"172.22.22.2" # "192.168.1.66"
+    ROBOT_IP: str = "192.168.1.66" #"172.22.22.2" # "192.168.1.66"
     CONTROLLER_HZ = 100
     GRIPPER_TIMEOUT = 2000  # in milliseconds
     ERROR_DELTA: float = 0.05
@@ -97,7 +98,7 @@ class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
 
     REALSENSE_CAMERAS = {
         "wrist": "218622277164",
-        "wrist_2": "218622279756"
+        # "wrist": "218622279756"
     }
 
 class UR5CameraConfigDemo(UR5CameraConfigFinal):
@@ -167,8 +168,8 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
                         [0., 0., 1., 0.01], 
                         [0., 0., 0., 1.]], dtype=np.float32)
     
-    T_O1_O2 = np.array([[1., 0., 0., -0.915],
-                        [0., 1., 0., -0.08],
+    T_O1_O2 = np.array([[1., 0., 0., -0.92],
+                        [0., 1., 0., -0.1],
                         [0., 0., 1., 0.02],
                         [0, 0, 0, 1.]], dtype=np.float32)
     # 13cm - distance end effector to suction cup
@@ -181,6 +182,10 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
                         [ 0,  0, -1],
                         [ 0, -1,  0]], dtype=np.float32)
     # transformations between robot links
+    T_J4_J5 = np.array([[1., 0., 0., 0.],
+                        [0., 0., 1., 0.],
+                        [0., -1., 0., 0.0997],
+                        [0., 0., 0., 1.]], dtype=np.float32)
     T_J5_EE = np.array([[1., 0., 0., 0.],
                         [0., 1., 0., 0.],
                         [0., 0., 1., 0.0996],
@@ -206,7 +211,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
 
     # ABS_POSE_LIMIT_HIGH_ROBOT_2 = np.array([0.569, 0.593, 0.377, 0.05, 0.05, 0.2])
     # ABS_POSE_LIMIT_LOW_ROBOT_2 = np.array([-0.369, 0.295, 0.104, -0.05, -0.05, -0.2])
-    ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
+    ACTION_SCALE = np.array([0.02, 0.1, 2.], dtype=np.float32)
 
     POSE_ESTIMATION_IP = "ws://192.168.1.240:7777"
     POSE_ESTIMATION = False
