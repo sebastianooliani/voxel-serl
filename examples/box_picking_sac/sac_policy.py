@@ -32,7 +32,7 @@ from serl_launcher.utils.launcher import (
     make_replay_buffer,
 )
 
-from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
+from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, SERLObsWrapper
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention
 
 import ur_env
@@ -48,7 +48,7 @@ flags.DEFINE_bool("save_model", True, "Whether to save model.")
 flags.DEFINE_integer("batch_size", 256, "Batch size.")
 flags.DEFINE_integer("utd_ratio", 8, "UTD ratio.")
 flags.DEFINE_integer("reward_scale", 1, "Reward Scale to help out SAC algorithm")
-
+flags.DEFINE_string("camera_mode", "none", "Camera mode, one of (rgb, depth, both)")
 flags.DEFINE_integer("max_steps", 100000, "Maximum number of training steps.")
 flags.DEFINE_integer("replay_buffer_capacity", 1000000, "Replay buffer capacity.")
 flags.DEFINE_multi_string("demo_paths", None,
@@ -312,7 +312,7 @@ def main(_):
         FLAGS.env,
         fake_env=FLAGS.learner,
         max_episode_length=FLAGS.max_traj_length,
-        camera_mode="rgb",
+        camera_mode=FLAGS.camera_mode,
     )
     if FLAGS.actor:
         env = SpacemouseIntervention(env) if not DUAL_SPACEMOUSE else TwoSpacemiceIntervention(env)
