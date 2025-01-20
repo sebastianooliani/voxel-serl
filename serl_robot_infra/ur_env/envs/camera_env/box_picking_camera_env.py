@@ -105,6 +105,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         # TODO: adjust reference frames and relative base positions
         if self.camera_mode in ["none"]:
             distance_cost = 0
+            grasp_reward = 0
         else:
             T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
             T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
@@ -125,14 +126,16 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
             position_cost=position_cost,
             action_diff_cost=action_diff_cost,
             distance_cost=distance_cost,
+            grasp_reward=grasp_reward,
             total_cost=-(-action_cost - step_cost + suction_reward - suction_cost - orientation_cost - position_cost - action_diff_cost - distance_cost),
         )
         for key, info in cost_info.items():
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])
         
         if self.reached_goal_state(obs):
+            print("\nSuccessful lift!\n")
             self.last_action[:] = 0.
-            R_goal = 100.
+            R_goal = 100. if self.camera_mode in ["none"] else 200.
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost
         else:
             return 0. + suction_reward + grasp_reward - action_cost - orientation_cost - position_cost - \
@@ -142,7 +145,8 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         # TODO: adjust this to dual robot
         state = obs["state"]
         # add condition for second robot
-        return 0.1 < state['gripper_state'][0] < 1. and state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.05 and 0.1 < state['gripper_state'][2] < 1. and state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.05 # +1cm for success
+        return (0.1 < state['gripper_state'][0] < 1. and state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.05) and \
+            (0.1 < state['gripper_state'][2] < 1. and state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.05) # +1cm for success
     
     def close(self):
         super().close()
