@@ -1083,8 +1083,8 @@ class UR5DualRobotEnv(UR5Env):
         reward = self.compute_reward(obs, action)
         truncated = self._is_truncated()
         collided = self._is_collided
-        reward = reward if not truncated else reward - 100.  # truncation penalty
-        reward = reward if not collided else reward - 100.  # collision penalty
+        reward = reward if not truncated else reward - 50.  # truncation penalty. Original value in single arm was -10.
+        reward = reward if not collided else reward - 50.  # collision penalty. TODO: adjust this value
         self._is_collided = False
         done = (self.curr_path_length >= self.max_episode_length) or (self.reached_goal_state(obs)) or (truncated)
 
@@ -1162,16 +1162,23 @@ class UR5DualRobotEnv(UR5Env):
         j4_distance = np.linalg.norm(T_O1_J4[:3, 3] - T_O2_J4[:3, 3])
         j4_j5_distance = np.linalg.norm(T_O1_J4[:3, 3] - T_O2_J5[:3, 3])
         j5_j4_distance = np.linalg.norm(T_O1_J5[:3, 3] - T_O2_J4[:3, 3])
+        ee1_j4_distance = np.linalg.norm(T_O1_E1[:3, 3] - T_O2_J4[:3, 3])
+        j4_ee2_distance = np.linalg.norm(T_O1_J4[:3, 3] - T_O1_E2[:3, 3])
         j5_distance = np.linalg.norm(T_O1_J5[:3, 3] - T_O2_J5[:3, 3])
         ee1_j5_distance = np.linalg.norm(T_O1_E1[:3, 3] - T_O2_J5[:3, 3])
         ee2_j5_distance = np.linalg.norm(T_O1_E2[:3, 3] - T_O1_J5[:3, 3])
         grippers_distance = np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
         ee_distance = np.linalg.norm(T_O1_E1[:3, 3] - T_O1_E2[:3, 3])
-        distances = np.array([j4_distance, j4_j5_distance, j5_j4_distance, j5_distance, ee1_j5_distance, ee2_j5_distance, grippers_distance, ee_distance])
+        distances = np.array([j4_distance, j4_j5_distance, j5_j4_distance, 
+                              ee1_j4_distance, j4_ee2_distance,
+                              j5_distance, ee1_j5_distance, ee2_j5_distance, 
+                              grippers_distance, ee_distance])
+
+        # print(f"Distances: {distances}")
 
         # Check if the distance is less than 5 cm (0.05 meters)
         # more added after removing singularity checks
-        if np.any(np.where(distances < 0.12, True, False)): # TODO: adjust this param because it depends on the box size too
+        if np.any(np.where(distances < 0.13, True, False)): # TODO: adjust this param because it depends on the box size too
             print("\nDistance between end effectors is too small. Resetting episode.\n")
             self._is_collided = True
             self.reset()
