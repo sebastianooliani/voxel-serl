@@ -85,25 +85,25 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         step_cost = 0.1
 
         # SUCTION: reward for successful grip and cost for unnecessary suctioning
-        suction_reward = 1 * 3. * (float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5))
+        suction_reward = 0.5 * 3. * (float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5))
         suction_cost = 0.5 * 3. * (float(obs["state"]["gripper_state"][1] < -0.5) + float(obs["state"]["gripper_state"][3] < -0.5))
 
         # ORIENTATION: penalize deviating too much from the starting pose
         orientation_cost = 0
         orientation_cost = 0.5 - sum(obs["state"]["tcp_pose"][3:7] * self.curr_reset_pose[3:7]) ** 2
         orientation_cost += 0.5 - sum(obs["state"]["tcp_pose"][10:] * self.curr_reset_pose[10:]) ** 2
-        orientation_cost = max(orientation_cost - 0.005, 0.) * 30.
+        orientation_cost = max(orientation_cost - 0.005, 0.) * 50.
 
         # POSITION: penalize deviating too much from the starting pose
         max_pose_diff = 0.05  # set to 5cm
         pos_diff = np.concatenate([obs["state"]["tcp_pose"][:2] - self.curr_reset_pose[:2], obs["state"]["tcp_pose"][7:9] - self.curr_reset_pose[7:9]])
-        position_cost = 20. * np.sum(
+        position_cost = 50. * np.sum(
             np.where(np.abs(pos_diff) > max_pose_diff, np.abs(pos_diff - np.sign(pos_diff) * max_pose_diff), 0.0)
         )
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
-        if self.camera_mode in ["none"]:
+        if self.camera_mode in ["pointcloud"]:
             distance_cost = 0
             grasp_reward = 0
         else:
@@ -113,7 +113,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
             T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
             distance_cost = 2. / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
 
-            grasp_reward = 5 * (float(obs["state"]["gripper_state"][1] > 0.5) * np.max(obs["state"]["tcp_pose"][2], 0) +
+            grasp_reward = 10 * (float(obs["state"]["gripper_state"][1] > 0.5) * np.max(obs["state"]["tcp_pose"][2], 0) +
                              float(obs["state"]["gripper_state"][3] > 0.5) * np.max(obs["state"]["tcp_pose"][9], 0))
 
         # TOTAL COST
@@ -127,7 +127,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
             action_diff_cost=action_diff_cost,
             distance_cost=distance_cost,
             grasp_reward=grasp_reward,
-            total_cost=-(-action_cost - step_cost + suction_reward - suction_cost - orientation_cost - position_cost - action_diff_cost - distance_cost),
+            total_cost=-(-action_cost - step_cost + suction_reward + grasp_reward - suction_cost - orientation_cost - position_cost - action_diff_cost - distance_cost),
         )
         for key, info in cost_info.items():
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])

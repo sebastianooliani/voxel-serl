@@ -168,8 +168,8 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
                         [0., 0., 1., 0.01], 
                         [0., 0., 0., 1.]], dtype=np.float32)
     
-    T_O1_O2 = np.array([[1., 0., 0., -0.92],
-                        [0., 1., 0., -0.1],
+    T_O1_O2 = np.array([[1., 0., 0., -0.93],
+                        [0., 1., 0., -0.16],
                         [0., 0., 1., 0.02],
                         [0, 0, 0, 1.]], dtype=np.float32)
     # 13cm - distance end effector to suction cup
@@ -215,6 +215,15 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
 
     POSE_ESTIMATION_IP = "ws://192.168.1.240:7777"
     POSE_ESTIMATION = False
+
+    # rewards weights
+    STEP_WEIGHT = 0.1
+    ACTION_WEIGHT = 0.1
+    ORIENTATION_WEIGHT = 30.
+    POSITION_WEIGHT = 20.
+    DISTANCE_WEIGHT = 2.
+    SUCTION_WEIGHT = 3.
+    GRASP_WEIGHT = 5.
 
     ROBOT_IP_1: str = "192.168.1.66" # docker "172.17.0.2"
     ROBOT_IP_2: str = "192.168.1.33" # docker "172.17.0.3"
