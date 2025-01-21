@@ -4,6 +4,7 @@ from websockets.asyncio.client import connect
 import msgpack
 import matplotlib.pyplot as plt
 import numpy as np
+from datetime import datetime
 
 async def read_vision_from_server():
     """
@@ -91,6 +92,12 @@ class BoxPoseEstimation:
         self.thread = threading.Thread(target=self._run_async_loop)
         self.thread.daemon = True
         self.thread.start()
+
+        self.hz = 30
+
+        self.last_heartbeat = None
+        self.HEARTBEAT_INTERVAL = 30  # seconds
+        self.MAX_RECONNECT_ATTEMPTS = 3
     
     def _run_async_loop(self):
         """Run the async event loop in a separate thread"""
@@ -100,32 +107,72 @@ class BoxPoseEstimation:
             loop.run_until_complete(self._read_vision_from_server())
         except Exception as e:
             print(f"Error in vision server loop: {e}")
+
+    async def receive_message(self, websocket):
+        try:
+            return await asyncio.wait_for(websocket.recv(), timeout=1/self.hz)
+        except asyncio.TimeoutError:
+            raise TimeoutError(f"Operation timed out after {1/self.hz} seconds")
+        except Exception as e:
+            print(f"WebSocket receive error: {e}")
+            raise
+        
+    async def _send_heartbeat(self, websocket):
+        """Send heartbeat to keep connection alive"""
+        try:
+            await websocket.send(msgpack.packb("heartbeat"))
+            self.last_heartbeat = datetime.now()
+        except Exception as e:
+            print(f"Heartbeat error: {e}")
+            raise
     
     async def _read_vision_from_server(self):
         """
         Async function to read data from the server containing box pose
         """
+        reconnect_attempts = 0
+        
         while not self.stop_event.is_set():
             try:
                 async with connect(self.ip_address) as websocket:
-                    message = msgpack.unpackb(await websocket.recv())
-                    
-                    # Safely update the message with a lock
-                    with self.state_lock:
-                        self.pos = message['space'][0]['boxes'][
-                            list(message['space'][0]['boxes'].keys())[0]
-                        ]['world2box']['pos']
-                        self.orient = message['space'][0]['boxes'][
-                            list(message['space'][0]['boxes'].keys())[0]
-                        ]['world2box']['rot']
-                        self.size = message['space'][0]['boxes'][
-                            list(message['space'][0]['boxes'].keys())[0]
-                        ]['size']
-                    
+                    reconnect_attempts = 0  # Reset counter on successful connection
+                    print("Connected to server")
+                    while not self.stop_event.is_set():
+                        if (not self.last_heartbeat or 
+                            (datetime.now() - self.last_heartbeat).seconds >= self.HEARTBEAT_INTERVAL):
+                            await self._send_heartbeat(websocket)
+                                
+                            if self.hz > 0:
+                                await asyncio.sleep(1/self.hz)
+                        try:
+                            raw_message = await self.receive_message(websocket)
+                            message = msgpack.unpackb(raw_message)
+                            # await websocket.send("a")
+                        
+                            print("Message received")
+                            # Safely update the message with a lock
+                            with self.state_lock:
+                                self.pos = message['space'][0]['boxes'][
+                                    list(message['space'][0]['boxes'].keys())[0]
+                                ]['world2box']['pos']
+                                self.orient = message['space'][0]['boxes'][
+                                    list(message['space'][0]['boxes'].keys())[0]
+                                ]['world2box']['rot']
+                        except TimeoutError:
+                            print("Timeout error, continuing...")
+                            self.last_heartbeat = None
+                            continue
+
             except Exception as e:
                 # if the box is not detected, the last self.pos is kept (dict key doesn't exist)
-                print(f"Error reading from vision server: {e}")
-                await asyncio.sleep(1)  # Prevent tight error loop
+                print(f"Connection error: {e}")
+                reconnect_attempts += 1
+                
+                if reconnect_attempts >= self.MAX_RECONNECT_ATTEMPTS:
+                    print("Max reconnection attempts reached")
+                    break
+                    
+                await asyncio.sleep(1)  # Wait before reconnecting
     
     def get_box_position(self):
         """
@@ -154,6 +201,13 @@ class BoxPoseEstimation:
         """
         self.stop_event.set()
         self.thread.join()
+
+    def __del__(self):
+        """
+        Destructor to ensure thread cleanup
+        """
+        if hasattr(self, 'thread') and self.thread.is_alive():
+            self.stop()
 
 if __name__ == "__main__":
     messages = asyncio.run(read_vision_from_server())
