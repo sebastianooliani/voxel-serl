@@ -80,3 +80,28 @@ def orientation_difference_angle_axis(angle_axis1, angle_axis2):
     axis_difference = angle_axis_rel / angle_difference if angle_difference > 1e-6 else np.array([0, 0, 0])
     
     return angle_difference, axis_difference
+
+def quaternion_multiplication(q_ab: np.array, q_bc: np.array):
+    """
+    Compute the multiplication of two quaternions, i.e. q_ac = q_ab * q_bc. 
+    Quaternions are represented with the scalar component as last element.
+
+    Args:
+        q_ab (np.array): First quaternion (4 elements).
+        q_bc (np.array): Second quaternion (4 elements).
+
+    Returns:
+        np.array: Resultant quaternion (4 elements).
+    """
+    # Extract scalar and vector components
+    s_bc, v_bc = q_bc[-1], q_bc[:3]
+    
+    # matrix
+    M = np.array([s_bc, -v_bc[0], -v_bc[1], -v_bc[2]],
+                 [v_bc[0], s_bc, v_bc[2], -v_bc[1]],
+                 [v_bc[1], -v_bc[2], s_bc, v_bc[0]],
+                 [v_bc[2], v_bc[1], -v_bc[0], s_bc])
+    
+    return M @ q_ab
+                  
+    

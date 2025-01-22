@@ -136,7 +136,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])
         
         if self.reached_goal_state(obs):
-            print("\nSuccessful lift!\n")
+            print("\nSuccessfull lift!\n")
             self.last_action[:] = 0.
             R_goal = 100. if self.camera_mode in ["none"] else self.config.SUCCESS_WEIGHT
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost

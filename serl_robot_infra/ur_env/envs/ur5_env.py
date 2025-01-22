@@ -28,10 +28,6 @@ from franka_env.utils.transformations import (
     construct_homogeneous_matrix
 )
 
-from websockets.asyncio.client import connect
-import msgpack
-
-
 class ImageDisplayer(threading.Thread):
     def __init__(self, queue):
         threading.Thread.__init__(self)
@@ -1083,10 +1079,11 @@ class UR5DualRobotEnv(UR5Env):
         reward = self.compute_reward(obs, action)
         truncated = self._is_truncated()
         collided = self._is_collided
-        reward = reward if not truncated else reward - self.config.PENALTY  # truncation penalty. Original value in single arm was -10.
-        reward = reward if not collided else reward - self.config.PENALTY  # collision penalty. TODO: adjust this value
+        reward = reward if not (truncated or collided) else reward - self.config.PENALTY  # truncation penalty. Original value in single arm was -10.
+        # reward = reward if not collided else reward - self.config.PENALTY  # collision penalty. TODO: adjust this value
+        done = (self.curr_path_length >= self.max_episode_length) or (self.reached_goal_state(obs)) or (truncated) or (collided)
         self._is_collided = False
-        done = (self.curr_path_length >= self.max_episode_length) or (self.reached_goal_state(obs)) or (truncated)
+
 
         dt = time.time() - start_time
         to_sleep = max(0, (1.0 / self.hz) - dt)
@@ -1186,7 +1183,6 @@ class UR5DualRobotEnv(UR5Env):
         if np.any(np.where(distances < self.config.SAFETY_THRESHOLD, True, False)): # TODO: adjust this param because it depends on the box size too
             print("\nDistance between end effectors is too small. Resetting episode.\n")
             self._is_collided = True
-            self.reset()
 
         self.controller_1.set_target_pos(target_pos=target_pos[:7])
         self.controller_2.set_target_pos(target_pos=target_pos[7:])
