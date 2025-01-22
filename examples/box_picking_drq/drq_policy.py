@@ -158,10 +158,11 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
     if FLAGS.eval_checkpoint_step and FLAGS.evaluation:
         wandb_logger = make_wandb_logger(
-            project="drq_rgb_top",  # TODO only temporary
+            project=FLAGS.wandb_project,  # TODO only temporary
             description=FLAGS.exp_name or FLAGS.env,
             debug=FLAGS.debug,
         )
+
         success_counter = 0
         time_list = []
 

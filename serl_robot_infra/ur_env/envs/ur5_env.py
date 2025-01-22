@@ -1083,8 +1083,8 @@ class UR5DualRobotEnv(UR5Env):
         reward = self.compute_reward(obs, action)
         truncated = self._is_truncated()
         collided = self._is_collided
-        reward = reward if not truncated else reward - 50.  # truncation penalty. Original value in single arm was -10.
-        reward = reward if not collided else reward - 50.  # collision penalty. TODO: adjust this value
+        reward = reward if not truncated else reward - self.config.PENALTY  # truncation penalty. Original value in single arm was -10.
+        reward = reward if not collided else reward - self.config.PENALTY  # collision penalty. TODO: adjust this value
         self._is_collided = False
         done = (self.curr_path_length >= self.max_episode_length) or (self.reached_goal_state(obs)) or (truncated)
 
@@ -1144,9 +1144,8 @@ class UR5DualRobotEnv(UR5Env):
             self.curr_reset_pose[:] = reset_pose
             return np.zeros((4,))
         
-    def _send_pos_command(self, target_pos: np.ndarray):
-        """Internal function to send force command to the robot."""
-        # Calculate the distance between the two end effectors - collision check
+    def _check_collision(self, target_pos: np.ndarray):
+        """Internal function to check if the robots are colliding."""
         T_O1_E1 = construct_homogeneous_matrix(target_pos[:7])
         T_O2_E2 = construct_homogeneous_matrix(target_pos[7:])
 
@@ -1164,42 +1163,30 @@ class UR5DualRobotEnv(UR5Env):
         j5_j4_distance = np.linalg.norm(T_O1_J5[:3, 3] - T_O2_J4[:3, 3])
         ee1_j4_distance = np.linalg.norm(T_O1_E1[:3, 3] - T_O2_J4[:3, 3])
         j4_ee2_distance = np.linalg.norm(T_O1_J4[:3, 3] - T_O1_E2[:3, 3])
+
         j5_distance = np.linalg.norm(T_O1_J5[:3, 3] - T_O2_J5[:3, 3])
         ee1_j5_distance = np.linalg.norm(T_O1_E1[:3, 3] - T_O2_J5[:3, 3])
         ee2_j5_distance = np.linalg.norm(T_O1_E2[:3, 3] - T_O1_J5[:3, 3])
+
         grippers_distance = np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
         ee_distance = np.linalg.norm(T_O1_E1[:3, 3] - T_O1_E2[:3, 3])
+
         distances = np.array([j4_distance, j4_j5_distance, j5_j4_distance, 
                               ee1_j4_distance, j4_ee2_distance,
                               j5_distance, ee1_j5_distance, ee2_j5_distance, 
                               grippers_distance, ee_distance])
-
-        # print(f"Distances: {distances}")
+        
+        return distances
+        
+    def _send_pos_command(self, target_pos: np.ndarray):
+        """Internal function to send force command to the robot."""
+        distances = self._check_collision(target_pos)
 
         # Check if the distance is less than 5 cm (0.05 meters)
-        # more added after removing singularity checks
-        if np.any(np.where(distances < 0.13, True, False)): # TODO: adjust this param because it depends on the box size too
+        if np.any(np.where(distances < self.config.SAFETY_THRESHOLD, True, False)): # TODO: adjust this param because it depends on the box size too
             print("\nDistance between end effectors is too small. Resetting episode.\n")
             self._is_collided = True
             self.reset()
-
-        # state = self.controller_1.get_state()
-
-        # move to singularity free configurations only
-        # if np.abs(self.controller_1.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
-        #     self.controller_1._is_truncated.set()
-        #     print("\nSingularity detected! Reset the agent!\n")
-        #     self.controller_1.restart_ur_interface()
-        #     self.controller_2.restart_ur_interface()
-
-        # state = self.controller_2.get_state()
-
-        # move to singularity free configurations only
-        # if np.abs(self.controller_2.evaluate_manipulability(joint_pos=state['Q'])) < 0.001:
-        #     self.controller_2._is_truncated.set()
-        #     print("\nSingularity detected! Reset the agent!\n")
-        #     self.controller_1.restart_ur_interface()
-        #     self.controller_2.restart_ur_interface()
 
         self.controller_1.set_target_pos(target_pos=target_pos[:7])
         self.controller_2.set_target_pos(target_pos=target_pos[7:])

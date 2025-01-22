@@ -77,33 +77,34 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
     def compute_reward(self, obs, action) -> float:
         # TODO: adjust actions dimensions
         # ACTION: penalize large action and action difference
-        action_cost = 0.1 * np.sum(np.power(action, 2))
-        action_diff_cost = 0.1 * np.sum(np.power(obs["state"]["action"] - self.last_action, 2))
+        action_cost = self.config.ACTION_WEIGHT * np.sum(np.power(action, 2))
+        action_diff_cost = self.config.ACTION_WEIGHT * np.sum(np.power(obs["state"]["action"] - self.last_action, 2))
         self.last_action[:] = action
         
         # STEP: penalize each step
-        step_cost = 0.1
+        step_cost = self.config.STEP_WEIGHT
 
         # SUCTION: reward for successful grip and cost for unnecessary suctioning
-        suction_reward = 0.5 * 3. * (float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5))
-        suction_cost = 0.5 * 3. * (float(obs["state"]["gripper_state"][1] < -0.5) + float(obs["state"]["gripper_state"][3] < -0.5))
+        suction_reward = self.config.SUCTION_WEIGHT * (float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5))
+        suction_cost = self.config.SUCTION_WEIGHT * (float(obs["state"]["gripper_state"][1] < -0.5) + float(obs["state"]["gripper_state"][3] < -0.5))
 
         # ORIENTATION: penalize deviating too much from the starting pose
         orientation_cost = 0
         orientation_cost = 0.5 - sum(obs["state"]["tcp_pose"][3:7] * self.curr_reset_pose[3:7]) ** 2
         orientation_cost += 0.5 - sum(obs["state"]["tcp_pose"][10:] * self.curr_reset_pose[10:]) ** 2
-        orientation_cost = max(orientation_cost - 0.005, 0.) * 50.
+        orientation_cost = max(orientation_cost - 0.005, 0.) * self.config.ORIENTATION_WEIGHT
 
         # POSITION: penalize deviating too much from the starting pose
         max_pose_diff = 0.05  # set to 5cm
         pos_diff = np.concatenate([obs["state"]["tcp_pose"][:2] - self.curr_reset_pose[:2], obs["state"]["tcp_pose"][7:9] - self.curr_reset_pose[7:9]])
-        position_cost = 50. * np.sum(
+        position_cost = self.config.POSITION_WEIGHT * np.sum(
             np.where(np.abs(pos_diff) > max_pose_diff, np.abs(pos_diff - np.sign(pos_diff) * max_pose_diff), 0.0)
         )
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
-        if self.camera_mode in ["pointcloud"]:
+        if self.camera_mode in ["none"]:
+            # when successfully runnning sac without wrist cameras, these were not used.
             distance_cost = 0
             grasp_reward = 0
         else:
@@ -111,10 +112,12 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
             T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
             T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
             T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
-            distance_cost = 2. / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
+            distance_cost = self.config.DISTANCE_WEIGHT / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
 
-            grasp_reward = 10 * (float(obs["state"]["gripper_state"][1] > 0.5) * np.max(obs["state"]["tcp_pose"][2], 0) +
+            grasp_reward = self.config.GRASP_WEIGHT * (float(obs["state"]["gripper_state"][1] > 0.5) * np.max(obs["state"]["tcp_pose"][2], 0) +
                              float(obs["state"]["gripper_state"][3] > 0.5) * np.max(obs["state"]["tcp_pose"][9], 0))
+            
+            # suction_reward = 0.
 
         # TOTAL COST
         cost_info = dict(
@@ -135,7 +138,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         if self.reached_goal_state(obs):
             print("\nSuccessful lift!\n")
             self.last_action[:] = 0.
-            R_goal = 100. if self.camera_mode in ["none"] else 200.
+            R_goal = 100. if self.camera_mode in ["none"] else self.config.SUCCESS_WEIGHT
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost
         else:
             return 0. + suction_reward + grasp_reward - action_cost - orientation_cost - position_cost - \

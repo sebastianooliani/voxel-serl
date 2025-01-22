@@ -207,7 +207,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     ABS_POSE_LIMIT_HIGH_ROBOT_1_LIFT = np.array([-0.290, 0.363, 0.377, 0.05, 0.05, 0.2])
     ABS_POSE_LIMIT_LOW_ROBOT_1_LIFT = np.array([-0.640, 0.030, 0.128, -0.05, -0.05, -0.2])
     ABS_POSE_LIMIT_HIGH_ROBOT_2_LIFT = np.array([0.612, 0.116, 0.377, 0.05, 0.05, 0.2])
-    ABS_POSE_LIMIT_LOW_ROBOT_2_LIFT = np.array([0.300, -0.315, 0.128, -0.05, -0.05, -0.2])
+    ABS_POSE_LIMIT_LOW_ROBOT_2_LIFT = np.array([0.380, -0.315, 0.128, -0.05, -0.05, -0.2])
 
     # ABS_POSE_LIMIT_HIGH_ROBOT_2 = np.array([0.569, 0.593, 0.377, 0.05, 0.05, 0.2])
     # ABS_POSE_LIMIT_LOW_ROBOT_2 = np.array([-0.369, 0.295, 0.104, -0.05, -0.05, -0.2])
@@ -219,11 +219,14 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     # rewards weights
     STEP_WEIGHT = 0.1
     ACTION_WEIGHT = 0.1
-    ORIENTATION_WEIGHT = 30.
-    POSITION_WEIGHT = 20.
+    ORIENTATION_WEIGHT = 50.
+    POSITION_WEIGHT = 50.
     DISTANCE_WEIGHT = 2.
-    SUCTION_WEIGHT = 3.
-    GRASP_WEIGHT = 5.
+    SUCTION_WEIGHT = 1.5
+    GRASP_WEIGHT = 10.
+    SUCCESS_WEIGHT = 500.
+    PENALTY = 50.
+    SAFETY_THRESHOLD = 0.13
 
     ROBOT_IP_1: str = "192.168.1.66" # docker "172.17.0.2"
     ROBOT_IP_2: str = "192.168.1.33" # docker "172.17.0.3"
