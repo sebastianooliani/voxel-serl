@@ -15,7 +15,7 @@ python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy.py "$@" \
     --batch_size 128 \
     --checkpoint_period 500 \
     --checkpoint_path /home/sebastiano/voxel-serl/examples/box_picking_drq/experiment_setup/VoxNet_pretrained/checkpoints \
-    --demo_path /home/sebastiano/voxel-serl/examples/box_picking_drq/box_picking_20_demos_2025-01-20_17-09-45_dual_lift_pcd.pkl \
+    --demo_path /home/sebastiano/voxel-serl/examples/box_picking_drq/box_picking_20_demos_2025-01-22_10-23-15_dual_lift_pcd.pkl \
     --dual \
     --encoder_type voxnet-pretrained \
     --state_mask dual \
