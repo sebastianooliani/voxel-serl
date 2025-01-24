@@ -90,8 +90,8 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
 
         # ORIENTATION: penalize deviating too much from the starting pose
         orientation_cost = 0
-        orientation_cost = 0.5 - sum(obs["state"]["tcp_pose"][3:7] * self.curr_reset_pose[3:7]) ** 2
-        orientation_cost += 0.5 - sum(obs["state"]["tcp_pose"][10:] * self.curr_reset_pose[10:]) ** 2
+        orientation_cost = 1 - sum(obs["state"]["tcp_pose"][3:7] * self.curr_reset_pose[3:7]) ** 2
+        orientation_cost += 1 - sum(obs["state"]["tcp_pose"][10:] * self.curr_reset_pose[10:]) ** 2
         orientation_cost = max(orientation_cost - 0.005, 0.) * self.config.ORIENTATION_WEIGHT
 
         # POSITION: penalize deviating too much from the starting pose

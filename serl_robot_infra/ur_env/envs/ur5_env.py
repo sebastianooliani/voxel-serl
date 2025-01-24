@@ -1179,8 +1179,10 @@ class UR5DualRobotEnv(UR5Env):
         """Internal function to send force command to the robot."""
         distances = self._check_collision(target_pos)
 
+        grasp = (self.gripper_state[1] > 0.5) and (self.gripper_state[3] > 0.5)
+
         # Check if the distance is less than 5 cm (0.05 meters)
-        if np.any(np.where(distances < self.config.SAFETY_THRESHOLD, True, False)): # TODO: adjust this param because it depends on the box size too
+        if np.any(np.where(distances < self.config.SAFETY_THRESHOLD, True, False)) and not grasp: # TODO: adjust this param because it depends on the box size too
             print("\nDistance between end effectors is too small. Resetting episode.\n")
             self._is_collided = True
 

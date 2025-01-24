@@ -7,7 +7,7 @@ python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy.py "$@" \
     --exp_name="dual lift voxnet pretrained" \
     --camera_mode pointcloud \
     --max_traj_length 100 \
-    --seed 1 \
+    --seed 42 \
     --max_steps 25000 \
     --random_steps 0 \
     --training_starts 500 \
@@ -15,7 +15,7 @@ python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy.py "$@" \
     --batch_size 128 \
     --checkpoint_period 500 \
     --checkpoint_path /home/sebastiano/voxel-serl/examples/box_picking_drq/experiment_setup/VoxNet_pretrained/checkpoints \
-    --demo_path /home/sebastiano/voxel-serl/examples/box_picking_drq/box_picking_20_demos_2025-01-22_10-23-15_dual_lift_pcd.pkl \
+    --demo_path /home/sebastiano/voxel-serl/examples/box_picking_drq/box_picking_20_demos_2025-01-24_16-00-04_dual_lift_pcd.pkl \
     --dual \
     --encoder_type voxnet-pretrained \
     --state_mask dual \

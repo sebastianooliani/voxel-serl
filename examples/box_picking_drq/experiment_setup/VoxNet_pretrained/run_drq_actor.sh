@@ -7,7 +7,7 @@ python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy.py "$@" \
     --exp_name="dual lift voxnet pretrained" \
     --camera_mode pointcloud \
     --max_traj_length 100 \
-    --seed 1 \
+    --seed 42 \
     --max_steps 25000 \
     --random_steps 0 \
     --training_starts 500 \
