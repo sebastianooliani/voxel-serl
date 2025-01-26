@@ -708,6 +708,7 @@ class UR5DualRobotEnv(UR5Env):
         self.action_scale = config.ACTION_SCALE
 
         self.config = config
+        self.reward_dict = self.config.REWARD_DICT[self.config.TASK]
 
         self.dual = config.DUAL
         self._is_collided = False

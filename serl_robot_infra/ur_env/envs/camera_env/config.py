@@ -228,6 +228,46 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     PENALTY = 150.
     SAFETY_THRESHOLD = 0.13
 
+    # reward dictionaries
+    REWARD_DICT = {
+        "lift": {
+            "step_weight": STEP_WEIGHT,
+            "action_weight": ACTION_WEIGHT,
+            "orientation_weight": ORIENTATION_WEIGHT,
+            "position_weight": POSITION_WEIGHT,
+            "distance_weight": DISTANCE_WEIGHT,
+            "suction_weight": SUCTION_WEIGHT,
+            "grasp_weight": GRASP_WEIGHT,
+            "success_weight": SUCCESS_WEIGHT,
+            "penalty": PENALTY,
+            "safety_threshold": SAFETY_THRESHOLD,
+        },
+        "reorient": {
+            "step_weight": STEP_WEIGHT,
+            "action_weight": ACTION_WEIGHT,
+            "orientation_weight": 25.,
+            "position_weight": POSITION_WEIGHT,
+            "distance_weight": DISTANCE_WEIGHT,
+            "suction_weight": 1.5,
+            "rotation_weight": 30.,
+            "success_weight": 100.,
+            "penalty": 10.,
+            "safety_threshold": SAFETY_THRESHOLD,
+        },
+        "motion": {
+            "step_weight": STEP_WEIGHT,
+            "action_weight": ACTION_WEIGHT,
+            "orientation_weight": ORIENTATION_WEIGHT,
+            "position_weight": POSITION_WEIGHT,
+            "distance_weight": DISTANCE_WEIGHT,
+            "suction_weight": SUCTION_WEIGHT,
+            "grasp_weight": GRASP_WEIGHT,
+            "success_weight": SUCCESS_WEIGHT,
+            "penalty": PENALTY,
+            "safety_threshold": SAFETY_THRESHOLD,
+        }
+    }
+
     ROBOT_IP_1: str = "192.168.1.66" # docker "172.17.0.2"
     ROBOT_IP_2: str = "192.168.1.33" # docker "172.17.0.3"
     ROBOT_PORT_1: int = 30004
