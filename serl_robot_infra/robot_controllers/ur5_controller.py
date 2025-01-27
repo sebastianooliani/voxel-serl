@@ -78,7 +78,7 @@ class UrImpedanceController(threading.Thread):
         self._compute_manipulability = jax.jit(self._compute_manipulability_raw)
         self.J = jnp.zeros((1, 6, 6))
         self.box = (
-            BoxPoseEstimation(ip_address=self.config.pose_estimation_ip) 
+            BoxPoseEstimation(ip_address=self.pose_estimation_ip) 
             if self.config.POSE_ESTIMATION 
             else 0
             )
@@ -96,17 +96,17 @@ class UrImpedanceController(threading.Thread):
 
         # how to read the reset_Q variable based on the robot used
         if self.robot_ip[-2:] == "66":
-            self.reset_Q = config.RESET_Q[0, :6]
+            self.reset_Q = config.RESET_Q[self.config.TASK][0, :6]
             if self.config.DUAL:
                 self.mid_reset_Q = config.MID_RESET_Q[0, :6]
         elif self.robot_ip[-2:] == "33":
             if self.config.DUAL:
-                self.reset_Q = config.RESET_Q[0, 6:]
+                self.reset_Q = config.RESET_Q[self.config.TASK][0, 6:]
                 self.mid_reset_Q = config.MID_RESET_Q[0, 6:]
             else:
-                self.reset_Q = config.RESET_Q[0, :6]
+                self.reset_Q = config.RESET_Q[self.config.TASK][0, :6]
         elif self.robot_ip[:3] == "172":
-            self.reset_Q = config.RESET_Q[0, :6]
+            self.reset_Q = config.RESET_Q[self.config.TASK][0, :6]
 
         self.reset_Pose = np.zeros_like(self.reset_Q[:6])
         self.reset_height = np.array([0.1], dtype=np.float32)  # TODO make customizable
@@ -478,8 +478,8 @@ class UrImpedanceController(threading.Thread):
                 if self._reset.is_set():
                     await self._update_robot_state()
                     await self._go_to_reset_pose()
-                    if self.config.DUAL and self.config.POSE_ESTIMATION:
-                        await self._calibrate_starting_pose()
+                    # if self.config.DUAL and self.config.POSE_ESTIMATION:
+                    #     await self._calibrate_starting_pose()
 
                 t_now = time.monotonic()
                 # update robot state and check for truncation

@@ -280,9 +280,10 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         if self.pose_est:
             self._update_box_orientation_estimate()
             if self.init:
-                self.init_box_orientation = R.from_rotvec(self.box_orientation).as_mrp()
-                self.last_orientation = self.init_box_orientation
+                self.init_box_orientation = self.box_orientation # here is in rotvec
+                self.last_orientation = R.from_rotvec(self.init_box_orientation).as_mrp()
                 self.init = False
+                # print(f"Initial box orientation: {self.init_box_orientation}")
                 
         self._update_currpos()
         state_observation = {
@@ -323,7 +324,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         orientation_cost = max(orientation_cost - 0.005, 0.) * self.reward_dict["orientation_weight"]
 
         # POSITION: penalize deviating too much from the starting pose
-        max_pose_diff = 0.15 # TODO: adjust this value
+        max_pose_diff = 0.30 # TODO: adjust this value
         pos_diff = np.concatenate([obs["state"]["tcp_pose"][:2] - self.curr_reset_pose[:2], obs["state"]["tcp_pose"][7:9] - self.curr_reset_pose[7:9]])
         position_cost = self.reward_dict["position_weight"] * np.sum(
             np.where(np.abs(pos_diff) > max_pose_diff, 
@@ -331,7 +332,9 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
                      0.0)
         )
 
-        rotation_reward = self.reward_dict["rotation_weight"] * np.max(obs["state"]["box_orientation"][2] - self.last_orientation[2])
+        rotation_reward = self.reward_dict["rotation_weight"] * np.abs(obs["state"]["box_orientation"][2] - self.last_orientation[2])
+        print(f"Rotation reward: {rotation_reward}")
+        print(obs["state"]["box_orientation"][2] - self.last_orientation[2])
         self.last_orientation = obs["state"]["box_orientation"]
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
@@ -371,11 +374,26 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
     def reached_goal_state(self, obs) -> bool:
         state = obs['state']
         # TODO: fix orientation error threshold
-        # perform a 90° degrees rotation around the z-axis
+        # perform a 45° degrees rotation around the z-axis
         # convert obs from MRP to rotation vector
         rot_angle, _ = orientation_difference_angle_axis(self.init_box_orientation, R.from_mrp(state['box_orientation']).as_rotvec())
+        # print(f"Rotation angle: {rot_angle}")
         # 0.09 rad = 5° tolerance
-        return (np.abs(rot_angle) - np.pi/4) < 0.09 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
+        return (np.abs(rot_angle - np.pi/4)) < 0.09 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
+    
+    def reset(self, **kwargs):
+        self.cycle_count += 1
+        if self.save_video:
+            self.save_video_recording()
+
+        shift = self.go_to_rest()
+        self.curr_path_length = 0
+
+        # at the end of the episode, reset the box initial orientation
+        self.init = True
+
+        obs = self._get_obs(np.zeros_like(self.last_action))
+        return obs, {"reset_shift": shift}
 
 ############################################################################################################
 

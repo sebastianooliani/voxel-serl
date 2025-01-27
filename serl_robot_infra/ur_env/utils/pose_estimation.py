@@ -149,7 +149,7 @@ class BoxPoseEstimation:
                             message = msgpack.unpackb(raw_message)
                             # await websocket.send("a")
                         
-                            print("Message received")
+                            # print("Message received")
                             # Safely update the message with a lock
                             with self.state_lock:
                                 self.pos = message['space'][0]['boxes'][

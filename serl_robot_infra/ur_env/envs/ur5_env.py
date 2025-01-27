@@ -767,41 +767,27 @@ class UR5DualRobotEnv(UR5Env):
         # pay attention that you are not clipping the "absolute" value of the angles,   #
         # but the orientation difference with the starting orientation                  #
         #################################################################################
-        if self.config.TASK in ["lift"]:
-            # use shinked bounding boxes for the lift task
-            self.xyz_bounding_box_1 = gym.spaces.Box(
-                config.ABS_POSE_LIMIT_LOW_ROBOT_1_LIFT[:3],
-                config.ABS_POSE_LIMIT_HIGH_ROBOT_1_LIFT[:3],
-                dtype=np.float64,
-            )
+        self.xyz_bounding_box_1 = gym.spaces.Box(
+            config.ABS_POSE_LIMIT_LOW_ROBOT_1[self.config.TASK][:3],
+            config.ABS_POSE_LIMIT_HIGH_ROBOT_1[self.config.TASK][:3],
+            dtype=np.float64,
+        )
 
-            self.xyz_bounding_box_2 = gym.spaces.Box(
-                config.ABS_POSE_LIMIT_LOW_ROBOT_2_LIFT[:3],
-                config.ABS_POSE_LIMIT_HIGH_ROBOT_2_LIFT[:3],
-                dtype=np.float64,
-            )
-        else:
-            self.xyz_bounding_box_1 = gym.spaces.Box(
-                config.ABS_POSE_LIMIT_LOW_ROBOT_1[:3],
-                config.ABS_POSE_LIMIT_HIGH_ROBOT_1[:3],
-                dtype=np.float64,
-            )
-
-            self.xyz_bounding_box_2 = gym.spaces.Box(
-                config.ABS_POSE_LIMIT_LOW_ROBOT_2[:3],
-                config.ABS_POSE_LIMIT_HIGH_ROBOT_2[:3],
-                dtype=np.float64,
-            )
+        self.xyz_bounding_box_2 = gym.spaces.Box(
+            config.ABS_POSE_LIMIT_LOW_ROBOT_2[self.config.TASK][:3],
+            config.ABS_POSE_LIMIT_HIGH_ROBOT_2[self.config.TASK][:3],
+            dtype=np.float64,
+        )
 
         self.mrp_bounding_box_1 = gym.spaces.Box(
-            config.ABS_POSE_LIMIT_LOW_ROBOT_1[3:],
-            config.ABS_POSE_LIMIT_HIGH_ROBOT_1[3:],
+            config.ABS_POSE_LIMIT_LOW_ROBOT_1[self.config.TASK][3:],
+            config.ABS_POSE_LIMIT_HIGH_ROBOT_1[self.config.TASK][3:],
             dtype=np.float64,
         )
         
         self.mrp_bounding_box_2 = gym.spaces.Box(
-            config.ABS_POSE_LIMIT_LOW_ROBOT_2[3:],
-            config.ABS_POSE_LIMIT_HIGH_ROBOT_2[3:],
+            config.ABS_POSE_LIMIT_LOW_ROBOT_2[self.config.TASK][3:],
+            config.ABS_POSE_LIMIT_HIGH_ROBOT_2[self.config.TASK][3:],
             dtype=np.float64,
         )
 
