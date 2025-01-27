@@ -253,7 +253,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     POSITION_WEIGHT = 10.
     DISTANCE_WEIGHT = 0.5
     SUCTION_WEIGHT = 1.
-    GRASP_WEIGHT = 10.
+    GRASP_WEIGHT = 15.
     SUCCESS_WEIGHT = 200.
     PENALTY = 150.
     SAFETY_THRESHOLD = 0.13
@@ -276,10 +276,10 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "step_weight": STEP_WEIGHT,
             "action_weight": ACTION_WEIGHT,
             "orientation_weight": 25.,
-            "position_weight": POSITION_WEIGHT,
+            "position_weight": 10.,
             "distance_weight": DISTANCE_WEIGHT,
             "suction_weight": 1.5,
-            "rotation_weight": 30.,
+            "rotation_weight": 100.,
             "success_weight": 100.,
             "penalty": 10.,
             "safety_threshold": SAFETY_THRESHOLD,
@@ -287,12 +287,12 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
         "motion": {
             "step_weight": STEP_WEIGHT,
             "action_weight": ACTION_WEIGHT,
-            "orientation_weight": ORIENTATION_WEIGHT,
-            "position_weight": POSITION_WEIGHT,
+            "orientation_weight": 25.,
+            "position_weight": 1.,
             "distance_weight": DISTANCE_WEIGHT,
-            "suction_weight": SUCTION_WEIGHT,
-            "grasp_weight": GRASP_WEIGHT,
-            "success_weight": SUCCESS_WEIGHT,
+            "suction_weight": 1.5,
+            "goal_weight": 10.,
+            "success_weight": 100.,
             "penalty": PENALTY,
             "safety_threshold": SAFETY_THRESHOLD,
         }

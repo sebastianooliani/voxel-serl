@@ -721,7 +721,7 @@ class UR5DualRobotEnv(UR5Env):
             np.ones((14,), dtype=np.float32),
         )
 
-        self.resetQ = config.RESET_Q
+        self.resetQ = config.RESET_Q[config.TASK]
         self.curr_reset_pose = np.zeros((14,), dtype=np.float32)
         self.curr_pos = np.zeros((14,), dtype=np.float32)
         self.curr_vel = np.zeros((12,), dtype=np.float32)

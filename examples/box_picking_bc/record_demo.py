@@ -10,9 +10,8 @@ from pprint import pprint
 from pynput import keyboard
 import sys
 
-sys.path.append("../../serl_robot_infra")
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention
-from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
+from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, SERLObsWrapper
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 
 from gymnasium.wrappers import TransformReward
@@ -35,7 +34,7 @@ def on_esc(key):
 DUAL = True
 
 if __name__ == "__main__":
-    env = gym.make("box_picking_camera_env_dual_robot",
+    env = gym.make("box_picking_camera_env_dual_robot_reorientation",
                    camera_mode="none") if DUAL else gym.make("box_picking_camera_env", camera_mode="none")
     
     DUAL_SPACEMOUSE = env.env.env.env.config.DUAL
@@ -43,7 +42,8 @@ if __name__ == "__main__":
     env = TwoSpacemiceIntervention(env) if DUAL_SPACEMOUSE else SpacemouseIntervention(env)
     env = DualRelativeFrame(env) if DUAL_SPACEMOUSE else RelativeFrame(env)
     env = DualQuat2MrpWrapper(env) if DUAL_SPACEMOUSE else Quat2MrpWrapper(env)
-    env = SerlObsWrapperNoImages(env)
+    # env = SERLObsWrapper(env)
+    env = SerlObsWrapperNoImages(env) # if env.env.env.env.camera_mode in ["none"] else SERLObsWrapper(env)
     # env = TransformReward(env, lambda r: 10. * r)
     # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     transitions = []
     her_transitions = []
     success_count = 0
-    success_needed = 1
+    success_needed = 20
     total_count = 0
     pbar = tqdm(total=success_needed)
 
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     listener_2.start()
 
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"ur5_test_{success_needed}_demos_{uuid}.pkl"
+    file_name = f"ur5_test_{success_needed}_demos_{uuid}_reorient_none.pkl"
     file_dir = os.path.dirname(os.path.realpath(__file__))  # same dir as this script
     file_path = os.path.join(file_dir, file_name)
 
