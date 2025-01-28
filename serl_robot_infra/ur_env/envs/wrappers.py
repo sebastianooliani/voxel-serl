@@ -52,10 +52,12 @@ class SpacemouseIntervention(gym.ActionWrapper):
         """
         # Get the current SpaceMouse input, considering the deadspace.
         expert_a = self.get_deadspace_action()
+        intervened = False
 
         # If the SpaceMouse is moved or buttons are pressed, update the last intervention time.
         if np.linalg.norm(expert_a) > 0.001 or self.left.any() or self.right.any():
             self.last_intervene = time.time()
+            intervened = True
 
         # Handle gripper action if gripper control is enabled.
         if self.gripper_enabled:
@@ -65,12 +67,12 @@ class SpacemouseIntervention(gym.ActionWrapper):
             expert_a = np.concatenate((expert_a, gripper_action), axis=0)
 
         # If the last intervention was within 0.5 seconds, adapt and return the SpaceMouse output.
-        if time.time() - self.last_intervene < 0.5:
+        if time.time() - self.last_intervene < 0.5 and intervened:
             expert_a = self.adapt_spacemouse_output(expert_a)
-            return expert_a
+            return expert_a, True
 
         # If no recent intervention, return the original policy action.
-        return action
+        return action, False
 
     def get_deadspace_action(self) -> np.ndarray:
         """
@@ -129,13 +131,15 @@ class SpacemouseIntervention(gym.ActionWrapper):
         Step the environment, using either the SpaceMouse action (if intervening) or the policy action.
         """
         # Get the new action after considering potential SpaceMouse interventions.
-        new_action = self.action(action)
+        new_action, replaced = self.action(action)
 
         # Step the environment with the chosen action.
         obs, rew, done, truncated, info = self.env.step(new_action)
 
         # Add additional information to the info dictionary about the intervention.
-        info["intervene_action"] = new_action
+        if replaced:
+            info["intervene_action"] = new_action
+            
         info["left"] = self.left.any()  # Whether the left button is pressed.
         info["right"] = self.right.any()  # Whether the right button is pressed.
 
@@ -154,13 +158,15 @@ class TwoSpacemiceIntervention(gym.Wrapper):
         action_left = action[:7]
         action_right = action[7:]
 
-        new_action_left = self.expert_left.action(action_left)
-        new_action_right = self.expert_right.action(action_right)
+        new_action_left, replaced_left = self.expert_left.action(action_left)
+        new_action_right, replaced_right = self.expert_right.action(action_right)
         new_action = np.concatenate((new_action_left, new_action_right), axis=0)
  
         obs, rew, done, truncated, info = self.env.step(new_action)
 
-        info["intervene_action"] = new_action
+        if replaced_left or replaced_right:
+            info["intervene_action"] = new_action
+        
         info["left"] = self.expert_left.left.any() or self.expert_right.left.any()  # Whether the left button is pressed.
         info["right"] = self.expert_left.right.any() or self.expert_right.right.any()  # Whether the right button is pressed.
 
