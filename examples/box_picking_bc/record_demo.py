@@ -73,6 +73,7 @@ if __name__ == "__main__":
         raise PermissionError(f"No permission to write to {file_dir}")
 
     try:
+        running_return = 0
         while success_count < success_needed:
             if exit_program.is_set():
                 raise KeyboardInterrupt  # stop program, but clean up before
@@ -95,6 +96,7 @@ if __name__ == "__main__":
             # pprint(transition)
 
             obs = next_obs
+            running_return += rew
 
             if done:
                 success_count += int(rew > 0.99)
@@ -104,6 +106,9 @@ if __name__ == "__main__":
                 )
                 pbar.update(int(rew > 0.99))
                 obs, _ = env.reset()
+
+                print(f"Running return: {running_return}\n")
+                running_return = 0
 
         with open(file_path, "wb") as f:
             pkl.dump(transitions, f)

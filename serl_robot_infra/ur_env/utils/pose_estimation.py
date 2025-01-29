@@ -97,7 +97,7 @@ class BoxPoseEstimation:
 
         self.last_heartbeat = None
         self.HEARTBEAT_INTERVAL = 30  # seconds
-        self.MAX_RECONNECT_ATTEMPTS = 3
+        self.MAX_RECONNECT_ATTEMPTS = 10000
     
     def _run_async_loop(self):
         """Run the async event loop in a separate thread"""
@@ -159,13 +159,13 @@ class BoxPoseEstimation:
                                     list(message['space'][0]['boxes'].keys())[0]
                                 ]['world2box']['rot']
                         except TimeoutError:
-                            print("Timeout error, continuing...")
+                            # print("Timeout error, continuing...")
                             self.last_heartbeat = None
                             continue
 
             except Exception as e:
                 # if the box is not detected, the last self.pos is kept (dict key doesn't exist)
-                print(f"Connection error: {e}")
+                # print(f"Connection error: {e}")
                 reconnect_attempts += 1
                 
                 if reconnect_attempts >= self.MAX_RECONNECT_ATTEMPTS:
@@ -183,7 +183,7 @@ class BoxPoseEstimation:
         
     def get_box_orientation(self):
         """
-        Thread-safe method to get the current box orientation
+        Thread-safe method to get the current box orientation expressed in angle-axis representation
         """
         with self.state_lock:
             return np.array(self.orient)
