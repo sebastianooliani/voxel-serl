@@ -7,6 +7,7 @@ import datetime
 import os
 import threading
 from pynput import keyboard
+from absl import flags
 
 from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
 from ur_env.envs.wrappers import SpacemouseIntervention, TwoSpacemiceIntervention, DualQuat2MrpWrapper, Quat2MrpWrapper, ObservationRotationWrapper
@@ -30,17 +31,18 @@ def on_esc(key):
     if key == keyboard.Key.esc:
         exit_program.set()
 
+FLAGS = flags.FLAGS
+flags.DEFINE_boolean("dual", True, "Whether to use dual spacemice or not.")
+
 if __name__ == "__main__":
     env = gym.make("box_picking_camera_env_dual_robot",
                    camera_mode="pointcloud",
                    max_episode_length=100,
                    )
     
-    DUAL = env.env.env.env.config.DUAL
-    
-    env = SpacemouseIntervention(env) if not DUAL else TwoSpacemiceIntervention(env)
-    env = RelativeFrame(env) if not DUAL else DualRelativeFrame(env)
-    env = Quat2MrpWrapper(env) if not DUAL else DualQuat2MrpWrapper(env)
+    env = SpacemouseIntervention(env) if not FLAGS.dual else TwoSpacemiceIntervention(env)
+    env = RelativeFrame(env) if not FLAGS.dual else DualRelativeFrame(env)
+    env = Quat2MrpWrapper(env) if not FLAGS.dual else DualQuat2MrpWrapper(env)
     env = ScaleObservationWrapper(env)
     # env = ObservationRotationWrapper(env)       # if it should be enabled
     env = SERLObsWrapper(env)
@@ -76,7 +78,7 @@ if __name__ == "__main__":
             if exit_program.is_set():
                 raise KeyboardInterrupt  # stop program, but clean up before
 
-            action = np.zeros((14,)) if DUAL else np.zeros((7,))
+            action = np.zeros((14,)) if FLAGS.dual else np.zeros((7,))
             next_obs, rew, done, truncated, info = env.step(action=action)
             actions = info["intervene_action"]
 

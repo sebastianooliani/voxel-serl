@@ -10,6 +10,7 @@ from pynput import keyboard
 import math
 from scipy.spatial.transform import Rotation as R
 from pprint import pprint
+from absl import flags
 
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention, SampleGoalPositionsWrapper
 from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
@@ -32,19 +33,18 @@ def on_esc(key):
     if key == keyboard.Key.esc:
         exit_program.set()
 
-DUAL = True
+FLAGS = flags.FLAGS
+flags.DEFINE_boolean("dual", True, "Whether to use dual spacemice or not.")
+flags.DEFINE_boolean("her", True, "Whether to use HER or not.")
 
 if __name__ == "__main__":
     env = gym.make("box_picking_camera_env_dual_robot_motion_planning",
-                   camera_mode="none") if DUAL else gym.make("box_picking_camera_env", camera_mode="rgb")
-
-    DUAL_SPACEMOUSE = env.env.env.env.config.DUAL
-    HER_EPISODE = env.env.env.env.config.HER
+                   camera_mode="none") if FLAGS.dual else gym.make("box_picking_camera_env", camera_mode="rgb")
         
-    env = SampleGoalPositionsWrapper(env) if HER_EPISODE else env
-    env = TwoSpacemiceIntervention(env) if DUAL_SPACEMOUSE else SpacemouseIntervention(env)
-    env = DualRelativeFrame(env) if DUAL_SPACEMOUSE else RelativeFrame(env)
-    env = DualQuat2MrpWrapper(env) if DUAL_SPACEMOUSE else Quat2MrpWrapper(env)
+    env = SampleGoalPositionsWrapper(env) if FLAGS.her else env
+    env = TwoSpacemiceIntervention(env) if FLAGS.dual else SpacemouseIntervention(env)
+    env = DualRelativeFrame(env) if FLAGS.dual else RelativeFrame(env)
+    env = DualQuat2MrpWrapper(env) if FLAGS.dual else Quat2MrpWrapper(env)
     env = SerlObsWrapperNoImages(env)
 
     obs, _ = env.reset()
@@ -83,7 +83,7 @@ if __name__ == "__main__":
             if exit_program.is_set():
                 raise KeyboardInterrupt  # stop program, but clean up before
             
-            action = np.zeros((14,)) if DUAL_SPACEMOUSE else np.zeros((7,))
+            action = np.zeros((14,)) if FLAGS.dual else np.zeros((7,))
             next_obs, rew, done, truncated, info = env.step(action=action)
             actions = info["intervene_action"]
 
