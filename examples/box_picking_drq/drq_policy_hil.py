@@ -323,8 +323,8 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                 info.pop("right")
 
             # override the action with the intervention action
-            if "intervene_action" in info:
-                actions = info.pop("intervene_action")
+            if "hil_action" in info:
+                actions = info.pop("hil_action")
                 intervention_steps += 1
                 if not already_intervened:
                     intervention_count += 1

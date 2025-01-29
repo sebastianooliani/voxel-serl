@@ -138,7 +138,9 @@ class SpacemouseIntervention(gym.ActionWrapper):
 
         # Add additional information to the info dictionary about the intervention.
         if replaced:
-            info["intervene_action"] = new_action
+            info["hil_action"] = new_action # key for the human in the loop action
+
+        info["intervene_action"] = new_action
             
         info["left"] = self.left.any()  # Whether the left button is pressed.
         info["right"] = self.right.any()  # Whether the right button is pressed.
@@ -165,7 +167,9 @@ class TwoSpacemiceIntervention(gym.Wrapper):
         obs, rew, done, truncated, info = self.env.step(new_action)
 
         if replaced_left or replaced_right:
-            info["intervene_action"] = new_action
+            info["hil_action"] = new_action
+
+        info["intervene_action"] = new_action
         
         info["left"] = self.expert_left.left.any() or self.expert_right.left.any()  # Whether the left button is pressed.
         info["right"] = self.expert_left.right.any() or self.expert_right.right.any()  # Whether the right button is pressed.
