@@ -190,8 +190,8 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
                         [0., 0., 0., 1.]], dtype=np.float32)
     
     WF_rot = np.array([[-1,  0,  0],
-                        [ 0,  0, -1],
-                        [ 0, -1,  0]], dtype=np.float32)
+                        [ 0,  0, 1],
+                        [ 0, 1,  0]], dtype=np.float32)
     # transformations between robot links
     T_J4_J5 = np.array([[1., 0., 0., 0.],
                         [0., 0., 1., 0.],
@@ -279,7 +279,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "position_weight": 10.,
             "distance_weight": DISTANCE_WEIGHT,
             "suction_weight": 1.5,
-            "rotation_weight": 100.,
+            "rotation_weight": 25.,
             "success_weight": 100.,
             "penalty": 10.,
             "safety_threshold": SAFETY_THRESHOLD,
