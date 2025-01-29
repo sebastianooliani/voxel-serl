@@ -81,6 +81,43 @@ def orientation_difference_angle_axis(angle_axis1, angle_axis2):
     
     return angle_difference, axis_difference
 
+def orientation_difference_mrp(mrp1, mrp2):
+    """
+    Compute the orientation difference between two Modified Rodrigues Parameters (MRP) representations.
+    
+    MRP is defined as p = tan(θ/4) * e, where θ is the rotation angle and e is the rotation axis.
+    
+    Args:
+        mrp1 (array-like): First MRP representation (3 elements)
+        mrp2 (array-like): Second MRP representation (3 elements)
+    
+    Returns:
+        angle_difference (float): Angle of rotation difference in radians
+    """
+    
+    # Compute the magnitude of each MRP
+    p1_mag_sq = np.dot(mrp1, mrp1)
+    p2_mag_sq = np.dot(mrp2, mrp2)
+    
+    # Compute the relative MRP using the composition rule
+    # p2 = p1 ⊕ p_rel
+    # Therefore: p_rel = (p2 ⊖ p1)
+    # MRP subtraction formula:
+    # p_rel = [(1 - p1_mag_sq)p2 - (1 - p2_mag_sq)p1 + 2*cross(p1, p2)] / 
+    #         [(1 + p1_mag_sq)(1 + p2_mag_sq) - 4*dot(p1, p2)]
+    
+    numerator = (1 - p1_mag_sq) * mrp2 - (1 - p2_mag_sq) * mrp1 + 2 * np.cross(mrp1, mrp2)
+    denominator = (1 + p1_mag_sq) * (1 + p2_mag_sq) - 4 * np.dot(mrp1, mrp2)
+    
+    p_rel = numerator / denominator
+    
+    # Convert relative MRP to angle-axis representation
+    # First, get the angle from MRP magnitude
+    p_rel_mag = np.linalg.norm(p_rel)
+    angle_difference = 4 * np.arctan(p_rel_mag)
+    
+    return angle_difference
+
 def quaternion_multiplication(q_ab: np.array, q_bc: np.array):
     """
     Compute the multiplication of two quaternions, i.e. q_ac = q_ab * q_bc. 

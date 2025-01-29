@@ -949,12 +949,18 @@ class UR5DualRobotEnv(UR5Env):
             self.pointcloud_2 = PointCloudGenerator(voxel_grid_shape=voxel_grid_shape)
 
     def _update_box_pos_estimate(self):
+        """
+        Update the box position estimate.
+        """
         self.box_position = self.box_pose.get_box_position()
         self.box_position = self.WF_rot @ self.box_position
 
     def _update_box_orientation_estimate(self):
-        self.box_orientation = self.box_pose.get_box_orientation()
-        self.box_orientation = self.WF_rot @ self.box_orientation
+        """
+        Update the box orientation estimate expressed in angle-axis representation.
+        """
+        self.box_orientation = self.box_pose.get_box_orientation() # angle-axis
+        self.box_orientation = self.WF_rot @ self.box_orientation # angle-axis
 
     def _get_goal_position(self):
         """

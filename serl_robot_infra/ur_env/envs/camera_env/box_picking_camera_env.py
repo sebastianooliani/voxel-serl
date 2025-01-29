@@ -9,6 +9,7 @@ from ur_env.envs.camera_env.config import UR5CameraConfigFinal, UR5CameraConfigF
 from franka_env.utils.transformations import (
     construct_homogeneous_matrix,
     orientation_difference_angle_axis,
+    orientation_difference_mrp,
 )
 
 class UR5CameraEnv(UR5Env):
@@ -239,7 +240,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         )
 
         # exp: 0 reward if far away from the goal, 1 reward if close to the goal
-        distance_reward = self.reward_dict["goal_weight"] * np.exp(-np.linalg.norm(obs["state"]["goal_box_position"]))
+        goal_distance_reward = self.reward_dict["goal_weight"] * np.exp(-np.linalg.norm(obs["state"]["goal_box_position"]))
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
@@ -262,7 +263,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             position_cost=position_cost,
             action_diff_cost=action_diff_cost,
             distance_cost=distance_cost,
-            total_cost=-(-action_cost - step_cost + suction_reward + distance_reward - suction_cost - orientation_cost - position_cost - action_diff_cost - distance_cost),
+            total_cost=-(-action_cost - step_cost + suction_reward + goal_distance_reward - suction_cost - orientation_cost - position_cost - action_diff_cost - distance_cost),
         )
         for key, info in cost_info.items():
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])
@@ -272,7 +273,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             R_goal = 100. if self.camera_mode in ["none"] else self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
         else:
-            return 0. + suction_reward + distance_reward - action_cost - orientation_cost - position_cost - \
+            return 0. + suction_reward + goal_distance_reward - action_cost - orientation_cost - position_cost - \
                 suction_cost - step_cost - action_diff_cost - distance_cost
     
     def reached_goal_state(self, obs) -> bool:
@@ -352,17 +353,24 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             obs["state"]["tcp_pose"][:2] - self.curr_reset_pose[:2], obs["state"]["tcp_pose"][7:9] - self.curr_reset_pose[7:9]
             ])
         position_cost = self.reward_dict["position_weight"] * np.sum(
-            np.where(np.abs(pos_diff) > max_pose_diff, 
-                     np.abs(pos_diff - np.sign(pos_diff) * max_pose_diff), 
-                     0.0)
-        )
-
-        rotation_reward = self.reward_dict["rotation_weight"] * np.abs(
-            obs["state"]["box_orientation"][2] - self.last_orientation[2]
+            np.where(np.abs(pos_diff) > 0.3, np.abs(pos_diff - np.sign(pos_diff) * 0.3), 0.0) # larger movement allowed
+        ) * (
+            float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5) # when is grasping
+            ) + self.reward_dict["position_weight"] * np.sum(
+            np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.05), 0.0) # smaller movement allowed
+        ) * (
+            float(obs["state"]["gripper_state"][1] < 0.5) + float(obs["state"]["gripper_state"][3] < 0.5) # when is not grasping
             )
+        # change position cost so that it differentiates between when is grasping and when is not
+
+        rotation_reward = self.reward_dict["rotation_weight"] * orientation_difference_angle_axis(
+            R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
+            R.from_mrp(self.last_orientation).as_rotvec()
+            )[0]
         # print(f"Rotation reward: {rotation_reward}")
         # print(obs["state"]["box_orientation"][2] - self.last_orientation[2])
-        self.last_orientation = obs["state"]["box_orientation"]
+        # print(f"Box orientation: {obs['state']['box_orientation']}")
+        self.last_orientation = obs["state"]["box_orientation"] # here in mrp
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         if self.camera_mode in ["none"]:
@@ -391,6 +399,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])
         
         if self.reached_goal_state(obs):
+            print("\nSuccessfull pi/4 reorientation!\n")
             self.last_action[:] = 0.
             R_goal = 100. if self.camera_mode in ["none"] else self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
@@ -404,8 +413,9 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         # perform a 45° degrees rotation around the z-axis
         # convert obs from MRP to rotation vector
         rot_angle, _ = orientation_difference_angle_axis(
-            self.init_box_orientation, R.from_mrp(state['box_orientation']
-            ).as_rotvec())
+            self.init_box_orientation, 
+            R.from_mrp(state['box_orientation']).as_rotvec()
+            )
         # print(f"Rotation angle: {rot_angle}")
         # 0.09 rad = 5° tolerance
         return (np.abs(rot_angle - np.pi/4)) < 0.09 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.

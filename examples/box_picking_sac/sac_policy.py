@@ -95,8 +95,15 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
     This is the actor loop, which runs when "--actor" is set to True.
     """
     if FLAGS.eval_checkpoint_step:
+        wandb_logger = make_wandb_logger(
+            project=FLAGS.wandb_project,  # TODO only temporary
+            description=FLAGS.exp_name or FLAGS.env,
+            debug=FLAGS.debug,
+        )
+
         success_counter = 0
         time_list = []
+        running_return = 0.0
 
         ckpt = checkpoints.restore_checkpoint(
             FLAGS.eval_checkpoint_path,
@@ -119,6 +126,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
                 next_obs, reward, done, truncated, info = env.step(actions)
                 obs = next_obs
+                running_return += reward
 
                 if done:
                     if reward:
@@ -129,6 +137,13 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                     success_counter += int(reward > 0.99)
                     print(reward)
                     print(f"{success_counter}/{episode + 1}")
+
+                    infos = {
+                        "running_reward": running_return,
+                        "time": dt,
+                        "success_rate": float(reward > 50.),
+                    }
+                    wandb_logger.log(infos, step=episode)
 
         print(f"success rate: {success_counter / FLAGS.eval_n_trajs}")
         print(f"average time: {np.mean(time_list)}")
@@ -178,7 +193,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
             next_obs, reward, done, truncated, info = env.step(actions)
             next_obs = np.asarray(next_obs, dtype=np.float32)
             reward = np.asarray(reward, dtype=np.float32)
-
+            info = np.asarray(info)
             running_return += reward
 
             data_store.insert(
@@ -194,7 +209,9 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
             obs = next_obs
             if done or truncated:
-                # print(f"running return: {running_return}   done:{done}  truncated:{truncated}")
+                stats = {"train": info}  # send stats to the learner to log
+                client.request("send-stats", stats)
+                print(f"running return: {running_return}")
                 running_return = 0.0
                 obs, _ = env.reset()
 
@@ -289,7 +306,7 @@ def learner(rng, agent: SACAgent, replay_buffer, replay_iterator, wandb_logger=N
 
             update_steps += 1
     finally:
-        print("closing learner, clearning up...")
+        print("closing learner, cleaning up...")
         del replay_buffer
 
 
