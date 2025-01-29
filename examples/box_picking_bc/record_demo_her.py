@@ -10,10 +10,10 @@ from pynput import keyboard
 import math
 from scipy.spatial.transform import Rotation as R
 from pprint import pprint
-from absl import flags
+from absl import app, flags
 
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention, SampleGoalPositionsWrapper
-from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages
+from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, SERLObsWrapper
 
 from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
 
@@ -36,8 +36,9 @@ def on_esc(key):
 FLAGS = flags.FLAGS
 flags.DEFINE_boolean("dual", True, "Whether to use dual spacemice or not.")
 flags.DEFINE_boolean("her", True, "Whether to use HER or not.")
+flags.DEFINE_string("camera_mode", "none", "Type of camera mode used.")
 
-if __name__ == "__main__":
+def main(_):
     env = gym.make("box_picking_camera_env_dual_robot_motion_planning",
                    camera_mode="none") if FLAGS.dual else gym.make("box_picking_camera_env", camera_mode="rgb")
         
@@ -45,7 +46,7 @@ if __name__ == "__main__":
     env = TwoSpacemiceIntervention(env) if FLAGS.dual else SpacemouseIntervention(env)
     env = DualRelativeFrame(env) if FLAGS.dual else RelativeFrame(env)
     env = DualQuat2MrpWrapper(env) if FLAGS.dual else Quat2MrpWrapper(env)
-    env = SerlObsWrapperNoImages(env)
+    env = SerlObsWrapperNoImages(env) if FLAGS.camera_mode in ["none"] else SERLObsWrapper(env)
 
     obs, _ = env.reset()
 
@@ -149,3 +150,6 @@ if __name__ == "__main__":
         listener_1.stop()
         listener_2.stop()
         print("Program ended.")
+
+if __name__ == "__main__":
+    app.run(main)

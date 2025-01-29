@@ -7,7 +7,7 @@ import datetime
 import os
 import threading
 from pynput import keyboard
-from absl import flags
+from absl import app, flags
 
 from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
 from ur_env.envs.wrappers import SpacemouseIntervention, TwoSpacemiceIntervention, DualQuat2MrpWrapper, Quat2MrpWrapper, ObservationRotationWrapper, SampleGoalPositionsWrapper
@@ -34,10 +34,11 @@ def on_esc(key):
 FLAGS = flags.FLAGS
 flags.DEFINE_boolean("dual", True, "Whether to use dual spacemice or not.")
 flags.DEFINE_boolean("her", True, "Whether to use HER or not.")
+flags.DEFINE_string("camera_mode", "none", "Type of camera mode used.")
 
 ############################################################################################################
 
-if __name__ == "__main__":
+def main(_):
     env = gym.make("box_picking_camera_env_dual_robot",
                    camera_mode="rgb",
                    max_episode_length=100,
@@ -155,3 +156,6 @@ if __name__ == "__main__":
         listener_1.stop()
         listener_2.stop()
         print("Program ended.")
+
+if __name__ == "__main__":
+    app.run(main)
