@@ -96,15 +96,17 @@ class UrImpedanceController(threading.Thread):
 
         # how to read the reset_Q variable based on the robot used
         if self.robot_ip[-2:] == "66":
-            self.reset_Q = config.RESET_Q[self.config.TASK][0, :6]
             if self.config.DUAL:
+                self.reset_Q = config.RESET_Q[self.config.TASK][0, :6]
                 self.mid_reset_Q = config.MID_RESET_Q[0, :6]
+            else:
+                self.reset_Q = config.RESET_Q[0, :6]
         elif self.robot_ip[-2:] == "33":
             if self.config.DUAL:
                 self.reset_Q = config.RESET_Q[self.config.TASK][0, 6:]
                 self.mid_reset_Q = config.MID_RESET_Q[0, 6:]
             else:
-                self.reset_Q = config.RESET_Q[self.config.TASK][0, :6]
+                self.reset_Q = config.RESET_Q[0, :6]
         elif self.robot_ip[:3] == "172":
             self.reset_Q = config.RESET_Q[self.config.TASK][0, :6]
 
