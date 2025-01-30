@@ -110,7 +110,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
-        if self.camera_mode in ["none"]:
+        if self.camera_mode is None:
             # when successfully runnning sac without wrist cameras, these were not used.
             distance_cost = 0
             grasp_reward = 0
@@ -146,7 +146,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         if self.reached_goal_state(obs):
             print("\nSuccessfull lift!\n")
             self.last_action[:] = 0.
-            R_goal = 100. if self.camera_mode in ["none"] else self.reward_dict["success_weight"]
+            R_goal = 100. if self.camera_mode is None else self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost
         else:
             return 0. + suction_reward + grasp_reward - action_cost - orientation_cost - position_cost - \
@@ -244,7 +244,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
-        if self.camera_mode in ["none"]:
+        if self.camera_mode is None:
             distance_cost = 0
         else:
             T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
@@ -270,7 +270,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         
         if self.reached_goal_state(obs):
             self.last_action[:] = 0.
-            R_goal = 100. if self.camera_mode in ["none"] else self.reward_dict["success_weight"]
+            R_goal = 100. if self.camera_mode is None else self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
         else:
             return 0. + suction_reward + goal_distance_reward - action_cost - orientation_cost - position_cost - \
@@ -353,7 +353,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             obs["state"]["tcp_pose"][:2] - self.curr_reset_pose[:2], obs["state"]["tcp_pose"][7:9] - self.curr_reset_pose[7:9]
             ])
         position_cost = self.reward_dict["position_weight"] * np.sum(
-            np.where(np.abs(pos_diff) > 0.3, np.abs(pos_diff - np.sign(pos_diff) * 0.3), 0.0) # larger movement allowed
+            np.where(np.abs(pos_diff) > 0.35, np.abs(pos_diff - np.sign(pos_diff) * 0.35), 0.0) # larger movement allowed
         ) * (
             float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5) # when is grasping
             ) + self.reward_dict["position_weight"] * np.sum(
@@ -373,7 +373,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         self.last_orientation = obs["state"]["box_orientation"] # here in mrp
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
-        if self.camera_mode in ["none"]:
+        if self.camera_mode is None:
             distance_cost = 0
         else:
             T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
@@ -401,7 +401,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         if self.reached_goal_state(obs):
             print("\nSuccessfull pi/4 reorientation!\n")
             self.last_action[:] = 0.
-            R_goal = 100. if self.camera_mode in ["none"] else self.reward_dict["success_weight"]
+            R_goal = 100. if self.camera_mode is None else self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
         else:
             return 0. + suction_reward + rotation_reward - action_cost - orientation_cost - position_cost - \
@@ -418,7 +418,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             )
         # print(f"Rotation angle: {rot_angle}")
         # 0.09 rad = 5° tolerance
-        return (np.abs(rot_angle - np.pi/4)) < 0.09 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
+        return (np.abs(rot_angle - np.pi/4.5)) < 0.09 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
     
     def reset(self, **kwargs):
         self.cycle_count += 1

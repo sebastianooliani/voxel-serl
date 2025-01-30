@@ -699,7 +699,7 @@ class UR5DualRobotEnv(UR5Env):
             hz: int = 10,
             fake_env=False,
             config=DualRobotDefaultEnvConfig,
-            max_episode_length: int = 100,
+            max_episode_length: int = 150,
             save_video: bool = False,
             camera_mode: str = "none",  # one of (rgb, grey, depth, both(rgb depth), pointcloud, none)):
     ):
