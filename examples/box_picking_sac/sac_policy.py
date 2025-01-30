@@ -165,7 +165,6 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
     client.recv_network_callback(update_params)
 
     obs, _ = env.reset()
-    # print(f"obs:  {obs}")
     done = False
 
     # training loop
@@ -184,7 +183,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                     observations=jax.device_put(obs),
                     seed=key,
                     argmax=False,
-                    # deterministic=False,              # sample without argmax for more diverse actions
+                    # deterministic=False,    # sample without argmax for more diverse actions
                 )
                 actions = np.asarray(jax.device_get(actions))
 

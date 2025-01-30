@@ -334,7 +334,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         step_cost = self.reward_dict["step_weight"]
 
         # SUCTION: reward for successful grip and cost for unnecessary suctioning
-        suction_reward = self.reward_dict["suction_weight"] * (
+        suction_reward = self.reward_dict["grasping_weight"] * (
             float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5)
             )
         suction_cost = self.reward_dict["suction_weight"] * (
