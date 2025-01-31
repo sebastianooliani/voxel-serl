@@ -73,7 +73,7 @@ class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
     #     [0.1815, - 1.2945, 1.8964, - 2.1719, - 1.5658, - 1.3841],
     # ])
     # horizontal box
-    RESET_Q = np.array([[- math.pi / 6., math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.)]])
+    RESET_Q = np.array([[math.radians(112.46), math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.)]])
     # vertical box
     # RESET_Q = np.array([[math.radians(241.46), math.radians(-75.78), math.radians(107.78), math.radians(-38.43), math.radians(-24.73), math.radians(33.13)]])
 
@@ -87,7 +87,7 @@ class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
     ABS_POSE_RANGE_LIMITS = np.array([0.36, 0.83])
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
-    ROBOT_IP: str = "192.168.1.66" #"172.22.22.2" # "192.168.1.66"
+    ROBOT_IP: str = "192.168.1.33" #"172.22.22.2" # "192.168.1.66"
     CONTROLLER_HZ = 100
     GRIPPER_TIMEOUT = 2000  # in milliseconds
     ERROR_DELTA: float = 0.05
@@ -97,8 +97,8 @@ class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
     FORCEMODE_LIMITS = np.array([0.5, 0.5, 0.5, 1., 1., 1.])
 
     REALSENSE_CAMERAS = {
-        "wrist": "218622277164",
-        # "wrist": "218622279756"
+        # "wrist": "218622277164",
+        "wrist": "218622279756"
     }
 
 class UR5CameraConfigDemo(UR5CameraConfigFinal):
@@ -273,13 +273,14 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "safety_threshold": SAFETY_THRESHOLD,
         },
         "reorient": {
-            "step_weight": STEP_WEIGHT,
+            "step_weight": 0.1,
             "action_weight": ACTION_WEIGHT,
-            "orientation_weight": 25.,
+            "orientation_weight": 30.,
             "position_weight": 10.,
             "distance_weight": DISTANCE_WEIGHT,
-            "suction_weight": 1.5,
-            "rotation_weight": 25.,
+            "grasping_weight": 0.25,
+            "suction_weight": 0.75,
+            "rotation_weight": 15.,
             "success_weight": 100.,
             "penalty": 10.,
             "safety_threshold": SAFETY_THRESHOLD,
@@ -290,7 +291,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "orientation_weight": 25.,
             "position_weight": 1.,
             "distance_weight": DISTANCE_WEIGHT,
-            "suction_weight": 1.5,
+            "suction_weight": 0.75,
             "goal_weight": 10.,
             "success_weight": 100.,
             "penalty": PENALTY,

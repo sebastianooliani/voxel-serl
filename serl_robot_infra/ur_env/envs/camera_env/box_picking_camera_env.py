@@ -368,9 +368,13 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             R.from_mrp(self.last_orientation).as_rotvec()
             )[0]
         # print(f"Rotation reward: {rotation_reward}")
-        # print(obs["state"]["box_orientation"][2] - self.last_orientation[2])
-        # print(f"Box orientation: {obs['state']['box_orientation']}")
-        self.last_orientation = obs["state"]["box_orientation"] # here in mrp
+        print(f"Box orientation: {obs['state']['box_orientation']}")
+        print(f"Last orientation: {self.last_orientation}")
+        # print(orientation_difference_angle_axis(
+        #     R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
+        #     R.from_mrp(self.last_orientation).as_rotvec()
+        #     )[0])
+        self.last_orientation = obs["state"]["box_orientation"].copy() # here in mrp , use copy() to avoid reference after scaling
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         if self.camera_mode is None:
