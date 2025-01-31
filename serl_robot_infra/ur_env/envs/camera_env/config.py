@@ -142,7 +142,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     DUAL = True
     TOP = True
     HER = False
-    TASK = "reorient" # "lift", "reorient", "motion"
+    TASK = "lift" # "lift", "reorient", "motion"
     
     # box in horizontal position
     # RESET_Q = np.array([[- math.pi / 6., -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
@@ -221,7 +221,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     # ABS_POSE_LIMIT_LOW_ROBOT_2_LIFT = np.array([0.380, -0.215, 0.128, -0.05, -0.05, -0.2])
 
     ABS_POSE_LIMIT_HIGH_ROBOT_1 = {
-        "lift": np.array([-0.335, 0.263, 0.377, 0.05, 0.05, 0.2]),
+        "lift": np.array([-0.335, 0.263, 0.382, 0.05, 0.05, 0.2]),
         "reorient": np.array([-0.335, 0.463, 0.377, 0.05, 0.05, 0.2]),
         "motion": np.array([-0.335, 0.463, 0.377, 0.05, 0.05, 0.2]),
     }
@@ -231,7 +231,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
         "motion": np.array([-0.605, -0.533, 0.128, -0.05, -0.05, -0.2]),
     }
     ABS_POSE_LIMIT_HIGH_ROBOT_2 = {
-        "lift": np.array([0.612, 0.116, 0.377, 0.05, 0.05, 0.2]),
+        "lift": np.array([0.612, 0.116, 0.382, 0.05, 0.05, 0.2]),
         "reorient": np.array([0.602, 0.463, 0.377, 0.05, 0.05, 0.2]),
         "motion": np.array([0.602, 0.463, 0.377, 0.05, 0.05, 0.2]),
     }
@@ -276,14 +276,14 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "step_weight": 0.1,
             "action_weight": ACTION_WEIGHT,
             "orientation_weight": 30.,
-            "position_weight": 10.,
+            "position_weight": 15.,
             "distance_weight": DISTANCE_WEIGHT,
-            "grasping_weight": 0.25,
-            "suction_weight": 0.75,
-            "rotation_weight": 15.,
+            "grasping_weight": 0.5,
+            "suction_weight": 0.5,
+            "rotation_weight": 30.,
             "success_weight": 100.,
             "penalty": 10.,
-            "safety_threshold": SAFETY_THRESHOLD,
+            "safety_threshold": 0.1,
         },
         "motion": {
             "step_weight": STEP_WEIGHT,

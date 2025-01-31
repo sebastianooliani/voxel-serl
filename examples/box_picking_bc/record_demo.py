@@ -108,6 +108,7 @@ def main(_):
                 )
                 pbar.update(int(rew > 0.99))
                 obs, _ = env.reset()
+                # print(info)
                 print(f"Running return: {running_return}\n")
                 running_return = 0
 

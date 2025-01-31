@@ -352,7 +352,7 @@ class UrImpedanceController(threading.Thread):
     def _truncate_check(self):
         downward_force = self.curr_force_lowpass[2] > 30.
         if downward_force:  # TODO add better criteria
-            print(f"\n[RIC] downward force: {self.curr_force_lowpass[2]}\n")
+            print(f"[RIC] downward force: {self.curr_force_lowpass[2]}")
             self._is_truncated.set()
         else:
             self._is_truncated.clear()
@@ -434,6 +434,7 @@ class UrImpedanceController(threading.Thread):
 
         # position is in a rotated world frame
         box_position = self.box.get_box_position()
+        box_orientation = self.box.get_box_orientation()
         size = self.box.get_box_size()
         box_position = self.config.WF_rot @ box_position
 
@@ -441,12 +442,12 @@ class UrImpedanceController(threading.Thread):
         box_position = np.concatenate([box_position, actual_pose[3:]])
         # move to box position
         if self.robot_ip[-2:] == "66":
-            box_position[1] += size[1] / 2 - 0.2
-            box_position[2] += size[2] / 2 + 0.05 
+            box_position[1] += size[1] / 2 + 0.0
+            box_position[2] += size[2] / 2 + 0.17
             success = self.ur_control.moveJ_IK(box_position, speed=1, acceleration=0.8)
         elif self.robot_ip[-2:] == "33":
             box_position[1] += - size[1] / 2 + 0.2
-            box_position[2] += size[2] / 2 + 0.05
+            box_position[2] += size[2] / 2 + 0.17
             # go back to robot's frame
             position = np.linalg.inv(self.T_O1_O2) @ np.concatenate([box_position[:3], [1.]])
             box_position = np.concatenate([position[:3], box_position[3:]])

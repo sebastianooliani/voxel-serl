@@ -347,8 +347,8 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
             obs = next_obs
             if done or truncated:
-                info["episode"]["intervention_count"] = intervention_count
-                info["episode"]["intervention_steps"] = intervention_steps
+                # info["intervention_count"] = intervention_count
+                # info["intervention_steps"] = intervention_steps
                 stats = {"train": info}  # send stats to the learner to log
                 client.request("send-stats", stats)
                 print(f"running return: {running_return}")
@@ -446,7 +446,7 @@ def learner(rng, agent: DrQAgent, replay_buffer, wandb_logger=None):
         )
         agent = agent.replace(state=ckpt)
         server.publish_network(agent.state.params)
-        print_yellow("sent checkpoint network to actor")
+        print_yellow(f"sent network to actor from checkpoint {FLAGS.eval_checkpoint_step}")
 
     else:
         server.publish_network(agent.state.params)

@@ -95,7 +95,7 @@ class ScaleObservationWrapper(gym.ObservationWrapper):
         obs["state"]["tcp_torque"] *= self.torque_scale
         return obs
 
-class ScaleDualObservationWrapper(ScaleObservationWrapper):
+class ScaleDualObservationWrapper(gym.ObservationWrapper):
     """
     This observation wrapper scales the observations with the provided hyperparams
     (to somewhat normalize the observations space) for dual setups.
@@ -108,9 +108,18 @@ class ScaleDualObservationWrapper(ScaleObservationWrapper):
                  force_scale=1.,
                  torque_scale=10.
                  ):
-        super().__init__(env, translation_scale, rotation_scale, force_scale, torque_scale)
+        super().__init__(env) 
+        self.translation_scale, self.rotation_scale, self.force_scale, self.torque_scale = translation_scale, rotation_scale, force_scale, torque_scale
 
         self.task = UR5CameraConfigDualRobot.TASK
+
+    def scale_wrapper_get_scales(self):
+        return dict(
+            translation_scale=self.translation_scale,
+            rotation_scale=self.rotation_scale,
+            force_scale=self.force_scale,
+            torque_scale=self.torque_scale
+        )
 
     def observation(self, obs):
         obs["state"]["tcp_pose"][:3] *= self.translation_scale

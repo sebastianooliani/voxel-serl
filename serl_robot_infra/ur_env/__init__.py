@@ -38,13 +38,13 @@ register(
 register(
     id="box_picking_camera_env_dual_robot",
     entry_point="ur_env.envs.camera_env:UR5CameraEnvDualRobot",
-    max_episode_steps=150,
+    max_episode_steps=100,
 )
 
 register(
     id="box_picking_camera_env_dual_robot_motion_planning",
     entry_point="ur_env.envs.camera_env:UR5CameraEnvDualRobotMotionPlanning",
-    max_episode_steps=150,
+    max_episode_steps=100,
 )
 
 register(
