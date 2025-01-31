@@ -32,7 +32,7 @@ from serl_launcher.utils.launcher import (
     make_replay_buffer,
 )
 
-from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, SERLObsWrapper
+from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, SERLObsWrapper, ScaleDualObservationWrapper, ScaleObservationWrapper
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention
 
 import ur_env
@@ -80,7 +80,7 @@ flags.DEFINE_string("preload_rlds_path", None, "Path to preload RLDS data.")
 flags.DEFINE_boolean(
     "debug", False, "Debug mode."
 )  # debug mode will disable wandb logging
-flags.DEFINE_boolean("dual", False, "Dual robot mode.")
+flags.DEFINE_boolean("dual", True, "Dual robot mode.")
 flags.DEFINE_string("wandb_project", "dual_robot_top_sac", "Wandb project name.")
 
 def print_green(x):
@@ -320,8 +320,6 @@ def learner(rng, agent: SACAgent, replay_buffer, replay_iterator, wandb_logger=N
 
 ##############################################################################
 
-DUAL_SPACEMOUSE = True
-
 def main(_):
     devices = jax.local_devices()
     num_devices = len(devices)
@@ -340,9 +338,10 @@ def main(_):
         camera_mode=FLAGS.camera_mode,
     )
     if FLAGS.actor:
-        env = SpacemouseIntervention(env) if not DUAL_SPACEMOUSE else TwoSpacemiceIntervention(env)
-    env = RelativeFrame(env) if not DUAL_SPACEMOUSE else DualRelativeFrame(env)
-    env = Quat2MrpWrapper(env) if not DUAL_SPACEMOUSE else DualQuat2MrpWrapper(env)
+        env = SpacemouseIntervention(env) if not FLAGS.dual else TwoSpacemiceIntervention(env)
+    env = RelativeFrame(env) if not FLAGS.dual else DualRelativeFrame(env)
+    env = Quat2MrpWrapper(env) if not FLAGS.dual else DualQuat2MrpWrapper(env)
+    env = ScaleObservationWrapper(env) if not FLAGS.dual else ScaleDualObservationWrapper(env)
     env = SerlObsWrapperNoImages(env)
     # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
     # env = TransformReward(env, lambda r: FLAGS.reward_scale * r)
@@ -409,7 +408,12 @@ def main(_):
         # actor loop
         print_green("starting actor loop")
         try:
-            actor(agent, data_store, env, sampling_rng)
+            actor(
+                agent, 
+                data_store, 
+                env, 
+                sampling_rng
+            )
             print_green("actor loop finished")
         except KeyboardInterrupt:
             print_green("actor loop interrupted")
