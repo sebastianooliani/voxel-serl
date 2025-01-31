@@ -363,17 +363,23 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             )
         # change position cost so that it differentiates between when is grasping and when is not
 
-        rotation_reward = self.reward_dict["rotation_weight"] * orientation_difference_angle_axis(
-            R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
-            R.from_mrp(self.last_orientation).as_rotvec()
-            )[0]
+        rotation_reward = self.reward_dict["rotation_weight"] * np.where(orientation_difference_angle_axis(
+                                                                            R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
+                                                                            R.from_mrp(self.last_orientation).as_rotvec())[0] > 0.015, # lower bound the minimum rotation
+                                                                            np.minimum(orientation_difference_angle_axis(
+                                                                            R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
+                                                                            R.from_mrp(self.last_orientation).as_rotvec())[0], 0.3), # upper bound the maximum rotation
+                                                                            0.)
         # print(f"Rotation reward: {rotation_reward}")
-        print(f"Box orientation: {obs['state']['box_orientation']}")
-        print(f"Last orientation: {self.last_orientation}")
-        # print(orientation_difference_angle_axis(
+        # print(f"Box orientation: {obs['state']['box_orientation']}")
+        # print(f"Last orientation: {self.last_orientation}")
+        # print(np.where(orientation_difference_angle_axis(
         #     R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
         #     R.from_mrp(self.last_orientation).as_rotvec()
-        #     )[0])
+        #     )[0] > 0.0, orientation_difference_angle_axis(
+        #     R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
+        #     R.from_mrp(self.last_orientation).as_rotvec()
+        #     )[0], 0))
         self.last_orientation = obs["state"]["box_orientation"].copy() # here in mrp , use copy() to avoid reference after scaling
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
