@@ -1,6 +1,6 @@
 import copy
 from functools import partial
-from typing import Optional, Tuple, FrozenSet
+from typing import Optional, Tuple, FrozenSet, Iterable
 
 import chex
 import distrax
@@ -10,12 +10,13 @@ import jax
 import jax.numpy as jnp
 
 from serl_launcher.common.common import JaxRLTrainState, ModuleDict, nonpytree_field
-from serl_launcher.common.encoding import EncodingWrapper
+from serl_launcher.common.encoding import EncodingWrapper, create_state_mask
 from serl_launcher.common.optimizers import make_optimizer
 from serl_launcher.common.typing import Batch, Data, Params, PRNGKey
 from serl_launcher.networks.actor_critic_nets import Critic, Policy, ensemblize
 from serl_launcher.networks.lagrange import GeqLagrangeMultiplier
 from serl_launcher.networks.mlp import MLP
+from serl_launcher.vision.voxel_grid_encoders import VoxNet
 
 
 class SACAgent(flax.struct.PyTreeNode):
@@ -352,6 +353,7 @@ class SACAgent(flax.struct.PyTreeNode):
         backup_entropy: bool = False,
         critic_ensemble_size: int = 2,
         critic_subsample_size: Optional[int] = None,
+        image_keys: Iterable[str] = ("image",),
     ):
         networks = {
             "actor": actor_def,
@@ -406,6 +408,7 @@ class SACAgent(flax.struct.PyTreeNode):
                 soft_target_update_rate=soft_target_update_rate,
                 target_entropy=target_entropy,
                 backup_entropy=backup_entropy,
+                image_keys=image_keys,
             ),
         )
 
@@ -416,9 +419,11 @@ class SACAgent(flax.struct.PyTreeNode):
         observations: Data,
         actions: jnp.ndarray,
         # Model architecture
-        encoder_def: nn.Module,
+        # encoder_def: nn.Module, # dual arm
         shared_encoder: bool = True,
         use_proprio: bool = False,
+        encoder_type: str = "voxnet-pretrained", # dual arm
+        state_mask: str = "dual", # dual arm
         critic_network_kwargs: dict = {
             "hidden_dims": [256, 256],
         },
@@ -429,9 +434,15 @@ class SACAgent(flax.struct.PyTreeNode):
             "tanh_squash_distribution": True,
             "std_parameterization": "uniform",
         },
+        encoder_kwargs: dict = {
+                "pooling_method": "spatial_learned_embeddings",
+                "num_spatial_blocks": 8,
+                "bottleneck_dim": 256,
+            }, # dual arm
         critic_ensemble_size: int = 2,
         critic_subsample_size: Optional[int] = None,
         temperature_init: float = 1.0,
+        image_keys: Iterable[str] = ("image",), # dual arm
         **kwargs,
     ):
         """
@@ -441,11 +452,26 @@ class SACAgent(flax.struct.PyTreeNode):
         policy_network_kwargs["activate_final"] = True
         critic_network_kwargs["activate_final"] = True
 
+        if encoder_type == "voxnet-pretrained":
+            encoders = {
+                image_key: VoxNet(
+                    bottleneck_dim=encoder_kwargs["bottleneck_dim"],
+                    use_conv_bias=True,
+                    final_activation=nn.tanh,
+                    pretrained=encoder_type == "voxnet-pretrained",
+                )
+                for image_key in image_keys
+            }
+
+        state_mask_arr = create_state_mask(state_mask) # 'all' or 'dual'
+
         encoder_def = EncodingWrapper(
-            encoder=encoder_def,
+            encoder=encoders,
             use_proprio=use_proprio,
-            stop_gradient=False,
+            # stop_gradient=False,
+            image_keys=image_keys,
             enable_stacking=True,
+            state_mask=state_mask_arr,
         )
 
         if shared_encoder:
@@ -490,6 +516,7 @@ class SACAgent(flax.struct.PyTreeNode):
             temperature_def=temperature_def,
             critic_ensemble_size=critic_ensemble_size,
             critic_subsample_size=critic_subsample_size,
+            image_keys=image_keys,
             **kwargs,
         )
 

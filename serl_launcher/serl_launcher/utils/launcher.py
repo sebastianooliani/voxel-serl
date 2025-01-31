@@ -71,35 +71,84 @@ def make_bc_agent_no_img(
     )
 
 
-def make_sac_agent(seed, sample_obs, sample_action):
-    return SACAgent.create_states(
-        jax.random.PRNGKey(seed),
+def make_sac_agent(seed,
         sample_obs,
         sample_action,
-        policy_kwargs={
-            "tanh_squash_distribution": True,
-            "std_parameterization": "exp",
-            "std_min": 1e-5,
-            "std_max": 5,
-        },
-        critic_network_kwargs={
-            "activations": nn.tanh,
-            "use_layer_norm": True,
-            "hidden_dims": [256, 256],
-            # "hidden_dims": [128, 64],         # simpler network
-        },
-        policy_network_kwargs={
-            "activations": nn.tanh,
-            "use_layer_norm": True,
-            "hidden_dims": [256, 256],
-            # "hidden_dims": [128, 64],
-        },
-        temperature_init=1e-2,  # 1e-2
-        discount=0.99,  # or try values lower, not lower than 0.95
-        backup_entropy=False,
-        critic_ensemble_size=10,  # isREDQ with these
-        critic_subsample_size=2,
-    )
+        image_keys=("image",),
+        encoder_type="small",
+        state_mask="no_ForceTorque",
+        # proprio_latent_dim=64,
+        encoder_kwargs=None
+):
+    if encoder_type in ["voxnet-pretrained"]:
+        return SACAgent.create_pixels(
+            jax.random.PRNGKey(seed),
+            sample_obs,
+            sample_action,
+            encoder_type=encoder_type,
+            use_proprio=True,
+            state_mask=state_mask,
+            # proprio_latent_dim=proprio_latent_dim,
+            image_keys=image_keys,
+            policy_kwargs={
+                "tanh_squash_distribution": True,
+                "std_parameterization": "exp",
+                "std_min": 1e-5,
+                "std_max": 5,
+            },
+            critic_network_kwargs={
+                "activations": nn.tanh,
+                "use_layer_norm": True,
+                "hidden_dims": [256, 256],
+                # "hidden_dims": [128, 64],         # simpler network
+            },
+            policy_network_kwargs={
+                "activations": nn.tanh,
+                "use_layer_norm": True,
+                "hidden_dims": [256, 256],
+                # "hidden_dims": [128, 64],
+            },
+            temperature_init=1e-2,
+            discount=0.99,  # 0.99
+            backup_entropy=True,  # default: False
+            critic_ensemble_size=10,
+            critic_subsample_size=2,
+            encoder_kwargs=dict(
+                # pooling_method="spatial_softmax",        # default "spatial_learned_embeddings"
+                bottleneck_dim=128,
+                # num_spatial_blocks=8,
+                # num_kp=64,
+            ),
+        )
+    else:
+        return SACAgent.create_states(
+            jax.random.PRNGKey(seed),
+            sample_obs,
+            sample_action,
+            policy_kwargs={
+                "tanh_squash_distribution": True,
+                "std_parameterization": "exp",
+                "std_min": 1e-5,
+                "std_max": 5,
+            },
+            critic_network_kwargs={
+                "activations": nn.tanh,
+                "use_layer_norm": True,
+                "hidden_dims": [256, 256],
+                # "hidden_dims": [128, 64],         # simpler network
+            },
+            policy_network_kwargs={
+                "activations": nn.tanh,
+                "use_layer_norm": True,
+                "hidden_dims": [256, 256],
+                # "hidden_dims": [128, 64],
+            },
+            temperature_init=1e-2,  # 1e-2
+            discount=0.99,  # or try values lower, not lower than 0.95
+            backup_entropy=False,
+            critic_ensemble_size=10,  # isREDQ with these
+            critic_subsample_size=2,
+        )
 
 
 def make_drq_agent(
