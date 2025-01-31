@@ -158,6 +158,9 @@ class BoxPoseEstimation:
                                 self.orient = message['space'][0]['boxes'][
                                     list(message['space'][0]['boxes'].keys())[0]
                                 ]['world2box']['rot']
+                                self.size = message['space'][0]['boxes'][
+                                    list(message['space'][0]['boxes'].keys())[0]
+                                ]['size']
                         except TimeoutError:
                             # print("Timeout error, continuing...")
                             self.last_heartbeat = None
