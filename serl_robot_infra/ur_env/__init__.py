@@ -50,5 +50,5 @@ register(
 register(
     id="box_picking_camera_env_dual_robot_reorientation",
     entry_point="ur_env.envs.camera_env:UR5CameraEnvDualRobotReorientation",
-    max_episode_steps=150,
+    max_episode_steps=100,
 )

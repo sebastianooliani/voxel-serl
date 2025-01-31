@@ -12,7 +12,7 @@ import sys
 from absl import app, flags
 
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention
-from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, SERLObsWrapper
+from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, SERLObsWrapper, ScaleObservationWrapper, ScaleDualObservationWrapper
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 
 from gymnasium.wrappers import TransformReward
@@ -35,14 +35,17 @@ def on_esc(key):
 FLAGS = flags.FLAGS
 flags.DEFINE_boolean("dual", True, "Whether to use dual spacemice or not.")
 flags.DEFINE_string("camera_mode", "none", "Type of camera mode used.")
+flags.DEFINE_integer("max_episode_length", 100, "Maximum length of trajectory.")
 
 def main(_):
     env = gym.make("box_picking_camera_env_dual_robot_reorientation",
-                   camera_mode="none") if FLAGS.dual else gym.make("box_picking_camera_env", camera_mode="none")
+                   camera_mode="none",
+                   max_episode_length=FLAGS.max_episode_length) if FLAGS.dual else gym.make("box_picking_camera_env", camera_mode="none")
     
     env = TwoSpacemiceIntervention(env) if FLAGS.dual else SpacemouseIntervention(env)
     env = DualRelativeFrame(env) if FLAGS.dual else RelativeFrame(env)
     env = DualQuat2MrpWrapper(env) if FLAGS.dual else Quat2MrpWrapper(env)
+    env = ScaleDualObservationWrapper(env) if FLAGS.dual else ScaleObservationWrapper(env)
     env = SerlObsWrapperNoImages(env) if FLAGS.camera_mode in ["none"] else SERLObsWrapper(env)
     # env = TransformReward(env, lambda r: 10. * r)
     # env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
@@ -105,7 +108,7 @@ def main(_):
                 )
                 pbar.update(int(rew > 0.99))
                 obs, _ = env.reset()
-
+                print(info)
                 print(f"Running return: {running_return}\n")
                 running_return = 0
 

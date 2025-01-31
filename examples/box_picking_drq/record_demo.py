@@ -33,13 +33,13 @@ def on_esc(key):
 
 FLAGS = flags.FLAGS
 flags.DEFINE_boolean("dual", True, "Whether to use dual spacemice or not.")
-flags.DEFINE_string("camera_mode", "none", "Type of camera mode used.")
+flags.DEFINE_string("camera_mode", "pointcloud", "Type of camera mode used.")
+flags.DEFINE_integer("max_episode_length", 100, "Maximum length of trajectory.")
 
 def main(_):
     env = gym.make("box_picking_camera_env_dual_robot",
-                   camera_mode="pointcloud",
-                   max_episode_length=100,
-                   )
+                   camera_mode=FLAGS.camera_mode,
+                   max_episode_length=FLAGS.max_episode_length)
     
     env = SpacemouseIntervention(env) if not FLAGS.dual else TwoSpacemiceIntervention(env)
     env = RelativeFrame(env) if not FLAGS.dual else DualRelativeFrame(env)

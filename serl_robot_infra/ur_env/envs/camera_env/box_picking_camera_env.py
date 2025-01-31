@@ -399,7 +399,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])
         
         if self.reached_goal_state(obs):
-            print("\nSuccessfull pi/4 reorientation!\n")
+            print("\nSuccessfull 40 degrees reorientation!\n")
             self.last_action[:] = 0.
             R_goal = 100. if self.camera_mode is None else self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
