@@ -3,8 +3,9 @@ export XLA_PYTHON_CLIENT_MEM_FRACTION=.3 && \
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform && \
 python sac_policy.py "$@" \
     --learner \
-    --env box_picking_camera_env_dual_robot \
-    --exp_name=sac_drq_policy_rgb_rgb \
+    --env box_picking_camera_env_dual_robot_reorientation \
+    --wandb_project "dual_sac_reorientation" \
+    --exp_name=sac_policy_reorient \
     --max_traj_length 300 \
     --seed 42 \
     --training_starts 900 \
