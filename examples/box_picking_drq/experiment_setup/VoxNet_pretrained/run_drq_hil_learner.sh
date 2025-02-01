@@ -15,8 +15,6 @@ python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy_hil.py "$
     --batch_size 128 \
     --checkpoint_period 500 \
     --checkpoint_path /home/sebastiano/voxel-serl/examples/box_picking_drq/experiment_setup/VoxNet_pretrained/checkpoints \
-    --eval_checkpoint_step 2000 \
-    --load_checkpoint_path "/home/sebastiano/voxel-serl/examples/box_picking_drq/experiment_setup/VoxNet_pretrained/checkpoints dual lift voxnet pretrained 0124-17:31"\
     --demo_path /home/sebastiano/voxel-serl/examples/box_picking_drq/box_picking_20_demos_2025-01-24_16-00-04_dual_lift_pcd.pkl \
     --dual \
     --encoder_type voxnet-pretrained \
