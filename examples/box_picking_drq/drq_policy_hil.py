@@ -333,7 +333,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                 already_intervened = False
 
             reward = np.asarray(reward, dtype=np.float32)
-            info = np.asarray(info)
+            
             running_return = running_return * 0.99 + reward
             transition = dict(
                 observations=obs,
@@ -347,8 +347,9 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
             obs = next_obs
             if done or truncated:
-                # info["intervention_count"] = intervention_count
-                # info["intervention_steps"] = intervention_steps
+                info["intervention_count"] = intervention_count
+                info["intervention_steps"] = intervention_steps
+                info = np.asarray(info)
                 stats = {"train": info}  # send stats to the learner to log
                 client.request("send-stats", stats)
                 print(f"running return: {running_return}")

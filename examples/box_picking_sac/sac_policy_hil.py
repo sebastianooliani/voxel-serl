@@ -233,6 +233,10 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                 info["episode"]["intervention_count"] = intervention_count
                 info["episode"]["intervention_steps"] = intervention_steps
                 print(f"running return: {running_return}")
+                info = np.asarray(info)
+                stats = {"train": info}  # send stats to the learner to log
+                client.request("send-stats", stats)
+                
                 running_return = 0.0
                 intervention_count = 0
                 intervention_steps = 0
