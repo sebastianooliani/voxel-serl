@@ -13,5 +13,5 @@ python sac_policy_hil.py "$@" \
     --batch_size 2048 \
     --max_steps 50000 \
     --reward_scale 1 \
-    --demo_paths /home/sebastiano/voxel-serl/examples/box_picking_bc/ur5_test_20_demos_2025-01-31_14-03-17_reorient_none.pkl \
+    --demo_paths /home/sebastiano/voxel-serl/examples/box_picking_bc/ur5_test_20_demos_2025-02-04_09-52-22_reorient_none.pkl \
     # --debug

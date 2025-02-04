@@ -370,16 +370,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
                                                                             R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
                                                                             R.from_mrp(self.last_orientation).as_rotvec())[0], 0.3), # upper bound the maximum rotation
                                                                             0.)
-        # print(f"Rotation reward: {rotation_reward}")
-        # print(f"Box orientation: {obs['state']['box_orientation']}")
-        # print(f"Last orientation: {self.last_orientation}")
-        # print(np.where(orientation_difference_angle_axis(
-        #     R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
-        #     R.from_mrp(self.last_orientation).as_rotvec()
-        #     )[0] > 0.0, orientation_difference_angle_axis(
-        #     R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
-        #     R.from_mrp(self.last_orientation).as_rotvec()
-        #     )[0], 0))
+
         self.last_orientation = obs["state"]["box_orientation"].copy() # here in mrp , use copy() to avoid reference after scaling
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
@@ -411,7 +402,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         if self.reached_goal_state(obs):
             print("\nSuccessfull 40 degrees reorientation!\n")
             self.last_action[:] = 0.
-            R_goal = 100. if self.camera_mode is None else self.reward_dict["success_weight"]
+            R_goal = self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
         else:
             return 0. + suction_reward + rotation_reward - action_cost - orientation_cost - position_cost - \

@@ -66,7 +66,7 @@ flags.DEFINE_integer("eval_n_trajs", 3, "Number of trajectories for evaluation."
 flags.DEFINE_boolean("learner", False, "Is this a learner or a trainer.")
 flags.DEFINE_boolean("actor", False, "Is this a learner or a trainer.")
 flags.DEFINE_string("ip", "localhost", "IP address of the learner.")
-flags.DEFINE_integer("checkpoint_period", 10000, "Period to save checkpoints.")
+flags.DEFINE_integer("checkpoint_period", 5000, "Period to save checkpoints.")
 flags.DEFINE_string("checkpoint_path", '/home/sebastiano/voxel-serl/examples/box_picking_sac/checkpoints',
                     "Path to save checkpoints.")
 
@@ -95,8 +95,14 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
     This is the actor loop, which runs when "--actor" is set to True.
     """
     if FLAGS.eval_checkpoint_step:
+        wandb_logger = make_wandb_logger(
+            project=FLAGS.wandb_project,  # TODO only temporary
+            description=FLAGS.exp_name or FLAGS.env,
+            debug=FLAGS.debug,
+        )
         success_counter = 0
         time_list = []
+        running_return = 0.0
 
         ckpt = checkpoints.restore_checkpoint(
             FLAGS.eval_checkpoint_path,
@@ -119,6 +125,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
                 next_obs, reward, done, truncated, info = env.step(actions)
                 obs = next_obs
+                running_return += reward
 
                 if done:
                     if reward:
@@ -129,6 +136,15 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                     success_counter += int(reward > 0.99)
                     print(reward)
                     print(f"{success_counter}/{episode + 1}")
+
+                    infos = {
+                        "running_reward": running_return,
+                        "time": dt,
+                        "success_rate": float(reward > 50.),
+                    }
+                    wandb_logger.log(infos, step=episode)
+
+                    running_return = 0.0
 
         print(f"success rate: {success_counter / FLAGS.eval_n_trajs}")
         print(f"average time: {np.mean(time_list)}")

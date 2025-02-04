@@ -145,6 +145,8 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                     }
                     wandb_logger.log(infos, step=episode)
 
+                    running_return = 0.0
+
         print(f"success rate: {success_counter / FLAGS.eval_n_trajs}")
         print(f"average time: {np.mean(time_list)}")
         return  # after done eval, return and exit
