@@ -12,7 +12,7 @@ from absl import app, flags
 from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
 from ur_env.envs.wrappers import SpacemouseIntervention, TwoSpacemiceIntervention, DualQuat2MrpWrapper, Quat2MrpWrapper, ObservationRotationWrapper
 
-from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper, ScaleObservationWrapper
+from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper, ScaleObservationWrapper, ScaleDualObservationWrapper
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 
 import ur_env
@@ -37,14 +37,14 @@ flags.DEFINE_string("camera_mode", "pointcloud", "Type of camera mode used.")
 flags.DEFINE_integer("max_episode_length", 100, "Maximum length of trajectory.")
 
 def main(_):
-    env = gym.make("box_picking_camera_env_dual_robot",
+    env = gym.make("box_picking_camera_env_dual_robot_reorientation",
                    camera_mode=FLAGS.camera_mode,
                    max_episode_length=FLAGS.max_episode_length)
     
     env = SpacemouseIntervention(env) if not FLAGS.dual else TwoSpacemiceIntervention(env)
     env = RelativeFrame(env) if not FLAGS.dual else DualRelativeFrame(env)
     env = Quat2MrpWrapper(env) if not FLAGS.dual else DualQuat2MrpWrapper(env)
-    env = ScaleObservationWrapper(env)
+    env = ScaleObservationWrapper(env) if not FLAGS.dual else ScaleDualObservationWrapper(env)
     # env = ObservationRotationWrapper(env)       # if it should be enabled
     env = SERLObsWrapper(env)
     env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
@@ -66,7 +66,7 @@ def main(_):
     listener_2.start()
 
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"box_picking_{success_needed}_demos_{uuid}_dual_lift_pcd.pkl"
+    file_name = f"box_picking_{success_needed}_demos_{uuid}_dual_reorient_pcd.pkl"
     file_dir = os.path.dirname(os.path.realpath(__file__))  # same dir as this script
     file_path = os.path.join(file_dir, file_name)
 

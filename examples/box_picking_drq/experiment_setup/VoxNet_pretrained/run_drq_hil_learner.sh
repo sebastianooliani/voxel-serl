@@ -2,9 +2,9 @@ export XLA_PYTHON_CLIENT_PREALLOCATE=false && \
 export XLA_PYTHON_CLIENT_MEM_FRACTION=.3 && \
 python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy_hil.py "$@" \
     --learner \
-    --env box_picking_camera_env_dual_robot \
-    --wandb_project "dual_lift_voxnet_pretrained" \
-    --exp_name="dual lift voxnet pretrained" \
+    --env box_picking_camera_env_dual_robot_reorientation \
+    --wandb_project "dual_reorient_voxnet_pretrained" \
+    --exp_name="dual reorient voxnet pretrained" \
     --camera_mode pointcloud \
     --max_traj_length 100 \
     --seed 42 \
@@ -15,7 +15,7 @@ python /home/sebastiano/voxel-serl/examples/box_picking_drq/drq_policy_hil.py "$
     --batch_size 128 \
     --checkpoint_period 500 \
     --checkpoint_path /home/sebastiano/voxel-serl/examples/box_picking_drq/experiment_setup/VoxNet_pretrained/checkpoints \
-    --demo_path /home/sebastiano/voxel-serl/examples/box_picking_drq/box_picking_20_demos_2025-01-24_16-00-04_dual_lift_pcd.pkl \
+    --demo_path /home/sebastiano/voxel-serl/examples/box_picking_drq/box_picking_20_demos_2025-02-05_13-14-41_dual_reorient_pcd.pkl \
     --dual \
     --encoder_type voxnet-pretrained \
     --state_mask dual \

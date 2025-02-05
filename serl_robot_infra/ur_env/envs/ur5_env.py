@@ -860,7 +860,7 @@ class UR5DualRobotEnv(UR5Env):
             }
         )
 
-        if self.config.TASK == "motion":
+        if self.config.TASK in ["motion"]:
             state_space["goal_box_position"] = gym.spaces.Box(
                 -np.inf, np.inf, shape=(3,)
             )
@@ -871,7 +871,7 @@ class UR5DualRobotEnv(UR5Env):
                 -np.inf, np.inf, shape=(3,)
             )
 
-        if self.config.TASK == "reorient":
+        if self.config.TASK in ["reorient"]:
             state_space["box_orientation"] = gym.spaces.Box(
                 -np.inf, np.inf, shape=(3,)
             )

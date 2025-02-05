@@ -138,6 +138,8 @@ class ScaleDualObservationWrapper(gym.ObservationWrapper):
         obs['state']['tcp_pos_diff'] *= self.translation_scale
         # obs['state']['joint_position'] *= self.rotation_scale # TODO: Check if this is needed
 
+        # scale action too?
+
         # TODO: write this in a better way, maybe using the config variable TASK
         if self.task in ["motion"]:
             obs['state']['goal_box_position'] *= self.translation_scale

@@ -7,8 +7,6 @@ from franka_env.utils.transformations import (
     construct_rotation_matrix
 )
 
-
-
 class RelativeFrame(gym.Wrapper):
     """
     This wrapper transforms the observation and action to be expressed in the end-effector frame.
@@ -262,6 +260,9 @@ class DualRelativeFrame(gym.Wrapper):
         # this is to convert the spacemouse intervention action
         if "intervene_action" in info:
             info["intervene_action"] = self.transform_action_inv(info["intervene_action"])
+
+        if "hil_action" in info:
+            info["hil_action"] = self.transform_action_inv(info["hil_action"])
 
         # Update rotation matrix
         self.rotation_matrix_1 = construct_rotation_matrix(obs["state"]["tcp_pose"][:7])
