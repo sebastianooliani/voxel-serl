@@ -234,10 +234,14 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             obs["state"]["tcp_pose"][:2] - self.curr_reset_pose[:2], obs["state"]["tcp_pose"][7:9] - self.curr_reset_pose[7:9]
             ])
         position_cost = self.reward_dict["position_weight"] * np.sum(
-            np.where(np.abs(pos_diff) > max_pose_diff, 
-                     np.abs(pos_diff - np.sign(pos_diff) * max_pose_diff), 
-                     0.0)
-        )
+            np.where(np.abs(pos_diff) > 0.35, np.abs(pos_diff - np.sign(pos_diff) * 0.35), 0.0) # larger movement allowed
+        ) * (
+            float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5) # when is grasping
+            ) + self.reward_dict["position_weight"] * np.sum(
+            np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.05), 0.0) # smaller movement allowed
+        ) * (
+            float(obs["state"]["gripper_state"][1] < 0.5) + float(obs["state"]["gripper_state"][3] < 0.5) # when is not grasping
+            )
 
         # exp: 0 reward if far away from the goal, 1 reward if close to the goal
         goal_distance_reward = self.reward_dict["goal_weight"] * np.exp(-np.linalg.norm(obs["state"]["goal_box_position"]))
@@ -263,6 +267,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             position_cost=position_cost,
             action_diff_cost=action_diff_cost,
             distance_cost=distance_cost,
+            goal_distance_reward=goal_distance_reward,
             total_cost=-(-action_cost - step_cost + suction_reward + goal_distance_reward - suction_cost - orientation_cost - position_cost - action_diff_cost - distance_cost),
         )
         for key, info in cost_info.items():
@@ -401,6 +406,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         
         if self.reached_goal_state(obs):
             print("\nSuccessfull 40 degrees reorientation!\n")
+            self.env.unwrapped.SUCCESS_COUNT += 1
             self.last_action[:] = 0.
             R_goal = self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost

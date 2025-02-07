@@ -5,19 +5,17 @@ from franka_env.utils.transformations import (
     pose_2_homogeneous_matrix
 )
 import copy
-from pprint import pprint
-import pandas as pd
+
+from ur_env.envs.camera_env.config import UR5CameraConfigDualRobot as config
 
 class HER():
     def __init__(self, scale=False, trans=False):        
-        self.T_O1_O2=np.array([[1., 0., 0., -0.915], 
-                                [0., 1., 0., -0.08], 
-                                [0., 0., 1., 0.02], 
-                                [0., 0., 0., 1.]], dtype=np.float32)
-        self.T_EE_SC=np.array([[1., 0., 0., 0.],
-                                [0., 1., 0., 0.],
-                                [0., 0., 1., 0.130],
-                                [0., 0., 0., 1.]], dtype=np.float32)
+        self.T_O1_O2=config.T_O1_O2
+        self.T_EE_SC=config.T_EE_SC
+
+        assert config.TASK in ["motion"], "Only motion task is supported by HER!"
+
+        self.weigths = config.REWARD_DICT[config.TASK]
         
         self.last_action = np.zeros((14,))
 
@@ -31,6 +29,8 @@ class HER():
 
         self.R_1 = None
         self.R_2 = None
+
+        self.success = False
 
     ##########################################################################################
     #                               HER: her reward computation                              #
@@ -77,31 +77,37 @@ class HER():
         tcp_pose = obs[39:51]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
 
-        action_cost = 0.1 * np.sum(np.power(action, 2))
-        action_diff_cost = 0.1 * np.sum(np.power(obs[:14] - self.last_action, 2))
+        action_cost = self.weigths["action_weight"] * np.sum(np.power(action, 2))
+        action_diff_cost = self.weigths["action_weight"] * np.sum(np.power(obs[:14] - self.last_action, 2))
         self.last_action[:] = action
         
         # STEP: penalize each step
-        step_cost = 0.1
+        step_cost = self.weigths["step_weight"]
 
         # SUCTION: reward for successful grip and cost for unnecessary suctioning
-        suction_reward = 0.5 * 3. * (float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5))
-        suction_cost = 0.5 * 3. * (float(obs[14:18][1] < -0.5) + float(obs[14:18][3] < -0.5))
+        suction_reward = self.weigths["grasping_weight"] * (float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5))
+        suction_cost = self.weigths["suction_weight"] * (float(obs[14:18][1] < -0.5) + float(obs[14:18][3] < -0.5))
 
         # ORIENTATION: penalize deviating too much from the starting pose
         orientation_cost = 0
-        orientation_cost = 0.5 - sum(tcp_pose[3:7] * reset_pose[3:7]) ** 2
-        orientation_cost += 0.5 - sum(tcp_pose[10:] * reset_pose[10:]) ** 2
-        orientation_cost = max(orientation_cost - 0.005, 0.) * 25.
+        orientation_cost = 1. - sum(tcp_pose[3:7] * reset_pose[3:7]) ** 2
+        orientation_cost += 1. - sum(tcp_pose[10:] * reset_pose[10:]) ** 2
+        orientation_cost = max(orientation_cost - 0.005, 0.) * self.weigths["orientation_weight"]
 
         # POSITION: penalize deviating too much from the starting pose
         max_pose_diff = 0.05  # set to 5cm
         pos_diff = np.concatenate([tcp_pose[:2] - reset_pose[:2], tcp_pose[7:9] - reset_pose[7:9]])
-        position_cost = 10. * np.sum(
-            np.where(np.abs(pos_diff) > max_pose_diff, 
-                     np.abs(pos_diff - np.sign(pos_diff) * max_pose_diff), 
-                     0.0)
-        )
+        position_cost = self.weights["position_weight"] * np.sum(
+            np.where(np.abs(pos_diff) > 0.35, np.abs(pos_diff - np.sign(pos_diff) * 0.35), 0.0) # larger movement allowed
+        ) * (
+            float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5) # when is grasping
+            ) + self.weights["position_weight"] * np.sum(
+            np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.05), 0.0) # smaller movement allowed
+        ) * (
+            float(obs["state"]["gripper_state"][1] < 0.5) + float(obs["state"]["gripper_state"][3] < 0.5) # when is not grasping
+            )
+
+        goal_distance_reward = self.weights["goal_weight"] * np.exp(-np.linalg.norm(obs[69:72]))
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
@@ -109,15 +115,15 @@ class HER():
         T_O2_E2 = construct_homogeneous_matrix(tcp_pose[7:])
         T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
         T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
-        distance_cost = 1. / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
-
+        distance_cost = self.weigths["distance_weight"] / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
 
         if reached_goal_state_her(obs):
             self.last_action[:] = 0.
-            R_goal = 100.
+            R_goal = self.weigths["success_weight"]
+            self.success = True
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
         else:
-            return 0. + suction_reward - action_cost - orientation_cost - position_cost - \
+            return 0. + suction_reward + goal_distance_reward - action_cost - orientation_cost - position_cost - \
                 suction_cost - step_cost - action_diff_cost - distance_cost
         
     def process_transitions(self, 
@@ -213,6 +219,11 @@ class HER():
                 )
             )
             augmented_transitions.append(augm_dict)
+
+            # cut episode length if success is achieved
+            if self.success:
+                self.success = False
+                break
 
         return her_transitions, augmented_transitions
 
@@ -320,8 +331,6 @@ class HER():
         obs[66:69] = self.R_2 @ obs[66:69]
 
         return obs.copy()
-
-
 
 if __name__ == "__main__":
     # debug costs
