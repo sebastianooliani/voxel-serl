@@ -175,6 +175,8 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
     already_intervened = False
     intervention_count = 0
     intervention_steps = 0
+    consecutive_successes = 0
+    success_counter = 0
 
     for step in tqdm.tqdm(range(FLAGS.max_steps), dynamic_ncols=True):
         timer.tick("total")
@@ -232,6 +234,12 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
             if done or truncated:
                 info["episode"]["intervention_count"] = intervention_count
                 info["episode"]["intervention_steps"] = intervention_steps
+                compare_success_count = (success_counter + 1 == env.unwrapped.config.SUCCESS_COUNT) # true if there was not a success, otherwise false
+                success_counter = env.unwrapped.config.SUCCESS_COUNT
+                consecutive_successes = (consecutive_successes + 1 if compare_success_count else 0)
+                info["success_counter"] = success_counter
+                info["consecutive_successes"] = consecutive_successes
+                
                 print(f"running return: {running_return}")
                 info = np.asarray(info)
                 stats = {"train": info}  # send stats to the learner to log
