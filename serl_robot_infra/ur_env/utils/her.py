@@ -15,7 +15,7 @@ class HER():
 
         assert config.TASK in ["motion"], "Only motion task is supported by HER!"
 
-        self.weigths = config.REWARD_DICT[config.TASK]
+        self.weights = config.REWARD_DICT[config.TASK]
         
         self.last_action = np.zeros((14,))
 
@@ -63,6 +63,7 @@ class HER():
                                    axis=0)
         
         def reached_goal_state_her(obs) -> bool:
+            print("Goal distance: ", np.linalg.norm(obs[69:72]))
             return np.linalg.norm(obs[69:72]) < 0.05 \
                 and 0.1 < obs[14:18][0] < 1. \
                     and 0.1 < obs[14:18][2] < 1.
@@ -77,22 +78,22 @@ class HER():
         tcp_pose = obs[39:51]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
 
-        action_cost = self.weigths["action_weight"] * np.sum(np.power(action, 2))
-        action_diff_cost = self.weigths["action_weight"] * np.sum(np.power(obs[:14] - self.last_action, 2))
+        action_cost = self.weights["action_weight"] * np.sum(np.power(action, 2))
+        action_diff_cost = self.weights["action_weight"] * np.sum(np.power(obs[:14] - self.last_action, 2))
         self.last_action[:] = action
         
         # STEP: penalize each step
-        step_cost = self.weigths["step_weight"]
+        step_cost = self.weights["step_weight"]
 
         # SUCTION: reward for successful grip and cost for unnecessary suctioning
-        suction_reward = self.weigths["grasping_weight"] * (float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5))
-        suction_cost = self.weigths["suction_weight"] * (float(obs[14:18][1] < -0.5) + float(obs[14:18][3] < -0.5))
+        suction_reward = self.weights["grasping_weight"] * (float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5))
+        suction_cost = self.weights["suction_weight"] * (float(obs[14:18][1] < -0.5) + float(obs[14:18][3] < -0.5))
 
         # ORIENTATION: penalize deviating too much from the starting pose
         orientation_cost = 0
         orientation_cost = 1. - sum(tcp_pose[3:7] * reset_pose[3:7]) ** 2
         orientation_cost += 1. - sum(tcp_pose[10:] * reset_pose[10:]) ** 2
-        orientation_cost = max(orientation_cost - 0.005, 0.) * self.weigths["orientation_weight"]
+        orientation_cost = max(orientation_cost - 0.005, 0.) * self.weights["orientation_weight"]
 
         # POSITION: penalize deviating too much from the starting pose
         max_pose_diff = 0.05  # set to 5cm
@@ -100,11 +101,11 @@ class HER():
         position_cost = self.weights["position_weight"] * np.sum(
             np.where(np.abs(pos_diff) > 0.35, np.abs(pos_diff - np.sign(pos_diff) * 0.35), 0.0) # larger movement allowed
         ) * (
-            float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5) # when is grasping
+            float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5) # when is grasping
             ) + self.weights["position_weight"] * np.sum(
             np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.05), 0.0) # smaller movement allowed
         ) * (
-            float(obs["state"]["gripper_state"][1] < 0.5) + float(obs["state"]["gripper_state"][3] < 0.5) # when is not grasping
+            float(obs[14:18][1] < 0.5) + float(obs[14:18][3] < 0.5) # when is not grasping
             )
 
         goal_distance_reward = self.weights["goal_weight"] * np.exp(-np.linalg.norm(obs[69:72]))
@@ -115,11 +116,11 @@ class HER():
         T_O2_E2 = construct_homogeneous_matrix(tcp_pose[7:])
         T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
         T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
-        distance_cost = self.weigths["distance_weight"] / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
+        distance_cost = self.weights["distance_weight"] / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
 
         if reached_goal_state_her(obs):
             self.last_action[:] = 0.
-            R_goal = self.weigths["success_weight"]
+            R_goal = self.weights["success_weight"]
             self.success = True
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
         else:
@@ -147,6 +148,8 @@ class HER():
             her_transitions: list of HER transitions
             augmented_transitions: list of augmented transitions
         """
+
+        her_transitions, augmented_transitions = [], []
 
         for trans in transitions:
             # compute reward based on the new goal state
@@ -223,6 +226,7 @@ class HER():
             # cut episode length if success is achieved
             if self.success:
                 self.success = False
+                print("Success achieved! Episode length: ", len(her_transitions), "instead of: ", len(transitions))
                 break
 
         return her_transitions, augmented_transitions

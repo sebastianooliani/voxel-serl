@@ -141,8 +141,8 @@ class UR5CameraConfigFinalEvaluation(UR5CameraConfigFinal):
 class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     DUAL = True
     TOP = True
-    HER = False
-    TASK = "reorient" # "lift", "reorient", "motion"
+    HER = True
+    TASK = "motion" # "lift", "reorient", "motion"
     
     # box in horizontal position
     # RESET_Q = np.array([[- math.pi / 6., -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
@@ -291,6 +291,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "orientation_weight": 25.,
             "position_weight": 1.,
             "distance_weight": DISTANCE_WEIGHT,
+            "grasping_weight": 0.5,
             "suction_weight": 0.75,
             "goal_weight": 10.,
             "success_weight": 100.,
@@ -298,6 +299,8 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "safety_threshold": SAFETY_THRESHOLD,
         }
     }
+
+    SUCCESS_COUNT = 0
 
     ROBOT_IP_1: str = "192.168.1.66" # docker "172.17.0.2"
     ROBOT_IP_2: str = "192.168.1.33" # docker "172.17.0.3"

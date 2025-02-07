@@ -272,7 +272,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
     timer = Timer()
     running_return = 0.0
 
-    her = HER(scale=True)
+    her = HER(scale=True, trans=True)
     transitions = []
     her_transitions = []
     augmented_transitions = []

@@ -392,13 +392,13 @@ class SampleGoalPositionsWrapper(gym.Wrapper):
 
     def sample_goal_position(self):
         rnm_num = np.random.randint(0, 100)
-        config = self.env.env.env.env.config
+        config = self.env.unwrapped.config
         T = config.T_O1_O2
 
-        box1_min = np.concatenate([config.ABS_POSE_LIMIT_LOW_ROBOT_1[:3], [1]])
-        box1_max = np.concatenate([config.ABS_POSE_LIMIT_HIGH_ROBOT_1[:3], [1]])
-        box2_min = np.concatenate([config.ABS_POSE_LIMIT_LOW_ROBOT_2[:3], [1]])
-        box2_max = np.concatenate([config.ABS_POSE_LIMIT_HIGH_ROBOT_2[:3], [1]])
+        box1_min = np.concatenate([config.ABS_POSE_LIMIT_LOW_ROBOT_1[config.TASK][:3], [1]])
+        box1_max = np.concatenate([config.ABS_POSE_LIMIT_HIGH_ROBOT_1[config.TASK][:3], [1]])
+        box2_min = np.concatenate([config.ABS_POSE_LIMIT_LOW_ROBOT_2[config.TASK][:3], [1]])
+        box2_max = np.concatenate([config.ABS_POSE_LIMIT_HIGH_ROBOT_2[config.TASK][:3], [1]])
 
         box2_min = T @ box2_min
         box2_max = T @ box2_max
@@ -408,7 +408,7 @@ class SampleGoalPositionsWrapper(gym.Wrapper):
         )
 
         # print(f"Intersection Points: {intersection_points}")
-        self.env.env.env.env.goal_position = intersection_points[0]
+        self.env.unwrapped.goal_position = intersection_points[0]
         return intersection_points[0]
     
     def step(self, action):

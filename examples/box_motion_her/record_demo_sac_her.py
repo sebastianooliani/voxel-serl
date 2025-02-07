@@ -37,10 +37,12 @@ FLAGS = flags.FLAGS
 flags.DEFINE_boolean("dual", True, "Whether to use dual spacemice or not.")
 flags.DEFINE_boolean("her", True, "Whether to use HER or not.")
 flags.DEFINE_string("camera_mode", "none", "Type of camera mode used.")
+flags.DEFINE_integer("max_episode_length", 100, "Maximum length of trajectory.")
 
 def main(_):
     env = gym.make("box_picking_camera_env_dual_robot_motion_planning",
-                   camera_mode="none") if FLAGS.dual else gym.make("box_picking_camera_env", camera_mode="rgb")
+                   camera_mode="none",
+                   max_episode_length=FLAGS.max_episode_length) if FLAGS.dual else gym.make("box_picking_camera_env", camera_mode="rgb")
         
     env = SampleGoalPositionsWrapper(env) if FLAGS.her else env
     env = TwoSpacemiceIntervention(env) if FLAGS.dual else SpacemouseIntervention(env)
@@ -51,13 +53,13 @@ def main(_):
 
     obs, _ = env.reset()
 
-    her = HER(scale=False)
+    her = HER(scale=True, trans=True)
     transitions = []
     her_transitions = []
     augmented_transitions = []
 
     total_count = 0
-    num_points = 1
+    num_points = 20
     pbar = tqdm(total=num_points)
 
     info_dict = {'state': env.unwrapped.curr_pos, 'gripper_state': env.unwrapped.gripper_state,
@@ -79,7 +81,7 @@ def main(_):
     try:
         iter = 0
         # define goal position
-        intersection_point = env.env.env.env.env.sample_goal_position()
+        intersection_point = env.env.env.env.env.env.sample_goal_position()
 
         while iter < num_points:            
             if exit_program.is_set():
@@ -123,7 +125,7 @@ def main(_):
                 iter += 1
 
                 # sample new goal position
-                intersection_point = env.env.env.env.env.sample_goal_position()
+                intersection_point = env.env.env.env.env.env.sample_goal_position()
                 
                 total_count += 1
                 print(
