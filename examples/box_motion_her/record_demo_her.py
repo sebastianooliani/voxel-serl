@@ -13,7 +13,7 @@ from pprint import pprint
 from absl import app, flags
 
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention, SampleGoalPositionsWrapper
-from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, SERLObsWrapper
+from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, SERLObsWrapper, ScaleDualObservationWrapper
 
 from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
 
@@ -46,6 +46,7 @@ def main(_):
     env = TwoSpacemiceIntervention(env) if FLAGS.dual else SpacemouseIntervention(env)
     env = DualRelativeFrame(env) if FLAGS.dual else RelativeFrame(env)
     env = DualQuat2MrpWrapper(env) if FLAGS.dual else Quat2MrpWrapper(env)
+    env = ScaleDualObservationWrapper(env) if FLAGS.dual else env
     env = SerlObsWrapperNoImages(env) if FLAGS.camera_mode in ["none"] else SERLObsWrapper(env)
 
     obs, _ = env.reset()
@@ -68,7 +69,7 @@ def main(_):
     listener_2.start()
 
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"ur5_test_{num_points}_demos_{uuid}_her.pkl"
+    file_name = f"ur5_test_{num_points}_demos_{uuid}_none_her.pkl"
     file_dir = os.path.dirname(os.path.realpath(__file__))  # same dir as this script
     file_path = os.path.join(file_dir, file_name)
 

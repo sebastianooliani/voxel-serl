@@ -32,7 +32,7 @@ from serl_launcher.utils.launcher import (
     make_replay_buffer,
 )
 
-from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, HERSerlObsWrapperNoImages
+from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, HERSerlObsWrapperNoImages, ScaleDualObservationWrapper
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention, SampleGoalPositionsWrapper
 
 from ur_env.utils.her import HER
@@ -82,6 +82,7 @@ flags.DEFINE_boolean(
 )  # debug mode will disable wandb logging
 flags.DEFINE_boolean("dual", False, "Dual robot mode.")
 flags.DEFINE_string("wandb_project", "serl", "Wandb project name.")
+flags.DEFINE_boolean("her", True, "Whether to use HER or not.")
 
 def print_green(x):
     return print("\033[92m {}\033[00m".format(x))
@@ -318,8 +319,6 @@ def learner(rng, agent: SACAgent, replay_buffer, replay_iterator, wandb_logger=N
 
 ##############################################################################
 
-DUAL_SPACEMOUSE = True
-
 def main(_):
     devices = jax.local_devices()
     num_devices = len(devices)
@@ -335,13 +334,14 @@ def main(_):
         FLAGS.env,
         fake_env=FLAGS.learner,
         max_episode_length=FLAGS.max_traj_length,
-        camera_mode="rgb",
+        camera_mode="none",
     )
-    env = SampleGoalPositionsWrapper(env) if DUAL_SPACEMOUSE else env
+    env = SampleGoalPositionsWrapper(env) if FLAGS.her else env
     if FLAGS.actor:
-        env = SpacemouseIntervention(env) if not DUAL_SPACEMOUSE else TwoSpacemiceIntervention(env)
-    env = RelativeFrame(env) if not DUAL_SPACEMOUSE else DualRelativeFrame(env)
-    env = Quat2MrpWrapper(env) if not DUAL_SPACEMOUSE else DualQuat2MrpWrapper(env)
+        env = SpacemouseIntervention(env) if not FLAGS.dual else TwoSpacemiceIntervention(env)
+    env = RelativeFrame(env) if not FLAGS.dual else DualRelativeFrame(env)
+    env = Quat2MrpWrapper(env) if not FLAGS.dual else DualQuat2MrpWrapper(env)
+    env = ScaleDualObservationWrapper(env) if FLAGS.dual else env
     env = HERSerlObsWrapperNoImages(env)
     env = RecordEpisodeStatistics(env)
 
