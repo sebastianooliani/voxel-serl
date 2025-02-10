@@ -186,6 +186,21 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
             next_obs = np.asarray(next_obs, dtype=np.float32)
             reward = np.asarray(reward, dtype=np.float32)
 
+            if "left" in info:
+                info.pop("left")
+            if "right" in info:
+                info.pop("right")
+
+            # override the action with the intervention action
+            if "hil_action" in info:
+                actions = info.pop("hil_action")
+                intervention_steps += 1
+                if not already_intervened:
+                    intervention_count += 1
+                already_intervened = True
+            else:
+                already_intervened = False
+
             running_return += reward
 
             transitions.append(
@@ -201,6 +216,20 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
             obs = next_obs
             if done or truncated:
+                # intervention statistics
+                info["intervention_count"] = intervention_count
+                info["intervention_steps"] = intervention_steps
+                compare_success_count = (success_counter + 1 == env.unwrapped.config.SUCCESS_COUNT) # true if there was not a success, otherwise false
+                success_counter = env.unwrapped.config.SUCCESS_COUNT
+                consecutive_successes = (consecutive_successes + 1 if compare_success_count else 0)
+                info["success_counter"] = success_counter
+                info["consecutive_successes"] = consecutive_successes
+
+                print(f"running return: {running_return}")
+                info = np.asarray(info)
+                stats = {"train": info}  # send stats to the learner to log
+                client.request("send-stats", stats)
+
                 her_transitions, augmented_transitions = her.process_transitions(
                     transitions=transitions, 
                     last_obs=next_obs, 
@@ -220,6 +249,9 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                 augmented_transitions = []
                 # print(f"running return: {running_return}   done:{done}  truncated:{truncated}")
                 running_return = 0.0
+                intervention_count = 0
+                intervention_steps = 0
+                already_intervened = False
                 obs, _ = env.reset()
 
         if step % FLAGS.steps_per_update == 0:

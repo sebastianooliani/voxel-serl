@@ -63,7 +63,6 @@ class HER():
                                    axis=0)
         
         def reached_goal_state_her(obs) -> bool:
-            print("Goal distance: ", np.linalg.norm(obs[69:72]))
             return np.linalg.norm(obs[69:72]) < 0.05 \
                 and 0.1 < obs[14:18][0] < 1. \
                     and 0.1 < obs[14:18][2] < 1.
@@ -226,7 +225,7 @@ class HER():
             # cut episode length if success is achieved
             if self.success:
                 self.success = False
-                print("Success achieved! Episode length: ", len(her_transitions), "instead of: ", len(transitions))
+                # print("Success achieved! Episode length: ", len(her_transitions), "instead of: ", len(transitions))
                 break
 
         return her_transitions, augmented_transitions
