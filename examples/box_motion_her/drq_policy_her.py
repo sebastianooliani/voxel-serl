@@ -40,7 +40,7 @@ from serl_launcher.data.data_store import MemoryEfficientReplayBufferDataStore
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper, ScaleObservationWrapper, ScaleDualObservationWrapper
 from serl_launcher.wrappers.observation_statistics_wrapper import ObservationStatisticsWrapper, DualObservationStatisticsWrapper
 from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
-from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, ObservationRotationWrapper, DualQuat2MrpWrapper, SampleGoalPositionsWrapper
+from ur_env.envs.wrappers import SpacemouseIntervention, TwoSpacemiceIntervention, Quat2MrpWrapper, ObservationRotationWrapper, DualQuat2MrpWrapper, SampleGoalPositionsWrapper
 from serl_launcher.vision.data_augmentations import batched_random_rot90_state, batched_random_rot90_voxel, \
     batched_random_rot90_action
 
@@ -571,8 +571,8 @@ def main(_):
         fake_env=FLAGS.learner,
         max_episode_length=FLAGS.max_traj_length,
     )
-    # if FLAGS.actor:
-    #     env = SpacemouseIntervention(env)
+    if FLAGS.actor:
+        env = SpacemouseIntervention(env) if not FLAGS.dual else TwoSpacemiceIntervention(env)
     env = SampleGoalPositionsWrapper(env) if FLAGS.dual else env
     env = RelativeFrame(env) if not FLAGS.dual else DualRelativeFrame(env)
     env = Quat2MrpWrapper(env) if not FLAGS.dual else DualQuat2MrpWrapper(env)

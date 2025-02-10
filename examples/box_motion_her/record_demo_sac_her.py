@@ -41,7 +41,7 @@ flags.DEFINE_integer("max_episode_length", 100, "Maximum length of trajectory.")
 
 def main(_):
     env = gym.make("box_picking_camera_env_dual_robot_motion_planning",
-                   camera_mode="none",
+                   camera_mode=FLAGS.camera_mode,
                    max_episode_length=FLAGS.max_episode_length) if FLAGS.dual else gym.make("box_picking_camera_env", camera_mode="rgb")
         
     env = SampleGoalPositionsWrapper(env) if FLAGS.her else env
