@@ -9,7 +9,7 @@ import copy
 from ur_env.envs.camera_env.config import UR5CameraConfigDualRobot as config
 
 class HER():
-    def __init__(self, scale=False, trans=False):        
+    def __init__(self, scale=False, trans=False, camera_mode=None):        
         self.T_O1_O2=config.T_O1_O2
         self.T_EE_SC=config.T_EE_SC
 
@@ -26,6 +26,7 @@ class HER():
 
         self.scale=scale
         self.trans=trans
+        self.camera_mode=camera_mode
 
         self.R_1 = None
         self.R_2 = None
@@ -111,11 +112,14 @@ class HER():
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
-        T_O1_E1 = construct_homogeneous_matrix(tcp_pose[:7])
-        T_O2_E2 = construct_homogeneous_matrix(tcp_pose[7:])
-        T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
-        T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
-        distance_cost = self.weights["distance_weight"] / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
+        if self.camera_mode is None:
+            distance_cost = 0.
+        else:
+            T_O1_E1 = construct_homogeneous_matrix(tcp_pose[:7])
+            T_O2_E2 = construct_homogeneous_matrix(tcp_pose[7:])
+            T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
+            T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
+            distance_cost = self.weights["distance_weight"] / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
 
         if reached_goal_state_her(obs):
             self.last_action[:] = 0.
@@ -225,7 +229,7 @@ class HER():
             # cut episode length if success is achieved
             if self.success:
                 self.success = False
-                # print("Success achieved! Episode length: ", len(her_transitions), "instead of: ", len(transitions))
+                # print("Success achieved! Episode length: ", len(her_transitions), " instead of: ", len(transitions))
                 break
 
         return her_transitions, augmented_transitions

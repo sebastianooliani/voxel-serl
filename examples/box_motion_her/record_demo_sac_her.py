@@ -57,6 +57,8 @@ def main(_):
     transitions = []
     her_transitions = []
     augmented_transitions = []
+    all_transitions = []
+    positive_transitions = []
 
     total_count = 0
     num_points = 20
@@ -123,6 +125,9 @@ def main(_):
                 # Reset transitions
                 transitions = []
                 iter += 1
+                positive_transitions.extend(her_transitions)
+                all_transitions.extend(her_transitions)
+                all_transitions.extend(augmented_transitions)
 
                 # sample new goal position
                 intersection_point = env.env.env.env.env.env.sample_goal_position()
@@ -135,12 +140,11 @@ def main(_):
                 obs, _ = env.reset()
 
         with open(file_path, "wb") as f:
-            augmented_transitions.extend(her_transitions)
-            pkl.dump(augmented_transitions, f)
+            pkl.dump(all_transitions, f)
             print(f"saved {num_points} demos to {file_path}")
             
-        with open (f"her_transitions_{uuid}.pkl", 'wb') as f:
-            pkl.dump(her_transitions, f)
+        with open (f"dual_{num_points}_her_transitions_{uuid}.pkl", 'wb') as f:
+            pkl.dump(positive_transitions, f)
 
     except KeyboardInterrupt as e:
         print(f'\nProgram was interrupted from keyboard, cleaning up...  ', e.__str__())

@@ -65,10 +65,13 @@ flags.DEFINE_integer("eval_n_trajs", 3, "Number of trajectories for evaluation."
 # flag to indicate if this is a leaner or a actor
 flags.DEFINE_boolean("learner", False, "Is this a learner or a trainer.")
 flags.DEFINE_boolean("actor", False, "Is this a learner or a trainer.")
+flags.DEFINE_boolean("evaluation", False, "Evaluation mode.")
 flags.DEFINE_string("ip", "localhost", "IP address of the learner.")
 flags.DEFINE_integer("checkpoint_period", 10000, "Period to save checkpoints.")
 flags.DEFINE_string("checkpoint_path", '/home/sebastiano/voxel-serl/examples/box_picking_sac/checkpoints',
                     "Path to save checkpoints.")
+flags.DEFINE_string("load_checkpoint_path", '/home/nico/real-world-rl/serl/examples/box_picking_drq/checkpoints',
+                    "Path to load previously saved checkpoints and start training from them.")
 
 flags.DEFINE_integer("eval_checkpoint_step", 0, "evaluate the policy from ckpt at this step")
 flags.DEFINE_string("eval_checkpoint_path", None, "evaluate the policy from ckpt from this path")
@@ -80,7 +83,7 @@ flags.DEFINE_string("preload_rlds_path", None, "Path to preload RLDS data.")
 flags.DEFINE_boolean(
     "debug", False, "Debug mode."
 )  # debug mode will disable wandb logging
-flags.DEFINE_boolean("dual", False, "Dual robot mode.")
+flags.DEFINE_boolean("dual", True, "Dual robot mode.")
 flags.DEFINE_string("wandb_project", "serl", "Wandb project name.")
 flags.DEFINE_boolean("her", True, "Whether to use HER or not.")
 
@@ -94,7 +97,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
     """
     This is the actor loop, which runs when "--actor" is set to True.
     """
-    if FLAGS.eval_checkpoint_step:
+    if FLAGS.eval_checkpoint_step and FLAGS.evaluation:
         success_counter = 0
         time_list = []
 
@@ -157,13 +160,17 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
     transitions = []
     her_transitions = []
     augmented_transitions = []
-    running_return = 0.0
+    success_counter = 0
+    consecutive_successes = 0
+    intervention_count = 0
+    intervention_steps = 0
+    already_intervened = False
 
     # training loop
     timer = Timer()
     running_return = 0.0
     for step in tqdm.tqdm(range(FLAGS.max_steps), dynamic_ncols=True):
-        intersection_point = env.env.env.env.env.env.sample_goal_position()
+        intersection_point = env.env.env.env.env.env.env.sample_goal_position()
         timer.tick("total")
 
         with timer.context("sample_actions"):
@@ -216,10 +223,11 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
             obs = next_obs
             if done or truncated:
+                curr_reset_pose = env.unwrapped.curr_reset_pose
                 # intervention statistics
                 info["intervention_count"] = intervention_count
                 info["intervention_steps"] = intervention_steps
-                compare_success_count = (success_counter + 1 == env.unwrapped.config.SUCCESS_COUNT) # true if there was not a success, otherwise false
+                compare_success_count = (success_counter + 1 == env.unwrapped.config.SUCCESS_COUNT) # true if there was a success, otherwise false
                 success_counter = env.unwrapped.config.SUCCESS_COUNT
                 consecutive_successes = (consecutive_successes + 1 if compare_success_count else 0)
                 info["success_counter"] = success_counter
@@ -230,21 +238,29 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                 stats = {"train": info}  # send stats to the learner to log
                 client.request("send-stats", stats)
 
-                her_transitions, augmented_transitions = her.process_transitions(
-                    transitions=transitions, 
-                    last_obs=next_obs, 
-                    goal_position=intersection_point,
-                    her_transitions=her_transitions,
-                    augmented_transitions=augmented_transitions
-                    )
+                if not compare_success_count:
+                    her_transitions, augmented_transitions = her.process_transitions(
+                        transitions=transitions, 
+                        last_obs=next_obs, 
+                        goal_position=intersection_point,
+                        her_transitions=her_transitions,
+                        augmented_transitions=augmented_transitions,
+                        reset_pose=curr_reset_pose,
+                        )
+                    transitions = []
+                    # augmented_transitions.extend(her_transitions)
 
-                transitions = []
-                augmented_transitions.extend(her_transitions)
+                    assert len(augmented_transitions) <= 250, f"Too many transitions: {len(augmented_transitions)}"
 
-                data_store.insert(augmented_transitions)
+                    # store all both the episodes, has done in "Overcoming Exploration in Reinforcement Learning with Demonstrations" (https://arxiv.org/abs/1709.10089)
+                    (data_store.insert(transition) for transition in augmented_transitions)
+                    (data_store.insert(transition) for transition in her_transitions)
+                else:
+                    (data_store.insert(transition) for transition in transitions)
+                    transitions = []
 
                 # sample new goal position
-                intersection_point = env.env.env.env.env.env.sample_goal_position()
+                intersection_point = env.env.env.env.env.env.env.sample_goal_position()
                 her_transitions = []
                 augmented_transitions = []
                 # print(f"running return: {running_return}   done:{done}  truncated:{truncated}")
@@ -374,7 +390,7 @@ def main(_):
     env = RelativeFrame(env) if not FLAGS.dual else DualRelativeFrame(env)
     env = Quat2MrpWrapper(env) if not FLAGS.dual else DualQuat2MrpWrapper(env)
     env = ScaleDualObservationWrapper(env) if FLAGS.dual else env
-    env = HERSerlObsWrapperNoImages(env)
+    env = SerlObsWrapperNoImages(env)
     env = RecordEpisodeStatistics(env)
 
     rng, sampling_rng = jax.random.split(rng)
@@ -383,7 +399,6 @@ def main(_):
         sample_obs=env.observation_space.sample(),
         sample_action=env.action_space.sample(),
     )
-    
     # replicate agent across devices
     # need the jnp.array to avoid a bug where device_put doesn't recognize primitives
     agent: SACAgent = jax.device_put(
