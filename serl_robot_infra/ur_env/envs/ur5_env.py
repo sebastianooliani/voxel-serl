@@ -953,7 +953,7 @@ class UR5DualRobotEnv(UR5Env):
         Update the box position estimate.
         """
         self.box_position = self.box_pose.get_box_position()
-        self.box_position = self.WF_rot @ self.box_position
+        self.box_position = self.WF_rot @ self.box_position + np.array([0.03, 0., 0.])  # world frame
 
     def _update_box_orientation_estimate(self):
         """
