@@ -32,7 +32,7 @@ from serl_launcher.utils.launcher import (
     make_replay_buffer,
 )
 
-from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, HERSerlObsWrapperNoImages, ScaleDualObservationWrapper
+from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, ScaleDualObservationWrapper
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention, SampleGoalPositionsWrapper
 
 from ur_env.utils.her import HER
@@ -223,7 +223,6 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
             obs = next_obs
             if done or truncated:
-                curr_reset_pose = env.unwrapped.curr_reset_pose
                 # intervention statistics
                 info["intervention_count"] = intervention_count
                 info["intervention_steps"] = intervention_steps
@@ -239,6 +238,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                 client.request("send-stats", stats)
 
                 if not compare_success_count:
+                    curr_reset_pose = env.unwrapped.curr_reset_pose
                     her_transitions, augmented_transitions = her.process_transitions(
                         transitions=transitions, 
                         last_obs=next_obs, 
@@ -253,17 +253,18 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                     assert len(augmented_transitions) <= 250, f"Too many transitions: {len(augmented_transitions)}"
 
                     # store all both the episodes, has done in "Overcoming Exploration in Reinforcement Learning with Demonstrations" (https://arxiv.org/abs/1709.10089)
-                    (data_store.insert(transition) for transition in augmented_transitions)
-                    (data_store.insert(transition) for transition in her_transitions)
+                    for aug_trans, her_trans in zip(augmented_transitions, her_transitions):
+                        data_store.insert(aug_trans)
+                        data_store.insert(her_trans)
                 else:
-                    (data_store.insert(transition) for transition in transitions)
+                    for transition in transitions:
+                        data_store.insert(transition)
                     transitions = []
 
                 # sample new goal position
                 intersection_point = env.env.env.env.env.env.env.sample_goal_position()
                 her_transitions = []
                 augmented_transitions = []
-                # print(f"running return: {running_return}   done:{done}  truncated:{truncated}")
                 running_return = 0.0
                 intervention_count = 0
                 intervention_steps = 0
@@ -425,10 +426,24 @@ def main(_):
     if FLAGS.learner:
         sampling_rng = jax.device_put(sampling_rng, device=sharding.replicate())
         replay_buffer, wandb_logger = create_replay_buffer_and_wandb_logger()
+        # create two more buffers, each one for every curriculum
+        # replay_buffer_2, _ = create_replay_buffer_and_wandb_logger()
+        # replay_buffer_3, _ = create_replay_buffer_and_wandb_logger()
 
         if FLAGS.preload_rlds_path is None and FLAGS.demo_paths is not None:
             print(f"loaded demos from {FLAGS.demo_paths}")  # load demo trajectories the old way
-            replay_buffer = populate_data_store(replay_buffer, FLAGS.demo_paths, reward_scaling=FLAGS.reward_scale)
+            replay_buffer = populate_data_store(replay_buffer, 
+                                                FLAGS.demo_paths, 
+                                                reward_scaling=FLAGS.reward_scale
+                                                )            
+            # replay_buffer_2 = populate_data_store(replay_buffer_2,
+            #                                      FLAGS.demo_paths,
+            #                                      reward_scaling=FLAGS.reward_scale,
+            #                                      )
+            # replay_buffer_3 = populate_data_store(replay_buffer_3,
+            #                                      FLAGS.demo_paths,
+            #                                      reward_scaling=FLAGS.reward_scale,
+            #                                      )
 
         replay_iterator = replay_buffer.get_iterator(
             sample_args={
@@ -436,6 +451,31 @@ def main(_):
             },
             device=sharding.replicate(),
         )
+        # replay_iterator_2 = replay_buffer_2.get_iterator(
+        #     sample_args={
+        #         "batch_size": FLAGS.batch_size * FLAGS.utd_ratio,
+        #     },
+        #     device=sharding.replicate(),
+        # )
+        # replay_iterator_3 = replay_buffer_3.get_iterator(
+        #     sample_args={
+        #         "batch_size": FLAGS.batch_size * FLAGS.utd_ratio,
+        #     },
+        #     device=sharding.replicate(),
+        # )
+
+        # create a dictionary to store the replay buffers and iterators
+        # replay_buffers = {
+        #     "S0": replay_buffer,
+        #     "S1": replay_buffer_2,
+        #     "SF": replay_buffer_3,
+        # }
+        # replay_iterators = {
+        #     "S0": replay_iterator,
+        #     "S1": replay_iterator_2,
+        #     "SF": replay_iterator_3,
+        # }
+
         # learner loop
         print_green("starting learner loop")
         learner(

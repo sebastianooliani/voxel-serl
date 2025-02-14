@@ -53,7 +53,7 @@ def main(_):
 
     obs, _ = env.reset()
 
-    her = HER(scale=True, trans=True)
+    her = HER(scale=True, trans=True, camera_mode=FLAGS.camera_mode)
     transitions = []
     her_transitions = []
     augmented_transitions = []

@@ -9,14 +9,14 @@ import copy
 from ur_env.envs.camera_env.config import UR5CameraConfigDualRobot as config
 
 class HER():
-    def __init__(self, scale=False, trans=False, camera_mode=None):        
+    def __init__(self, scale=False, trans=False, camera_mode=None, weights_dict=None):        
         self.T_O1_O2=config.T_O1_O2
         self.T_EE_SC=config.T_EE_SC
 
         assert config.TASK in ["motion"], "Only motion task is supported by HER!"
 
-        self.weights = config.REWARD_DICT[config.TASK]
-        
+        self.weights = config.REWARD_DICT[config.TASK] if weights_dict is None else weights_dict
+
         self.last_action = np.zeros((14,))
 
         self.translation_scale=100.
@@ -26,12 +26,14 @@ class HER():
 
         self.scale=scale
         self.trans=trans
-        self.camera_mode=camera_mode
+        self.camera_mode=camera_mode if camera_mode in ["pointcloud"] else None
 
         self.R_1 = None
         self.R_2 = None
 
         self.success = False
+
+        self.costs = {}
 
     ##########################################################################################
     #                               HER: her reward computation                              #
@@ -108,7 +110,7 @@ class HER():
             float(obs[14:18][1] < 0.5) + float(obs[14:18][3] < 0.5) # when is not grasping
             )
 
-        goal_distance_reward = self.weights["goal_weight"] * np.exp(-np.linalg.norm(obs[69:72]))
+        goal_distance_reward = self.weights["goal_weight"] * np.exp(-np.linalg.norm(obs[69:72])) * (float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5))
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
@@ -120,6 +122,21 @@ class HER():
             T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
             T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
             distance_cost = self.weights["distance_weight"] / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
+
+        costs = dict(
+            action_cost=action_cost,
+            step_cost=step_cost,
+            suction_reward=suction_reward,
+            suction_cost=suction_cost,
+            orientation_cost=orientation_cost,
+            position_cost=position_cost,
+            action_diff_cost=action_diff_cost,
+            distance_cost=distance_cost,
+            goal_distance_reward=goal_distance_reward,
+            total_cost=-(-action_cost - step_cost + suction_reward + goal_distance_reward - suction_cost - orientation_cost - position_cost - action_diff_cost)
+        )
+        for key, info in costs.items():
+            self.costs[key] = info + (0. if key not in self.costs else self.costs[key])
 
         if reached_goal_state_her(obs):
             self.last_action[:] = 0.
@@ -202,8 +219,8 @@ class HER():
                         goal_position=last_obs[-6:-3],
                         reset_pose=reset_pose
                         ), # TODO: implement this function
-                    masks=trans['masks'],
-                    dones=trans['dones'],
+                    masks=1.0 - self.success,
+                    dones=self.success,
                 )
             )
             her_transitions.append(her_dict)

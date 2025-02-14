@@ -138,7 +138,8 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
             action_diff_cost=action_diff_cost,
             distance_cost=distance_cost,
             grasp_reward=grasp_reward,
-            total_cost=-(-action_cost - step_cost + suction_reward + grasp_reward - suction_cost - orientation_cost - position_cost - action_diff_cost - distance_cost),
+            total_cost=-(-action_cost - step_cost + suction_reward + grasp_reward - 
+                         suction_cost - orientation_cost - position_cost - action_diff_cost - distance_cost),
         )
         for key, info in cost_info.items():
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])
@@ -244,7 +245,10 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             )
 
         # exp: 0 reward if far away from the goal, 1 reward if close to the goal
-        goal_distance_reward = self.reward_dict["goal_weight"] * np.exp(-np.linalg.norm(obs["state"]["goal_box_position"]))
+        # TODO: consider giving this reward just when the robot is grasping the box
+        goal_distance_reward = self.reward_dict["goal_weight"] * np.exp(-np.linalg.norm(obs["state"]["goal_box_position"])) * (
+            float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5)
+            )
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
@@ -268,7 +272,8 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             action_diff_cost=action_diff_cost,
             distance_cost=distance_cost,
             goal_distance_reward=goal_distance_reward,
-            total_cost=-(-action_cost - step_cost + suction_reward + goal_distance_reward - suction_cost - orientation_cost - position_cost - action_diff_cost - distance_cost),
+            total_cost=-(-action_cost - step_cost + suction_reward + goal_distance_reward - 
+                         suction_cost - orientation_cost - position_cost - action_diff_cost - distance_cost),
         )
         for key, info in cost_info.items():
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])
@@ -401,7 +406,8 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             action_diff_cost=action_diff_cost,
             distance_cost=distance_cost,
             rotation_reward=rotation_reward,
-            total_cost=-(-action_cost - step_cost + suction_reward + rotation_reward - suction_cost - orientation_cost - position_cost - action_diff_cost - distance_cost),
+            total_cost=-(-action_cost - step_cost + suction_reward + rotation_reward - 
+                         suction_cost - orientation_cost - position_cost - action_diff_cost - distance_cost),
         )
         for key, info in cost_info.items():
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])

@@ -101,20 +101,24 @@ def sample_points_in_intersecting_boxes(
         return None
     
     intersection_min, intersection_max = intersection
-    # print("Intersection Min:", intersection_min)
-    # print("Intersection Max:", intersection_max)
+
+    # subtract 0.13 from the max z value 
+    intersection_max[0] -= 0.07
+    intersection_max[1] -= 0.07
+    intersection_max[2] -= 0.13
+    intersection_min[0] += 0.07
+    intersection_min[1] += 0.07
+    intersection_min[2] -= 0.13
 
     # Shrink the intersection box
-    box_min_shrunk, box_max_shrunk = shrink_box(intersection_min, intersection_max, shrink_factor)
-    # print("Shrunk Intersection Min:", box_min_shrunk)
-    # print("Shrunk Intersection Max:", box_max_shrunk)
+    # box_min_shrunk, box_max_shrunk = shrink_box(intersection_min, intersection_max, shrink_factor)
     
     # Generate points in the intersection box
     if seed is not None:
         np.random.seed(seed=seed)
     random_points = np.random.uniform(0, 1, size=(num_points, 3))
-    box_dimensions = box_max_shrunk - box_min_shrunk
-    scaled_points = random_points * box_dimensions + box_min_shrunk
+    box_dimensions = intersection_max - intersection_min
+    scaled_points = random_points * box_dimensions + intersection_min
     
     return scaled_points
 
@@ -209,12 +213,13 @@ def plot_3d_points(point1, point2, point3, point4, samples):
 def main():
     config = UR5CameraConfigDualRobot()
     T = config.T_O1_O2
+    task = config.TASK
     
     # Example boxes
-    box1_min = np.concatenate([config.ABS_POSE_LIMIT_LOW_ROBOT_1[:3], [1]])
-    box1_max = np.concatenate([config.ABS_POSE_LIMIT_HIGH_ROBOT_1[:3], [1]])
-    box2_min = np.concatenate([config.ABS_POSE_LIMIT_LOW_ROBOT_2[:3], [1]])
-    box2_max = np.concatenate([config.ABS_POSE_LIMIT_HIGH_ROBOT_2[:3], [1]])
+    box1_min = np.concatenate([config.ABS_POSE_LIMIT_LOW_ROBOT_1[task][:3], [1]])
+    box1_max = np.concatenate([config.ABS_POSE_LIMIT_HIGH_ROBOT_1[task][:3], [1]])
+    box2_min = np.concatenate([config.ABS_POSE_LIMIT_LOW_ROBOT_2[task][:3], [1]])
+    box2_max = np.concatenate([config.ABS_POSE_LIMIT_HIGH_ROBOT_2[task][:3], [1]])
 
     # Print original boxes BEFORE transformation
     print("ORIGINAL BOXES:")
@@ -262,7 +267,7 @@ def main():
     
     # Sample points in the intersection
     intersection_points = sample_points_in_intersecting_boxes(
-        box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 1000
+        box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 20, shrink_factor=0.
     )
     
     if intersection_points is not None:
@@ -277,7 +282,7 @@ def main():
         print("Max coordinates:", intersection_points.max(axis=0))
 
     #plot_3d_points(box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], intersection_points)
-    plot_3d_points(box1_min_ordered[:3], box1_max_ordered[:3], box2_min_ordered[:3], box2_max_ordered[:3], None)
+    plot_3d_points(box1_min_ordered[:3], box1_max_ordered[:3], box2_min_ordered[:3], box2_max_ordered[:3], intersection_points)
 
 
 if __name__ == "__main__":

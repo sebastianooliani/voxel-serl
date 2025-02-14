@@ -358,18 +358,29 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                 info["success_counter"] = success_counter
                 info["consecutive_successes"] = consecutive_successes
             
-                her_transitions, augmented_transitions = her.process_transitions(
-                    transitions=transitions, 
-                    last_obs=next_obs, 
-                    goal_position=intersection_point,
-                    her_transitions=her_transitions,
-                    augmented_transitions=augmented_transitions
-                    )
+                if not compare_success_count:
+                    curr_reset_pose = env.unwrapped.curr_reset_pose
+                    her_transitions, augmented_transitions = her.process_transitions(
+                        transitions=transitions, 
+                        last_obs=next_obs, 
+                        goal_position=intersection_point,
+                        her_transitions=her_transitions,
+                        augmented_transitions=augmented_transitions,
+                        reset_pose=curr_reset_pose,
+                        )
+                    transitions = []
+                    # augmented_transitions.extend(her_transitions)
 
-                transitions = []
-                augmented_transitions.extend(her_transitions)
+                    assert len(augmented_transitions) <= 250, f"Too many transitions: {len(augmented_transitions)}"
 
-                data_store.insert(augmented_transitions)
+                    # store all both the episodes, has done in "Overcoming Exploration in Reinforcement Learning with Demonstrations" (https://arxiv.org/abs/1709.10089)
+                    for aug_trans, her_trans in zip(augmented_transitions, her_transitions):
+                        data_store.insert(aug_trans)
+                        data_store.insert(her_trans)
+                else:
+                    for transition in transitions:
+                        data_store.insert(transition)
+                    transitions = []
 
                 # sample new goal position
                 intersection_point = env.env.env.env.env.env.env.env.sample_goal_positions()
