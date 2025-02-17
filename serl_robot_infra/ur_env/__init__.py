@@ -52,3 +52,9 @@ register(
     entry_point="ur_env.envs.camera_env:UR5CameraEnvDualRobotReorientation",
     max_episode_steps=100,
 )
+
+register(
+    id="box_picking_camera_env_dual_robot_in_air_rotation",
+    entry_point="ur_env.envs.camera_env:UR5CameraEnvDualRobotInAirRotation",
+    max_episode_steps=100,
+)

@@ -451,6 +451,173 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
 
 ############################################################################################################
 
+class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
+    def __init__(self, load_config=True, **kwargs):
+        if load_config:
+            super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
+            self.init = True # read and write the initial box orientation
+        else:
+            super().__init__(**kwargs)
+
+    def _get_obs(self, action) -> dict:
+        # get image before state observation, so they match better in time
+
+        images = None
+        if self.camera_mode is not None:
+            images = self.get_image()
+
+        if self.pose_est:
+            self._update_box_pos_estimate()
+            self._update_box_orientation_estimate()
+            if self.init:
+                self.init_box_orientation = self.box_orientation # here is in rotvec
+                self.init_box_position = self.box_position
+                self.last_orientation = R.from_rotvec(self.init_box_orientation).as_mrp()
+                self.last_box_position = self.init_box_position
+                self.init = False
+                
+        self._update_currpos()
+        state_observation = {
+            "tcp_pose": self.curr_pos,
+            "tcp_vel": self.curr_vel,
+            "gripper_state": self.gripper_state,
+            "tcp_force": self.curr_force,
+            "tcp_torque": self.curr_torque,
+            "action": action,
+            # TODO: add my custom observations here
+            "tcp_pos_diff": self.curr_pos[:3] - (self.T_O1_O2 @ np.concatenate([self.curr_pos[7:10], [1.]]))[:3],
+            "joint_positions": self.curr_Q,
+            # TODO: reorientation observations
+            "box_position": self.box_position,
+            "box_orientation": R.from_rotvec(self.box_orientation).as_mrp(), # in the neural network, orientation is represented in MRP
+        }
+
+        if images is not None:
+            return copy.deepcopy(dict(images=images, state=state_observation))
+        else:
+            return copy.deepcopy(dict(state=state_observation))
+
+    def compute_reward(self, obs, action) -> float:
+        action_cost = self.reward_dict["action_weight"] * np.sum(np.power(action, 2))
+        action_diff_cost = self.reward_dict["action_weight"] * np.sum(np.power(obs["state"]["action"] - self.last_action, 2))
+        self.last_action[:] = action
+        
+        # STEP: penalize each step
+        step_cost = self.reward_dict["step_weight"]
+
+        # SUCTION: reward for successful grip and cost for unnecessary suctioning
+        suction_reward = self.reward_dict["grasping_weight"] * (
+            float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5)
+            )
+        suction_cost = self.reward_dict["suction_weight"] * (
+            float(obs["state"]["gripper_state"][1] < -0.5) + float(obs["state"]["gripper_state"][3] < -0.5)
+            )
+
+        # ORIENTATION: penalize deviating too much from the starting pose
+        orientation_cost = 0
+        orientation_cost = 1. - sum(obs["state"]["tcp_pose"][3:7] * self.curr_reset_pose[3:7]) ** 2
+        orientation_cost += 1. - sum(obs["state"]["tcp_pose"][10:] * self.curr_reset_pose[10:]) ** 2
+        orientation_cost = max(orientation_cost - 0.005, 0.) * self.reward_dict["orientation_weight"]
+
+        # POSITION: penalize deviating too much from the starting pose
+        max_pose_diff = 0.30 # TODO: adjust this value
+        pos_diff = np.concatenate([
+            obs["state"]["tcp_pose"][:2] - self.curr_reset_pose[:2], obs["state"]["tcp_pose"][7:9] - self.curr_reset_pose[7:9]
+            ])
+        position_cost = self.reward_dict["position_weight"] * np.sum(
+            np.where(np.abs(pos_diff) > 0.35, np.abs(pos_diff - np.sign(pos_diff) * 0.35), 0.0) # larger movement allowed
+        ) * (
+            float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5) # when is grasping
+            ) + self.reward_dict["position_weight"] * np.sum(
+            np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.05), 0.0) # smaller movement allowed
+        ) * (
+            float(obs["state"]["gripper_state"][1] < 0.5) + float(obs["state"]["gripper_state"][3] < 0.5) # when is not grasping
+            )
+        
+        rotation_reward = self.reward_dict["rotation_weight"] * np.where(orientation_difference_angle_axis(
+                                                                            R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
+                                                                            R.from_mrp(self.last_orientation).as_rotvec())[0] > 0.015, # lower bound the minimum rotation
+                                                                            np.minimum(orientation_difference_angle_axis(
+                                                                            R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
+                                                                            R.from_mrp(self.last_orientation).as_rotvec())[0], 0.3), # upper bound the maximum rotation
+                                                                            0.)
+
+        self.last_orientation = obs["state"]["box_orientation"].copy() # here in mrp , use copy() to avoid reference after scaling
+
+        height_reward = self.reward_dict["grasp_weight"] * (
+                float(obs["state"]["gripper_state"][1] > 0.5) * np.max(obs["state"]["tcp_pose"][2], 0) +
+                             float(obs["state"]["gripper_state"][3] > 0.5) * np.max(obs["state"]["tcp_pose"][9], 0))
+        
+        # 3D DISTANCE: penalize the distance between the two robots' end-effectors
+        if self.camera_mode is None:
+            distance_cost = 0
+        else:
+            T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
+            T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
+            T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
+            T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
+            distance_cost = self.reward_dict["distance_weight"] / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
+
+        # TOTAL COST
+        cost_info = dict(
+            action_cost=action_cost,
+            step_cost=step_cost,
+            suction_reward=suction_reward,
+            suction_cost=suction_cost,
+            orientation_cost=orientation_cost,
+            position_cost=position_cost,
+            action_diff_cost=action_diff_cost,
+            distance_cost=distance_cost,
+            rotation_reward=rotation_reward,
+            height_reward=height_reward,
+            total_cost=-(-action_cost - step_cost + suction_reward + rotation_reward + height_reward - 
+                         suction_cost - orientation_cost - position_cost - action_diff_cost - distance_cost),
+        )
+        for key, info in cost_info.items():
+            self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])
+        
+        if self.reached_goal_state(obs):
+            print("\nSuccessfull in-air rotation!\n")
+            self.config.SUCCESS_COUNT += 1
+            self.last_action[:] = 0.
+            R_goal = self.reward_dict["success_weight"]
+            return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
+        else:
+            return 0. + suction_reward + rotation_reward + height_reward - action_cost - orientation_cost - \
+                position_cost - suction_cost - step_cost - action_diff_cost - distance_cost
+    
+    def reached_goal_state(self, obs) -> bool:
+        state = obs['state']
+        # TODO: fix orientation error threshold
+        # perform a 45° degrees rotation around the z-axis
+        # convert obs from MRP to rotation vector
+        rot_angle, _ = orientation_difference_angle_axis(
+            self.init_box_orientation, 
+            R.from_mrp(state['box_orientation']).as_rotvec()
+            )
+        # print(f"Rotation angle: {rot_angle}")
+        # 0.09 rad = 5° tolerance
+        displacement = np.linalg.norm(state['box_position'] - self.last_box_position)
+        return (np.abs(rot_angle - np.pi/2)) < 0.09 and displacement < 0.05 \
+                and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
+
+    def reset(self, **kwargs):
+        self.cycle_count += 1
+        if self.save_video:
+            self.save_video_recording()
+
+        shift = self.go_to_rest()
+        self.curr_path_length = 0
+
+        # at the end of the episode, reset the box initial orientation
+        self.init = True
+
+        obs = self._get_obs(np.zeros_like(self.last_action))
+        return obs, {"reset_shift": shift}
+    
+
+############################################################################################################
+
 class UR5CameraEnvTest(UR5CameraEnv):
     def __init__(self, **kwargs):
         super().__init__(**kwargs, load_config=False, config=UR5CameraConfigFinalTests)
