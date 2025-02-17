@@ -8,7 +8,7 @@ import time
 from scipy.spatial.transform import Rotation as R
 
 from ur_env.utils.rotations import quat_2_euler, quat_2_mrp
-from ur_env.utils.sample_3d_points import sample_points_in_intersecting_boxes
+from ur_env.utils.sample_3d_points import sample_points_in_intersecting_boxes, sample_points_on_boarder_in_intersecting_boxes
 
 ROT90 = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
 ROT_GENERAL = np.array([np.eye(3), ROT90, ROT90 @ ROT90, ROT90.transpose()])
@@ -390,7 +390,13 @@ class SampleGoalPositionsWrapper(gym.Wrapper):
     def __init__(self, env):
         super().__init__(env)
 
-    def sample_goal_position(self):
+    def sample_goal_position_randomly(self):
+        """
+        Returns a point inside the workspace of the two robots sampled randomly.
+
+        Returns:
+            np.ndarray: A point inside the workspace of the two robots.
+        """
         rnm_num = np.random.randint(0, 100)
         config = self.env.unwrapped.config
         T = config.T_O1_O2
@@ -404,6 +410,32 @@ class SampleGoalPositionsWrapper(gym.Wrapper):
         box2_max = T @ box2_max
 
         intersection_points = sample_points_in_intersecting_boxes(
+            box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 1, shrink_factor=0.5, seed=rnm_num
+        )
+
+        self.env.unwrapped.goal_position = intersection_points[0]
+        return intersection_points[0]
+    
+    def sample_goal_position(self):
+        """
+        Returns a point inside the workspace of the two robots sampled randomly on the boarder (fixed y coordinate).
+
+        Returns:
+            np.ndarray: a point inside the workspace of the two robots
+        """
+        rnm_num = np.random.randint(0, 100)
+        config = self.env.unwrapped.config
+        T = config.T_O1_O2
+
+        box1_min = np.concatenate([config.ABS_POSE_LIMIT_LOW_ROBOT_1[config.TASK][:3], [1]])
+        box1_max = np.concatenate([config.ABS_POSE_LIMIT_HIGH_ROBOT_1[config.TASK][:3], [1]])
+        box2_min = np.concatenate([config.ABS_POSE_LIMIT_LOW_ROBOT_2[config.TASK][:3], [1]])
+        box2_max = np.concatenate([config.ABS_POSE_LIMIT_HIGH_ROBOT_2[config.TASK][:3], [1]])
+
+        box2_min = T @ box2_min
+        box2_max = T @ box2_max
+
+        intersection_points = sample_points_on_boarder_in_intersecting_boxes(
             box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 1, shrink_factor=0.5, seed=rnm_num
         )
 

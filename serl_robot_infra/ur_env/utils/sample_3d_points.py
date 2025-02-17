@@ -122,6 +122,68 @@ def sample_points_in_intersecting_boxes(
     
     return scaled_points
 
+def sample_points_on_boarder_in_intersecting_boxes(
+    box1_min=np.array([-0.605, -0.533, 0.128]),
+    box1_max=np.array([-0.263, -0.363, 0.377]),
+    box2_min=np.array([-0.650, -0.569, 0.114]),
+    box2_max=np.array([-0.352, 0.369, 0.387]),
+    num_points=1,
+    seed=42):
+    """
+    Sample points from intersection of two 3D boxes, keeping x,y fixed at intersection_min
+    and only varying z coordinate.
+    
+    Parameters:
+    -----------
+    box1_min, box1_max : np.ndarray
+        Coordinates of first box
+    box2_min, box2_max : np.ndarray
+        Coordinates of second box
+    num_points : int
+        Number of points to sample
+    seed : int
+        Random seed for reproducibility
+    
+    Returns:
+    --------
+    np.ndarray or None
+        Array of sampled points, or None if boxes don't intersect
+    """
+    # Calculate intersection
+    intersection = calculate_box_intersection(box1_min, box1_max, box2_min, box2_max)
+
+    if intersection is None:
+        print("The boxes do not intersect!")
+        return None
+    
+    intersection_min, intersection_max = intersection
+    
+    # Apply fixed margins
+    intersection_max[0] -= 0.07  # x max
+    intersection_max[1] -= 0.07  # y max
+    intersection_max[2] -= 0.13  # z max
+    intersection_min[0] += 0.07  # x min
+    intersection_min[1] += 0.07  # y min
+    intersection_min[2] -= 0.13  # z min
+    
+    # Set random seed
+    if seed is not None:
+        np.random.seed(seed)
+    
+    # Create array for sampled points
+    sampled_points = np.zeros((num_points, 3))
+    
+    # Set y coordinates to intersection_min values
+    sampled_points[:, 1] = intersection_min[1]  # Fixed y
+    
+    # Sample random z coordinates
+    x_min, x_max = intersection_min[0], intersection_max[0]
+    z_min, z_max = intersection_min[2], intersection_max[2]
+    sampled_points[:, 0] = np.random.uniform(x_min, x_max, num_points)
+    sampled_points[:, 2] = np.random.uniform(z_min, z_max, num_points)
+    
+    return sampled_points
+
 def plot_3d_points(point1, point2, point3, point4, samples):
     # Create a 3D figure
     fig = plt.figure(figsize=(10, 8))
@@ -268,6 +330,10 @@ def main():
     # Sample points in the intersection
     intersection_points = sample_points_in_intersecting_boxes(
         box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 20, shrink_factor=0.
+    )
+
+    intersection_points = sample_points_on_boarder_in_intersecting_boxes(
+        box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 20
     )
     
     if intersection_points is not None:
