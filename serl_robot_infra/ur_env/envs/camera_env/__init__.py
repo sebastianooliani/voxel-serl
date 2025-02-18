@@ -1,1 +1,10 @@
-from ur_env.envs.camera_env.box_picking_camera_env import UR5CameraEnv, UR5CameraEnvTest, UR5CameraEnvEval, UR5CameraEnvDemo, UR5CameraEnvDualRobot, UR5CameraEnvDualRobotMotionPlanning, UR5CameraEnvDualRobotReorientation
+from ur_env.envs.camera_env.box_picking_camera_env import (
+    UR5CameraEnv, 
+    UR5CameraEnvTest, 
+    UR5CameraEnvEval, 
+    UR5CameraEnvDemo, 
+    UR5CameraEnvDualRobot, 
+    UR5CameraEnvDualRobotMotionPlanning, 
+    UR5CameraEnvDualRobotReorientation,
+    UR5CameraEnvDualRobotInAirRotation,
+    )
