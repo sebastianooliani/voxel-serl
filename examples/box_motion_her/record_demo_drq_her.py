@@ -12,7 +12,7 @@ from absl import app, flags
 from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
 from ur_env.envs.wrappers import SpacemouseIntervention, TwoSpacemiceIntervention, DualQuat2MrpWrapper, Quat2MrpWrapper, ObservationRotationWrapper, SampleGoalPositionsWrapper
 
-from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper, ScaleObservationWrapper
+from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper, ScaleDualObservationWrapper
 from serl_launcher.wrappers.chunking import ChunkingWrapper
 
 from ur_env.utils.her import HER
@@ -48,7 +48,7 @@ def main(_):
     env = SpacemouseIntervention(env) if not FLAGS.dual else TwoSpacemiceIntervention(env)
     env = RelativeFrame(env) if not FLAGS.dual else DualRelativeFrame(env)
     env = Quat2MrpWrapper(env) if not FLAGS.dual else DualQuat2MrpWrapper(env)
-    env = ScaleObservationWrapper(env)
+    env = ScaleDualObservationWrapper(env) if FLAGS.dual else env
     env = SERLObsWrapper(env)
     env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
 
@@ -58,6 +58,8 @@ def main(_):
     transitions = []
     her_transitions = []
     augmented_transitions = []
+    all_transitions = []
+    positive_transitions = []
 
     num_points = 20
     total_count = 0
@@ -72,7 +74,7 @@ def main(_):
     listener_2.start()
 
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"box_picking_{num_points}_demos_{uuid}_her.pkl"
+    file_name = f"box_picking_{num_points}_demos_{uuid}_pcd_her.pkl"
     file_dir = os.path.dirname(os.path.realpath(__file__))  # same dir as this script
     file_path = os.path.join(file_dir, file_name)
 
@@ -126,6 +128,9 @@ def main(_):
                 # Reset transitions
                 transitions = []
                 iter += 1
+                positive_transitions.extend(her_transitions)
+                all_transitions.extend(her_transitions)
+                all_transitions.extend(augmented_transitions)
 
                 # sample new goal position
                 intersection_point = env.env.env.env.env.env.env.sample_goal_position()
@@ -138,13 +143,11 @@ def main(_):
                 obs, _ = env.reset()
 
         with open(file_path, "wb") as f:
-            augmented_transitions.extend(her_transitions)
-            pkl.dump(augmented_transitions, f)
-            pkl.dump(her_transitions, f"her_transitions_{uuid}.pkl")
+            pkl.dump(all_transitions, f)
             print(f"saved {num_points} demos to {file_path}")
 
-        with open (f"her_transitions_{uuid}.pkl", 'wb') as f:
-            pkl.dump(her_transitions, f)
+        with open(f"dual_{num_points}_her_transitions_{uuid}.pkl", 'wb') as f:
+            pkl.dump(positive_transitions, f)
 
     except KeyboardInterrupt as e:
         print(f'\nProgram was interrupted, cleaning up...  ', e.__str__())

@@ -106,7 +106,6 @@ def main(_):
                 )
             )
             transitions.append(transition)
-            # pprint(transition)
 
             obs = next_obs
 
@@ -143,7 +142,7 @@ def main(_):
             pkl.dump(all_transitions, f)
             print(f"saved {num_points} demos to {file_path}")
             
-        with open (f"dual_{num_points}_her_transitions_{uuid}.pkl", 'wb') as f:
+        with open(f"dual_{num_points}_her_transitions_{uuid}.pkl", 'wb') as f:
             pkl.dump(positive_transitions, f)
 
     except KeyboardInterrupt as e:

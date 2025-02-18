@@ -110,7 +110,10 @@ class HER():
             float(obs[14:18][1] < 0.5) + float(obs[14:18][3] < 0.5) # when is not grasping
             )
 
-        goal_distance_reward = self.weights["goal_weight"] * np.exp(-np.linalg.norm(obs[69:72])) * (float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5))
+        goal_distance_reward = self.weights["goal_weight"] * np.linalg.norm(obs[72:75] - self.last_box_position) * (
+            float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5)
+            )
+        
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
@@ -171,7 +174,7 @@ class HER():
 
         her_transitions, augmented_transitions = [], []
 
-        for trans in transitions:
+        for i, trans in enumerate(transitions):
             # compute reward based on the new goal state
             # concatenate the last observation to the current observation
             # recompute the goal-box-position observation based on the reached position
@@ -188,6 +191,10 @@ class HER():
             # goal box position -> 69:72
             # box position -> 72:75
             # goal position -> 75:78
+
+            # initialize the last box position at the first transition
+            if i == 0:
+                self.last_box_position = trans['observations'][72:75] / self.translation_scale
 
             her_dict = copy.deepcopy(
                 dict(
@@ -224,6 +231,9 @@ class HER():
                 )
             )
             her_transitions.append(her_dict)
+
+            # store the last box position for the next transition
+            self.last_box_position = trans['observations'][72:75] / self.translation_scale
 
             augm_dict = copy.deepcopy(
                 dict(
