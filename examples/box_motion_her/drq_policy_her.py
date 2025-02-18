@@ -81,7 +81,7 @@ flags.DEFINE_bool("enable_temporal_ensemble_sampling", False,
                   "Whether to enable sampling the action from a temporal ensemble: action = 0.5*a0 + 0.3*a-1 + 0.2*a-2 + 0.1*a-3")
 
 flags.DEFINE_integer("max_steps", 1000000, "Maximum number of training steps.")
-flags.DEFINE_integer("replay_buffer_capacity", 10000,
+flags.DEFINE_integer("replay_buffer_capacity", 20000,
                      "Replay buffer capacity.")  # quite low to forget demo trajectories
 
 flags.DEFINE_integer("random_steps", 0, "Sample random actions for this many steps.")
