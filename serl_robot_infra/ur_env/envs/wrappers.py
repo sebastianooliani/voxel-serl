@@ -436,7 +436,7 @@ class SampleGoalPositionsWrapper(gym.Wrapper):
         box2_max = T @ box2_max
 
         intersection_points = sample_points_on_boarder_in_intersecting_boxes(
-            box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 1, shrink_factor=0.5, seed=rnm_num
+            box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 1, seed=rnm_num
         )
 
         self.env.unwrapped.goal_position = intersection_points[0]
