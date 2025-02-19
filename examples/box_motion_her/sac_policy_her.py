@@ -255,7 +255,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
                 if not compare_success_count:
                     curr_reset_pose = env.unwrapped.curr_reset_pose
-                    her_transitions, augmented_transitions = her.process_transitions(
+                    her_transitions, augmented_transitions, add_to_buffer = her.process_transitions(
                         transitions=transitions, 
                         last_obs=next_obs, 
                         goal_position=intersection_point,
@@ -265,13 +265,16 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                         )
                     transitions = []
                     # augmented_transitions.extend(her_transitions)
-
-                    assert len(augmented_transitions) <= 250, f"Too many transitions: {len(augmented_transitions)}"
-
+                    
                     # store all both the episodes, has done in "Overcoming Exploration in Reinforcement Learning with Demonstrations" (https://arxiv.org/abs/1709.10089)
-                    for aug_trans, her_trans in zip(augmented_transitions, her_transitions):
-                        data_store.insert(aug_trans)
-                        data_store.insert(her_trans)
+                    # add new data in the replay buffer only if the episode was successful
+                    if add_to_buffer:
+                        for aug_trans, her_trans in zip(augmented_transitions, her_transitions):
+                            data_store.insert(aug_trans)
+                            data_store.insert(her_trans)
+                    else:
+                        for transition in augmented_transitions:
+                            data_store.insert(transition)
                 else:
                     for transition in transitions:
                         data_store.insert(transition)

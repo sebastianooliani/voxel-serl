@@ -112,7 +112,7 @@ def main(_):
             if done:
                 curr_reset_pose = env.unwrapped.curr_reset_pose
 
-                her_transitions, augmented_transitions = her.process_transitions(
+                her_transitions, augmented_transitions, _ = her.process_transitions(
                     transitions=transitions, 
                     last_obs=next_obs, 
                     goal_position=intersection_point,
