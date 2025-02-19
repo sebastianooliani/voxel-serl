@@ -26,13 +26,14 @@ class HER():
 
         self.scale=scale
         self.trans=trans
-        self.camera_mode=camera_mode if camera_mode in ["pointcloud"] else None
+        self.camera_mode = camera_mode if camera_mode in ["pointcloud"] else None
 
         self.R_1 = None
         self.R_2 = None
 
         self.success = False
-
+        self.add_to_buffer = False # add to buffer only if success is achieved
+        self.last_box_position = None
         self.costs = {}
 
     ##########################################################################################
@@ -101,7 +102,7 @@ class HER():
         max_pose_diff = 0.05  # set to 5cm
         pos_diff = np.concatenate([tcp_pose[:2] - reset_pose[:2], tcp_pose[7:9] - reset_pose[7:9]])
         position_cost = self.weights["position_weight"] * np.sum(
-            np.where(np.abs(pos_diff) > 0.35, np.abs(pos_diff - np.sign(pos_diff) * 0.35), 0.0) # larger movement allowed
+            np.where(np.abs(pos_diff) > 0.5, np.abs(pos_diff - np.sign(pos_diff) * 0.5), 0.0) # larger movement allowed
         ) * (
             float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5) # when is grasping
             ) + self.weights["position_weight"] * np.sum(
@@ -110,7 +111,8 @@ class HER():
             float(obs[14:18][1] < 0.5) + float(obs[14:18][3] < 0.5) # when is not grasping
             )
 
-        goal_distance_reward = self.weights["goal_weight"] * np.linalg.norm(obs[72:75] - self.last_box_position) * (
+        goal_distance_reward = self.weights["goal_weight"] * np.minimum(
+            np.linalg.norm(obs[72:75] - self.last_box_position), 0.04) * (
             float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5)
             )
         
@@ -142,7 +144,6 @@ class HER():
             self.costs[key] = info + (0. if key not in self.costs else self.costs[key])
 
         if reached_goal_state_her(obs):
-            self.last_action[:] = 0.
             R_goal = self.weights["success_weight"]
             self.success = True
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
@@ -170,9 +171,10 @@ class HER():
         Returns:
             her_transitions: list of HER transitions
             augmented_transitions: list of augmented transitions
+            add_to_buffer: boolean to add to buffer
         """
-
-        her_transitions, augmented_transitions = [], []
+        # init
+        her_transitions, augmented_transitions, self.add_to_buffer = [], [], False
 
         for i, trans in enumerate(transitions):
             # compute reward based on the new goal state
@@ -255,11 +257,13 @@ class HER():
 
             # cut episode length if success is achieved
             if self.success:
+                self.add_to_buffer = True
                 self.success = False
-                # print("Success achieved! Episode length: ", len(her_transitions), " instead of: ", len(transitions))
                 break
 
-        return her_transitions, augmented_transitions
+        self.last_action[:] = 0.
+
+        return her_transitions, augmented_transitions, self.add_to_buffer
 
     def unscale_obs(self, obs):
         """
