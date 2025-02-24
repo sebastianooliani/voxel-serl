@@ -84,6 +84,7 @@ class BoxPoseEstimation:
         self.pos = []
         self.orient = []
         self.size = []
+        self.start_idx = 0
         
         self.state_lock = threading.Lock()
         self.stop_event = threading.Event()
@@ -98,6 +99,66 @@ class BoxPoseEstimation:
         self.last_heartbeat = None
         self.HEARTBEAT_INTERVAL = 30  # seconds
         self.MAX_RECONNECT_ATTEMPTS = 10000
+
+    def compute_3d_ema(self, data, alpha=0.1):
+        """
+        Compute the Exponential Moving Average (EMA) of the data
+        
+        Parameters:
+        -----------
+        data : np.ndarray
+            Array of data points to compute the EMA
+        alpha : float
+            Smoothing factor for the EMA. Higher alpha gives more weight to recent data.
+        
+        Returns:
+        --------
+        ema: np.ndarray
+            Array of EMA values
+        """
+        if not data.any():
+            return np.zeros(3)
+        
+        assert 0 < alpha < 1, "Smoothing factor must be between 0 and 1"
+        assert data.shape[1] == 3, "Data must be a 3D vector!"
+
+        ema = np.zeros_like(data)
+        ema[self.start_idx] = data[self.start_idx]
+        for i in range(self.start_idx + 1, len(data)):
+            ema[i] = alpha * data[i] + (1 - alpha) * ema[i - 1]
+
+        self.start_idx = len(data) - 1
+        return ema[-1]
+    
+    def compute_6d_ema(self, data, alpha=0.1):
+        """
+        Compute the Exponential Moving Average (EMA) of the data
+        
+        Parameters:
+        -----------
+        data : np.ndarray
+            Array of data points to compute the EMA
+        alpha : float
+            Smoothing factor for the EMA
+        
+        Returns:
+        --------
+        ema: np.ndarray
+            Array of EMA values
+        """
+        if not data.any():
+            return np.zeros(6)
+        
+        assert 0 < alpha < 1, "Smoothing factor must be between 0 and 1"
+        assert data.shape[1] == 6, "Data must be a 6D vector"
+        
+        ema = np.zeros_like(data)
+        ema[self.start_idx] = data[self.start_idx]
+        for i in range(self.start_idx + 1, len(data)):
+            ema[i] = alpha * data[i] + (1 - alpha) * ema[i - 1]
+
+        self.start_idx = len(data) - 1
+        return ema[-1]
     
     def _run_async_loop(self):
         """Run the async event loop in a separate thread"""
@@ -152,12 +213,12 @@ class BoxPoseEstimation:
                             # print("Message received")
                             # Safely update the message with a lock
                             with self.state_lock:
-                                self.pos = message['space'][0]['boxes'][
+                                self.pos.append(message['space'][0]['boxes'][
                                     list(message['space'][0]['boxes'].keys())[0]
-                                ]['world2box']['pos']
-                                self.orient = message['space'][0]['boxes'][
+                                ]['world2box']['pos'])
+                                self.orient.append(message['space'][0]['boxes'][
                                     list(message['space'][0]['boxes'].keys())[0]
-                                ]['world2box']['rot']
+                                ]['world2box']['rot'])
                                 self.size = message['space'][0]['boxes'][
                                     list(message['space'][0]['boxes'].keys())[0]
                                 ]['size']
@@ -191,12 +252,29 @@ class BoxPoseEstimation:
         with self.state_lock:
             return np.array(self.orient)
         
+    def get_box_pose(self):
+        """
+        Thread-safe method to get the current box pose
+        """
+        with self.state_lock:
+            return np.concatenate([np.array(self.pos), np.array(self.orient)], axis=1)
+        
     def get_box_size(self):
         """
         Thread-safe method to get the current box size
         """
         with self.state_lock:
             return np.array(self.size)
+        
+    def clear_data(self):
+        """
+        Thread-safe method to clear the data
+        """
+        with self.state_lock:
+            self.pos = []
+            self.orient = []
+            self.size = []
+            self.start_idx = 0
     
     def stop(self):
         """
@@ -213,4 +291,15 @@ class BoxPoseEstimation:
             self.stop()
 
 if __name__ == "__main__":
-    messages = asyncio.run(read_vision_from_server())
+    # messages = asyncio.run(read_vision_from_server())
+    box_pose_estimation = BoxPoseEstimation("ws://192.168.1.240:7777")
+
+    while True:
+        import time
+        time.sleep(0.1)
+        try:
+            pos = np.array(box_pose_estimation.get_box_position())
+            orient = np.array(box_pose_estimation.get_box_orientation())
+        except KeyboardInterrupt:
+            box_pose_estimation.stop()
+            break
