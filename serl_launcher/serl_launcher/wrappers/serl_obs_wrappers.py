@@ -142,9 +142,9 @@ class ScaleDualObservationWrapper(gym.ObservationWrapper):
 
         # TODO: write this in a better way, maybe using the config variable TASK
         if self.task in ["motion"]:
-            obs['state']['goal_box_position'] *= self.translation_scale
-            obs['state']['box_position'] *= self.translation_scale
-            obs['state']['goal_position'] *= self.translation_scale
+            obs['state']['goal_box_position'] *= self.rotation_scale
+            obs['state']['box_position'] *= self.rotation_scale
+            obs['state']['goal_position'] *= self.rotation_scale
         elif self.task in ["reorient"]:
             obs['state']['box_orientation'] *= self.rotation_scale
 
