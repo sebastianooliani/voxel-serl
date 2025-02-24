@@ -144,7 +144,7 @@ class DualObservationStatisticsWrapper(gym.Wrapper, gym.utils.RecordConstructorA
             buff = {}
             for name, value in calc_buffs.items():
                 for i in range(value.shape[0]):
-                    buff[name + f"_{['x', 'y', 'z', 'rx', 'ry', 'rz', 'grip', 'x', 'y', 'z', 'rx', 'ry', 'rz', 'grip'][i]}"] = value[i]
+                    buff[name + f"_{['x1', 'y1', 'z1', 'rx1', 'ry1', 'rz1', 'grip1', 'x2', 'y2', 'z2', 'rx2', 'ry2', 'rz2', 'grip2'][i]}"] = value[i]
             infos["obsStat"] = buff
 
         return (

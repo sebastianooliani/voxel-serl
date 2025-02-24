@@ -34,6 +34,7 @@ from serl_launcher.utils.launcher import (
 
 from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, ScaleDualObservationWrapper
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention, SampleGoalPositionsWrapper
+from serl_launcher.wrappers.observation_statistics_wrapper import ObservationStatisticsWrapper, DualObservationStatisticsWrapper
 
 from ur_env.utils.her import HER
 
@@ -186,7 +187,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
     timer = Timer()
     running_return = 0.0
     for step in tqdm.tqdm(range(FLAGS.max_steps), dynamic_ncols=True):
-        intersection_point = env.env.env.env.env.env.env.sample_goal_position()
+        intersection_point = env.env.env.env.env.env.env.env.sample_goal_position()
         timer.tick("total")
 
         with timer.context("sample_actions"):
@@ -281,7 +282,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                     transitions = []
 
                 # sample new goal position
-                intersection_point = env.env.env.env.env.env.env.sample_goal_position()
+                intersection_point = env.env.env.env.env.env.env.env.sample_goal_position()
                 her_transitions = []
                 augmented_transitions = []
                 running_return = 0.0
@@ -410,6 +411,7 @@ def main(_):
     env = RelativeFrame(env) if not FLAGS.dual else DualRelativeFrame(env)
     env = Quat2MrpWrapper(env) if not FLAGS.dual else DualQuat2MrpWrapper(env)
     env = ScaleDualObservationWrapper(env) if FLAGS.dual else env
+    env = ObservationStatisticsWrapper(env) if not FLAGS.dual else DualObservationStatisticsWrapper(env)
     env = SerlObsWrapperNoImages(env)
     env = RecordEpisodeStatistics(env)
 
