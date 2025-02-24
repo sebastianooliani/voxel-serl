@@ -7,6 +7,8 @@ from franka_env.utils.transformations import (
     construct_rotation_matrix
 )
 
+from ur_env.envs.camera_env.config import UR5CameraConfigDualRobot
+
 class RelativeFrame(gym.Wrapper):
     """
     This wrapper transforms the observation and action to be expressed in the end-effector frame.
@@ -143,6 +145,8 @@ class DualRelativeFrame(gym.Wrapper):
         self.rotation_matrix_reset_1 = np.eye((3))
         self.rotation_matrix_reset_2 = np.eye((3))
 
+        self.task = UR5CameraConfigDualRobot.TASK
+
         if self.include_relative_pose:
             # Homogeneous transformation matrix from reset pose's relative frame to base frame
             self.T_r_o_inv_1 = np.eye((4))
@@ -192,6 +196,11 @@ class DualRelativeFrame(gym.Wrapper):
 
         obs["state"]["tcp_torque"][:3] = self.rotation_matrix_1.transpose() @ obs["state"]["tcp_torque"][:3]
         obs["state"]["tcp_torque"][3:6] = self.rotation_matrix_2.transpose() @ obs["state"]["tcp_torque"][3:6]
+
+        if self.task in ["motion"]:
+            obs["state"]["box_position"] = self.rotation_matrix_1.transpose() @ obs["state"]["box_position"]
+            obs["state"]["goal_position"] = self.rotation_matrix_1.transpose() @ obs["state"]["goal_position"]
+
 
         if self.include_relative_pose:
             # first arm
