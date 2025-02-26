@@ -1,7 +1,7 @@
 export XLA_PYTHON_CLIENT_PREALLOCATE=false && \
 export XLA_PYTHON_CLIENT_MEM_FRACTION=.3 && \
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform && \
-python sac_policy_her.py "$@" \
+python sac_policy_her_two_buffers.py "$@" \
     --actor \
     --env box_picking_camera_env_dual_robot_motion_planning \
     --wandb_project "dual_sac_motion_planning" \

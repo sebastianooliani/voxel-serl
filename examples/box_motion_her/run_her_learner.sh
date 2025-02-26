@@ -1,17 +1,18 @@
 export XLA_PYTHON_CLIENT_PREALLOCATE=false && \
 export XLA_PYTHON_CLIENT_MEM_FRACTION=.3 && \
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform && \
-python sac_policy_her.py "$@" \
+python sac_policy_her_two_buffers.py "$@" \
     --learner \
     --env box_picking_camera_env_dual_robot_motion_planning \
     --wandb_project "dual_sac_motion_planning" \
     --exp_name=sac_policy_motion \
     --max_traj_length 100 \
     --seed 42 \
-    --training_starts 900 \
+    --random_steps 500 \
+    --training_starts 500 \
     --utd_ratio 8 \
     --batch_size 2048 \
     --max_steps 50000 \
     --reward_scale 1 \
-    --demo_paths /home/sebastiano/voxel-serl/examples/box_motion_her/ur5_test_20_demos_2025-02-11_10-40-22_none_her.pkl \
+    --demo_paths /home/sebastiano/voxel-serl/examples/box_motion_her/dual_20_her_transitions_2025-02-21_17-11-23.pkl \
     # --debug
