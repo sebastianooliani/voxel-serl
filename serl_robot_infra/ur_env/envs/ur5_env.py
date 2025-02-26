@@ -952,6 +952,8 @@ class UR5DualRobotEnv(UR5Env):
         """
         Update the box position estimate.
         """
+        while len(self.box_pose.get_box_position()) == 0:
+            continue
         self.box_position = self.box_pose.get_box_position()
         self.box_position = self.box_pose.compute_3d_ema(data=self.box_position, alpha=0.9)
         self.box_position = self.WF_rot @ self.box_position + np.array([0.03, 0., 0.])  # world frame
@@ -960,6 +962,8 @@ class UR5DualRobotEnv(UR5Env):
         """
         Update the box orientation estimate expressed in angle-axis representation.
         """
+        while len(self.box_pose.get_box_orientation()) == 0:
+            continue
         self.box_orientation = self.box_pose.get_box_orientation() # angle-axis
         self.box_orientation = self.box_pose.compute_3d_ema(data=self.box_orientation, alpha=0.9) # angle-axis
         self.box_orientation = self.WF_rot @ self.box_orientation # angle-axis

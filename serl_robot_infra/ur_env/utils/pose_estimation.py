@@ -292,14 +292,22 @@ class BoxPoseEstimation:
 
 if __name__ == "__main__":
     # messages = asyncio.run(read_vision_from_server())
+    # print(messages)
     box_pose_estimation = BoxPoseEstimation("ws://192.168.1.240:7777")
 
+    import time
+    start = time.time()
+    while box_pose_estimation.get_box_position() == []:
+        continue
+    end = time.time()
+    print(f"Time to get first message: {end - start}")
     while True:
-        import time
-        time.sleep(0.1)
+        
         try:
             pos = np.array(box_pose_estimation.get_box_position())
             orient = np.array(box_pose_estimation.get_box_orientation())
+            # print(f"Position: {pos}")
+            # print(f"Orientation: {orient}")
         except KeyboardInterrupt:
             box_pose_estimation.stop()
             break
