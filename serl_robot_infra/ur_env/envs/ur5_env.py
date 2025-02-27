@@ -749,7 +749,7 @@ class UR5DualRobotEnv(UR5Env):
 
         self.gripper_state = np.zeros((4,), dtype=np.float32)
         self.random_reset = config.RANDOM_RESET
-        self.random_xy_range = config.RANDOM_XY_RANGE
+        self.random_xyz_range = config.RANDOM_XYZ_RANGE
         self.random_rot_range = config.RANDOM_ROT_RANGE
         self.hz = hz
         np.random.seed(0)        # fix seed for fixed (random) initial rotations
@@ -1118,9 +1118,9 @@ class UR5DualRobotEnv(UR5Env):
         reset_pose = np.concatenate([self.controller_1.get_target_pos(), self.controller_2.get_target_pos()])
 
         if self.random_reset:  # randomize reset position in xy plane
-            reset_shift = np.random.uniform(np.negative(self.random_xy_range), self.random_xy_range, (4,))
-            reset_pose[:2] += reset_shift
-            reset_pose[7:9] += reset_shift
+            reset_shift = np.random.uniform(np.negative(self.random_xyz_range), self.random_xyz_range, (6,))
+            reset_pose[:3] += reset_shift
+            reset_pose[7:10] += reset_shift
 
             if self.random_rot_range[0] > 0.:
                 random_rot = np.random.triangular(np.negative(self.random_rot_range), 0., self.random_rot_range, size=(6,))

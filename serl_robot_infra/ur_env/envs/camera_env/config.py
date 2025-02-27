@@ -87,7 +87,7 @@ class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
     ABS_POSE_RANGE_LIMITS = np.array([0.36, 0.83])
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
-    ROBOT_IP: str = "192.168.1.33" #"172.22.22.2" # "192.168.1.66"
+    ROBOT_IP: str = "192.168.1.66" #"172.22.22.2" # "192.168.1.66"
     CONTROLLER_HZ = 100
     GRIPPER_TIMEOUT = 2000  # in milliseconds
     ERROR_DELTA: float = 0.05
@@ -97,8 +97,8 @@ class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
     FORCEMODE_LIMITS = np.array([0.5, 0.5, 0.5, 1., 1., 1.])
 
     REALSENSE_CAMERAS = {
-        # "wrist": "218622277164",
-        "wrist": "218622279756"
+        "wrist": "218622277164",
+        # "wrist": "218622279756"
     }
 
 class UR5CameraConfigDemo(UR5CameraConfigFinal):
@@ -142,7 +142,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     DUAL = True
     TOP = True
     HER = True
-    TASK = "motion" # "lift", "reorient", "motion"
+    TASK = "motion" # "lift", "reorient", "motion", "inairrotation"
     
     # box in horizontal position
     # RESET_Q = np.array([[- math.pi / 6., -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
@@ -171,8 +171,8 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
                             math.radians(143.25), math.radians(-120.69), math.radians(117.43), math.radians(-83.28), math.radians(-101.91), math.radians(0.)]])
     
     RANDOM_RESET = False
-    RANDOM_XY_RANGE = (0.00,)
-    RANDOM_ROT_RANGE = (0.0,)
+    RANDOM_XYZ_RANGE = (0.01,)
+    RANDOM_ROT_RANGE = (0.05,)
 
     T_O1_O2_old = np.array([[0., 1., 0., -0.945], 
                         [-1., 0., 0., -0.], 
@@ -256,7 +256,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     GRASP_WEIGHT = 15.
     SUCCESS_WEIGHT = 200.
     PENALTY = 150.
-    SAFETY_THRESHOLD = 0.13
+    SAFETY_THRESHOLD = 0.05
 
     # reward dictionaries
     REWARD_DICT = {
@@ -275,15 +275,15 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
         "reorient": {
             "step_weight": 0.1,
             "action_weight": ACTION_WEIGHT,
-            "orientation_weight": 10.,
+            "orientation_weight": 30.,
             "position_weight": 15.,
             "distance_weight": 0.1,
             "grasping_weight": 0.5,
             "suction_weight": 0.5,
             "rotation_weight": 20.,
             "success_weight": 200.,
-            "penalty": PENALTY,
-            "safety_threshold": SAFETY_THRESHOLD,
+            "penalty": 10,
+            "safety_threshold": 0.1,
         },
         "motion": {
             "step_weight": STEP_WEIGHT,
@@ -292,15 +292,28 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "position_weight": 10.,
             "distance_weight": 0.1,
             "grasping_weight": 0.5,
-            "suction_weight": 0.75,
-            "goal_weight": 0.5,
+            "suction_weight": 0.5,
+            "goal_weight": 150,
             "success_weight": 200.,
             "penalty": 10,
+            "safety_threshold": 0.1,
+        },
+        "inairrotation": {
+            "step_weight": 0.1,
+            "action_weight": ACTION_WEIGHT,
+            "orientation_weight": 10.,
+            "position_weight": 15.,
+            "distance_weight": 0.1,
+            "grasping_weight": 0.75,
+            "suction_weight": 0.75,
+            "rotation_weight": 20.,
+            "success_weight": 200.,
+            "penalty": PENALTY,
             "safety_threshold": SAFETY_THRESHOLD,
-        }
+        },
     }
 
-    SUCCESS_COUNT = 0
+    SUCCESS_COUNT: int = 0
 
     ROBOT_IP_1: str = "192.168.1.66" # docker "172.17.0.2"
     ROBOT_IP_2: str = "192.168.1.33" # docker "172.17.0.3"
