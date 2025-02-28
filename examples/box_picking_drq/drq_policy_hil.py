@@ -211,7 +211,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                 obs = next_obs
 
                 if done or truncated:
-                    success_counter += (reward > 50.)
+                    success_counter = env.unwrapped.config.SUCCESS_COUNT
                     dt = time.time() - start_time
                     running_reward = np.sum(np.asarray([t["rewards"] for t in trajectory]))
                     running_reward = max(running_reward, -100.)     # -100 min value
@@ -223,7 +223,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                     infos = {
                         "running_reward": running_reward,
                         "time": dt,
-                        "success_rate": float(reward > 50.),
+                        "success_rate": env.unwrapped.config.SUCCESS_COUNT / (episode + 1),
                         "action_cost": np.linalg.norm(np.asarray([t["actions"] for t in trajectory]), axis=1, ord=2).mean()
                     }
                     traj_infos.append(infos)

@@ -133,14 +133,14 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                         time_list.append(dt)
                         print(dt)
 
-                    success_counter += int(reward > 0.99)
+                    success_counter = env.unwrapped.config.SUCCESS_COUNT
                     print(reward)
                     print(f"{success_counter}/{episode + 1}")
 
                     infos = {
                         "running_reward": running_return,
                         "time": dt,
-                        "success_rate": float(reward > 50.),
+                        "success_rate": env.unwrapped.config.SUCCESS_COUNT / (episode + 1),
                     }
                     wandb_logger.log(infos, step=episode)
 
