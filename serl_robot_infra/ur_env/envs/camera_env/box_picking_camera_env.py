@@ -72,8 +72,40 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
     def __init__(self, load_config=True, **kwargs):
         if load_config:
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
+            self.init = True # read and write the initial box position
         else:
             super().__init__(**kwargs)
+
+    def _get_obs(self, action) -> dict:
+        # get image before state observation, so they match better in time
+
+        images = None
+        if self.camera_mode is not None:
+            images = self.get_image()
+
+        if self.pose_est:
+            self._update_box_pos_estimate()
+            if self.init:
+                self.init_box_position = self.box_position # here is in rotvec
+                self.init = False
+
+        self._update_currpos()
+        state_observation = {
+            "tcp_pose": self.curr_pos,
+            "tcp_vel": self.curr_vel,
+            "gripper_state": self.gripper_state,
+            "tcp_force": self.curr_force,
+            "tcp_torque": self.curr_torque,
+            "action": action,
+            # TODO: add my custom observations here
+            "tcp_pos_diff": self.curr_pos[:3] - (self.T_O1_O2 @ np.concatenate([self.curr_pos[7:10], [1.]]))[:3],
+            "joint_positions": self.curr_Q,
+        }
+
+        if images is not None:
+            return copy.deepcopy(dict(images=images, state=state_observation))
+        else:
+            return copy.deepcopy(dict(state=state_observation))
     
     def compute_reward(self, obs, action) -> float:
         # TODO: adjust actions dimensions
@@ -146,6 +178,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         
         if self.reached_goal_state(obs):
             print("\nSuccessfull lift!\n")
+            self.config.SUCCESS_COUNT += 1
             self.last_action[:] = 0.
             R_goal = 100. if self.camera_mode is None else self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost
@@ -156,9 +189,28 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
     def reached_goal_state(self, obs) -> bool:
         # TODO: adjust this to dual robot
         state = obs["state"]
+        self._update_box_pos_estimate()
+        # print(f"Box position: {self.box_position}")
         # add condition for second robot
-        return (0.1 < state['gripper_state'][0] < 1. and state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.05) and \
-            (0.1 < state['gripper_state'][2] < 1. and state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.05) # +1cm for success
+        return ((0.1 < state['gripper_state'][0] < 1. and state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.01) and \
+            (0.1 < state['gripper_state'][2] < 1. and state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.01)) 
+            # or ((self.box_position[2] - self.init_box_position[2]) > 0.05 and 0.1 < state['gripper_state'][2] < 1. and 0.1 < state['gripper_state'][0] < 1.)
+            # added check on box position, to take into account smaller boxes
+    
+    def reset(self, **kwargs):
+        self.cycle_count += 1
+        if self.save_video:
+            self.save_video_recording()
+
+        shift = self.go_to_rest()
+        # reinitialize some variables
+        self.curr_path_length = 0
+        self.box_pose.clear_data()
+        # at the end of the episode, reset the box initial orientation
+        self.init = True
+
+        obs = self._get_obs(np.zeros_like(self.last_action))
+        return obs, {"reset_shift": shift}
     
     def close(self):
         super().close()
@@ -186,6 +238,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             if self.init:
                 self.last_box_position = self.box_position
                 self.init = False
+                self.last_tcp_pose = self.curr_reset_pose.copy()
         else:
             self.box_position = np.array([0.5, 0.5, 0.5])
 
@@ -247,12 +300,21 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             float(obs["state"]["gripper_state"][1] < 0.5) + float(obs["state"]["gripper_state"][3] < 0.5) # when is not grasping
             )
 
-        # TODO: consider giving this reward just when the robot is grasping the box
-        goal_distance_reward = self.reward_dict["goal_weight"] * np.minimum(
-            np.linalg.norm(obs["state"]["box_position"] - self.last_box_position), 0.04) * (
+        # TODO: consider giving this reward just when the robot is grasping the box 
+        # using the tcp variations at the moment, at least before printing new markers
+        tcp_pos = np.concatenate([obs['state']['tcp_pose'][:3], obs['state']['tcp_pose'][7:10]])
+        last_tcp_pos = np.concatenate([self.last_tcp_pose[:3], self.last_tcp_pose[7:10]])
+        goal_distance_reward = self.reward_dict["goal_weight"] * np.where(np.linalg.norm(tcp_pos - last_tcp_pos) > 0.004, 
+            np.linalg.norm(tcp_pos - last_tcp_pos), 0.) * (
             float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5)
             )        
+
+        # print(f"Box pos variation: {np.linalg.norm(obs['state']['box_position'] - self.last_box_position)}")
+        # print(f"tcp pos variation: {np.linalg.norm(obs['state']['tcp_pose'][:3] - self.last_tcp_pose[:3])}")
+        # print(f"Goal distance reward: {goal_distance_reward}")
+        # print(f"Suction reward: {suction_reward}")
         self.last_box_position = obs["state"]["box_position"].copy()
+        self.last_tcp_pose = obs["state"]["tcp_pose"].copy()
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
@@ -305,7 +367,9 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             self.save_video_recording()
 
         shift = self.go_to_rest()
+        # reinitialize some variables
         self.curr_path_length = 0
+        self.box_pose.clear_data()
 
         # at the end of the episode, reset the box initial position
         self.init = True
@@ -434,7 +498,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])
         
         if self.reached_goal_state(obs):
-            print("\nSuccessfull 40 degrees reorientation!\n")
+            
             self.config.SUCCESS_COUNT += 1
             self.last_action[:] = 0.
             R_goal = self.reward_dict["success_weight"]
@@ -453,8 +517,12 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             R.from_mrp(state['box_orientation']).as_rotvec()
             )
         # print(f"Rotation angle: {rot_angle}")
+        # print(f"Inital box orientation: {self.init_box_orientation}")
         # 0.09 rad = 5° tolerance
-        return (np.abs(rot_angle - np.pi/4.5)) < 0.09 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
+        if (np.abs(rot_angle - np.pi/4.5)) < 0.09:
+            print("\nSuccessfull reorientation!\n")
+        return (np.abs(rot_angle - np.pi/4.5)) < 0.09 and (state['tcp_pose'][2] > self.curr_reset_pose[2]) and \
+            (state['tcp_pose'][9] > self.curr_reset_pose[9])
     
     def reset(self, **kwargs):
         self.cycle_count += 1
@@ -462,8 +530,9 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             self.save_video_recording()
 
         shift = self.go_to_rest()
+        # reinitialize some variables
         self.curr_path_length = 0
-
+        self.box_pose.clear_data()
         # at the end of the episode, reset the box initial orientation
         self.init = True
 
