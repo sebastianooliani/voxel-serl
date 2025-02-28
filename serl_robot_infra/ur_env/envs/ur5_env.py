@@ -1117,17 +1117,17 @@ class UR5DualRobotEnv(UR5Env):
         self._update_currpos()
         reset_pose = np.concatenate([self.controller_1.get_target_pos(), self.controller_2.get_target_pos()])
 
-        if self.random_reset:  # randomize reset position in xy plane
+        if self.random_reset:  # randomize reset position in xyz plane
             reset_shift = np.random.uniform(np.negative(self.random_xyz_range), self.random_xyz_range, (6,))
-            reset_pose[:3] += reset_shift
-            reset_pose[7:10] += reset_shift
+            reset_pose[:3] += reset_shift[:3]
+            reset_pose[7:10] += reset_shift[3:]
 
             if self.random_rot_range[0] > 0.:
                 random_rot = np.random.triangular(np.negative(self.random_rot_range), 0., self.random_rot_range, size=(6,))
             else:
                 random_rot = np.zeros((6,))
-            reset_pose[3:7][:] = (R.from_quat(reset_pose[3:]) * R.from_mrp(random_rot)).as_quat()
-            reset_pose[9:][:] = (R.from_quat(reset_pose[9:]) * R.from_mrp(random_rot)).as_quat()
+            reset_pose[3:7][:] = (R.from_quat(reset_pose[3:]) * R.from_mrp(random_rot[:3])).as_quat()
+            reset_pose[9:][:] = (R.from_quat(reset_pose[9:]) * R.from_mrp(random_rot[3:])).as_quat()
 
             self.curr_reset_pose[:] = reset_pose
 
