@@ -193,8 +193,8 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         # print(f"Box position: {self.box_position}")
         # add condition for second robot
         return ((0.1 < state['gripper_state'][0] < 1. and state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.01) and \
-            (0.1 < state['gripper_state'][2] < 1. and state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.01)) 
-            # or ((self.box_position[2] - self.init_box_position[2]) > 0.05 and 0.1 < state['gripper_state'][2] < 1. and 0.1 < state['gripper_state'][0] < 1.)
+            (0.1 < state['gripper_state'][2] < 1. and state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.01)) \
+            or ((self.box_position[2] - self.init_box_position[2]) > 0.05 and 0.1 < state['gripper_state'][2] < 1. and 0.1 < state['gripper_state'][0] < 1.)
             # added check on box position, to take into account smaller boxes
     
     def reset(self, **kwargs):
