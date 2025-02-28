@@ -111,10 +111,12 @@ class HER():
             float(obs[14:18][1] < 0.5) + float(obs[14:18][3] < 0.5) # when is not grasping
             )
 
-        goal_distance_reward = self.weights["goal_weight"] * np.minimum(
-            np.linalg.norm(obs[72:75] - self.last_box_position), 0.04) * (
+        goal_distance_reward = self.weights["goal_weight"] * np.where(
+            np.linalg.norm(np.concatenate([obs[39:42], obs[45:48]], axis=0) - self.last_tcp_pos) > 0.004,
+            np.linalg.norm(np.concatenate([obs[39:42], obs[45:48]], axis=0) - self.last_tcp_pos) , 0.) * (
             float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5)
             )
+        self.last_tcp_pos = np.concatenate([obs[39:42], obs[45:48]], axis=0)
         
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
@@ -197,7 +199,8 @@ class HER():
             # initialize the last box position at the first transition
             if i == 0:
                 self.last_box_position = trans['observations'][72:75] / self.translation_scale
-
+                self.last_tcp_pos = np.concatenate([reset_pose[:3], reset_pose[7:10]], axis=0)
+                
             her_dict = copy.deepcopy(
                 dict(
                     observations=np.concatenate(
@@ -288,9 +291,9 @@ class HER():
         obs[63:66] /= self.translation_scale
         obs[66:69] /= self.rotation_scale
 
-        obs[69:72] /= self.translation_scale
-        obs[72:75] /= self.translation_scale
-        obs[75:78] /= self.translation_scale
+        obs[69:72] /= self.rotation_scale
+        obs[72:75] /= self.rotation_scale
+        obs[75:78] /= self.rotation_scale
 
         return obs
 
@@ -317,9 +320,9 @@ class HER():
         obs[63:66] *= self.translation_scale
         obs[66:69] *= self.rotation_scale
 
-        obs[69:72] *= self.translation_scale
-        obs[72:75] *= self.translation_scale
-        obs[75:78] *= self.translation_scale
+        obs[69:72] *= self.rotation_scale
+        obs[72:75] *= self.rotation_scale
+        obs[75:78] *= self.rotation_scale
     
     def transform_obs(self, tcp_pose, obs, reset_pose):
         """
@@ -367,6 +370,9 @@ class HER():
         obs[60:63] = self.R_1 @ obs[60:63]
         obs[63:66] = self.R_2 @ obs[63:66]
         obs[66:69] = self.R_2 @ obs[66:69]
+
+        obs[72:75] = self.R_1 @ obs[72:75]
+        obs[75:78] = self.R_1 @ obs[75:78]
 
         return obs.copy()
 
