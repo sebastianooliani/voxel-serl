@@ -142,14 +142,14 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     DUAL = True
     TOP = True
     HER = True
-    TASK = "motion" # "lift", "reorient", "motion", "inairrotation"
+    TASK = "lift" # "lift", "reorient", "motion", "inairrotation"
     
     # box in horizontal position
     # RESET_Q = np.array([[- math.pi / 6., -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
     #                     math.pi - math.pi / 6, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]])
     # higher version
     RESET_Q = {
-        "lift": np.array([[- math.pi / 6., math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.),
+        "lift": np.array([[- math.pi / 6., math.radians(-89.6), math.radians(120.43), math.radians(-120.37), math.radians(-90.02), math.radians(0.),
                          math.radians(147.55), math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.)]]),
         "reorient": np.array([[math.radians(-37.41), math.radians(-107.04), math.radians(129.58), math.radians(-112.1), math.radians(-90.11), math.radians(-7.41),
                          math.radians(147.55), math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.)]]),
@@ -170,7 +170,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     MID_RESET_Q = np.array([[math.radians(-40.), math.radians(-136.), math.radians(116.), math.radians(-65.), math.radians(-85.4), math.radians(0),
                             math.radians(143.25), math.radians(-120.69), math.radians(117.43), math.radians(-83.28), math.radians(-101.91), math.radians(0.)]])
     
-    RANDOM_RESET = False
+    RANDOM_RESET = True
     RANDOM_XYZ_RANGE = (0.01,)
     RANDOM_ROT_RANGE = (0.05,)
 
@@ -247,16 +247,16 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     POSE_ESTIMATION = True
 
     # rewards weights
-    STEP_WEIGHT = 0.1
+    STEP_WEIGHT = 0.2
     ACTION_WEIGHT = 0.1
     ORIENTATION_WEIGHT = 10.
-    POSITION_WEIGHT = 10.
+    POSITION_WEIGHT = 20.
     DISTANCE_WEIGHT = 0.5
     SUCTION_WEIGHT = 1.
     GRASP_WEIGHT = 15.
     SUCCESS_WEIGHT = 200.
     PENALTY = 150.
-    SAFETY_THRESHOLD = 0.05
+    SAFETY_THRESHOLD = 0.13
 
     # reward dictionaries
     REWARD_DICT = {
@@ -286,14 +286,14 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "safety_threshold": 0.1,
         },
         "motion": {
-            "step_weight": STEP_WEIGHT,
+            "step_weight": 0.1,
             "action_weight": ACTION_WEIGHT,
             "orientation_weight": 10.,
             "position_weight": 10.,
             "distance_weight": 0.1,
             "grasping_weight": 0.5,
             "suction_weight": 0.5,
-            "goal_weight": 150,
+            "goal_weight": 200,
             "success_weight": 200.,
             "penalty": 10,
             "safety_threshold": 0.1,
