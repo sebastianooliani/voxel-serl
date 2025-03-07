@@ -82,7 +82,7 @@ class HER():
         tcp_pose = convert_pose_2_7dim(tcp_pose)
 
         action_cost = self.weights["action_weight"] * np.sum(np.power(action, 2))
-        action_diff_cost = self.weights["action_weight"] * np.sum(np.power(obs[:14] - self.last_action, 2))
+        action_diff_cost = self.weights["action_diff_weight"] * np.sum(np.power(obs[:14] - self.last_action, 2))
         self.last_action[:] = action
         
         # STEP: penalize each step

@@ -179,9 +179,9 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
                         [0., 0., 1., 0.01], 
                         [0., 0., 0., 1.]], dtype=np.float32)
     
-    T_O1_O2 = np.array([[1., 0., 0., -0.94],
+    T_O1_O2 = np.array([[1., 0., 0., -0.108],
                         [0., 1., 0., -0.11],
-                        [0., 0., 1., -0.03],
+                        [0., 0., 1., -0.02],
                         [0, 0, 0, 1.]], dtype=np.float32)
     # 13cm - distance end effector to suction cup
     T_EE_SC = np.array([[1., 0., 0., 0.],
@@ -223,17 +223,17 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     ABS_POSE_LIMIT_HIGH_ROBOT_1 = {
         "lift": np.array([-0.335, 0.263, 0.382, 0.05, 0.05, 0.2]),
         "reorient": np.array([-0.335, 0.133, 0.377, 0.05, 0.05, 0.2]),
-        "motion": np.array([-0.335, 0.463, 0.337, 0.05, 0.05, 0.2]),
+        "motion": np.array([-0.335, 0.463, 0.357, 0.05, 0.05, 0.2]),
     }
     ABS_POSE_LIMIT_LOW_ROBOT_1 = {
-        "lift": np.array([-0.640, 0.030, 0.128, -0.05, -0.05, -0.2]),
-        "reorient": np.array([-0.655, 0.033, 0.128, -0.05, -0.05, -0.2]),
-        "motion": np.array([-0.605, -0.533, 0.128, -0.05, -0.05, -0.2]),
+        "lift": np.array([-0.640, 0.030, 0.110, -0.05, -0.05, -0.2]),
+        "reorient": np.array([-0.655, 0.033, 0.110, -0.05, -0.05, -0.2]),
+        "motion": np.array([-0.605, -0.533, 0.110, -0.05, -0.05, -0.2]),
     }
     ABS_POSE_LIMIT_HIGH_ROBOT_2 = {
         "lift": np.array([0.612, 0.116, 0.382, 0.05, 0.05, 0.2]),
         "reorient": np.array([0.652, 0.116, 0.377, 0.05, 0.05, 0.2]),
-        "motion": np.array([0.602, 0.463, 0.337, 0.05, 0.05, 0.2]),
+        "motion": np.array([0.602, 0.463, 0.357, 0.05, 0.05, 0.2]),
     }
     ABS_POSE_LIMIT_LOW_ROBOT_2 = {
         "lift": np.array([0.380, -0.215, 0.128, -0.05, -0.05, -0.2]),
@@ -288,12 +288,13 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
         "motion": {
             "step_weight": 0.1,
             "action_weight": ACTION_WEIGHT,
+            "action_diff_weight": 0.01,
             "orientation_weight": 10.,
             "position_weight": 10.,
             "distance_weight": 0.1,
             "grasping_weight": 0.5,
             "suction_weight": 0.5,
-            "goal_weight": 200,
+            "goal_weight": 150,
             "success_weight": 200.,
             "penalty": 10,
             "safety_threshold": 0.1,
