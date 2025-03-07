@@ -266,7 +266,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
 
     def compute_reward(self, obs, action) -> float:
         action_cost = self.reward_dict["action_weight"] * np.sum(np.power(action, 2))
-        action_diff_cost = self.reward_dict["action_weight"] * np.sum(np.power(obs["state"]["action"] - self.last_action, 2))
+        action_diff_cost = self.reward_dict["action_diff_weight"] * np.sum(np.power(obs["state"]["action"] - self.last_action, 2))
         self.last_action[:] = action
         
         # STEP: penalize each step
@@ -357,9 +357,12 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
     
     def reached_goal_state(self, obs) -> bool:
         state = obs['state']
+        # print(f"Box position: {state['box_position']}")
+        mid_tcp_pos = (state['tcp_pose'][:3] + (self.T_O1_O2 @ np.concatenate([state['tcp_pose'][7:10], [1.]]))[:3]) / 2.
         # using a lower threshold for the goal distance because the space is smaller
         return np.linalg.norm(state['goal_box_position']) < 0.05 and \
             0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
+                # np.linalg.norm(mid_tcp_pos - state['goal_position']) < 0.05
     
     def reset(self, **kwargs):
         self.cycle_count += 1
