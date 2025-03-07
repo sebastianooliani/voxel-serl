@@ -955,7 +955,7 @@ class UR5DualRobotEnv(UR5Env):
         while len(self.box_pose.get_box_position()) == 0:
             continue
         self.box_position = self.box_pose.get_box_position()
-        self.box_position = self.box_pose.compute_3d_ema(data=self.box_position, alpha=0.9)
+        self.box_position = self.box_pose.compute_3d_ema(data=self.box_position, alpha=0.1)
         self.box_position = self.WF_rot @ self.box_position + np.array([0.03, 0., 0.])  # world frame
 
     def _update_box_orientation_estimate(self):
@@ -965,7 +965,7 @@ class UR5DualRobotEnv(UR5Env):
         while len(self.box_pose.get_box_orientation()) == 0:
             continue
         self.box_orientation = self.box_pose.get_box_orientation() # angle-axis
-        self.box_orientation = self.box_pose.compute_3d_ema(data=self.box_orientation, alpha=0.9) # angle-axis
+        self.box_orientation = self.box_pose.compute_3d_ema(data=self.box_orientation, alpha=0.1) # angle-axis
         self.box_orientation = self.WF_rot @ self.box_orientation # angle-axis
 
     def _get_goal_position(self):
@@ -1126,14 +1126,15 @@ class UR5DualRobotEnv(UR5Env):
                 random_rot = np.random.triangular(np.negative(self.random_rot_range), 0., self.random_rot_range, size=(6,))
             else:
                 random_rot = np.zeros((6,))
-            reset_pose[3:7][:] = (R.from_quat(reset_pose[3:]) * R.from_mrp(random_rot[:3])).as_quat()
-            reset_pose[9:][:] = (R.from_quat(reset_pose[9:]) * R.from_mrp(random_rot[3:])).as_quat()
+            reset_pose[3:7][:] = (R.from_quat(reset_pose[3:7]) * R.from_mrp(random_rot[:3])).as_quat()
+            reset_pose[10:][:] = (R.from_quat(reset_pose[10:]) * R.from_mrp(random_rot[3:])).as_quat()
 
             self.curr_reset_pose[:] = reset_pose
 
-            self.controller.set_target_pos(reset_pose)  # random movement after resetting
+            self.controller_1.set_target_pos(reset_pose[:7])  # random movement after resetting
+            self.controller_2.set_target_pos(reset_pose[7:])
             time.sleep(0.1)
-            while self.controller.is_moving():
+            while self.controller_1.is_moving() or self.controller_2.is_moving():
                 time.sleep(0.1)
             return reset_shift
         else:
