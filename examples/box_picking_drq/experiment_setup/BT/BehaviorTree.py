@@ -36,12 +36,14 @@ class DualTreeState():
                               0., 0., 1., 0., 0., 0., 0.])
         self.up = np.array([0., 1., 0., 0., 0., 0., 0.,
                             0., -1., 0., 0., 0., 0., 0.]) if opposite_grasp else -self.down
+        self.forward = np.array([-1., -1., 0., 0., 0., 0., 1.,
+                                 -1., -1., 0., 0., 0., 0., 1.])
         self.suck_old = np.array([0., 0., 1., 0., 0., 0., 1.,
                                   0., 0., 1., 0., 0., 0., 1.])
         self.suck = np.array([0., 1., 0., 0., 0., 0., 1.,
                               0., -1., 0., 0., 0., 0., 1.]) if opposite_grasp else self.suck_old
-        self.suck = np.array([0., 1., 0., 0., 0., 0., 1.,
-                              0., -1., 0., 0., 0., 0., 1.]) if reorient else self.suck
+        self.follow = np.array([0., 0., 1., 0., 0., 0., 0.,
+                                0., 0., 1., 0., 0., 0., 0.])
         self.random_direction = np.zeros_like(self.down)
         self.random_orientation = np.zeros_like(self.down)
         self.re_sample_xy()
@@ -242,11 +244,11 @@ class DualBehaviorTreeReorientation():
         # observation order in the dictionary
         # action, gripper, joint pos, force, pos diff, pose, torque, vel
         if obs[15] > 0.5 and obs[17] > 0.5:
-            if np.all(self.tree_state.current == self.tree_state.up):
+            if np.all(self.tree_state.current == self.tree_state.forward):
                 pass
             else:
-                print("go up")
-                self.tree_state.current = self.tree_state.up
+                print("go forward")
+                self.tree_state.current = self.tree_state.forward
 
         elif obs[32] < -1. and obs[35] < -1.: # force check
             if obs[15] < -0.5 and obs[17] < -0.5: # if sucking
@@ -274,3 +276,66 @@ class DualBehaviorTreeReorientation():
         for _ in range(6):
             self.queue.put(self.tree_state.suck)
         return self.queue.get()
+    
+
+class DualBehaviorTreeMotionPlanning():
+    """
+    simple behavior tree for moving the box to a point in the xyz plane
+    start: move down
+    if force in z: suck and move to the point
+        if not successful:
+            maybe orientation rot before? (test)
+            move up, random direction xy, goto start
+        if successful:
+            move up, wait for end
+    """
+    def __init__(self, opposite_grasp=False):
+        self.tree_state: DualTreeState = DualTreeState(opposite_grasp=opposite_grasp)
+        self.queue = Queue()
+
+    def reset(self):
+        self.tree_state.vert_reset()
+        print("down")
+        return self.tree_state()
+    
+    def sample_actions(self, observations):
+        obs = observations["state"].reshape(-1)
+        if not self.queue.empty():
+            return self.queue.get()
+        
+        # observation order in the dictionary
+        # action, gripper, joint pos, force, pos diff, pose, torque, vel
+        if obs[15] > 0.5 and obs[17] > 0.5:
+            if np.all(self.tree_state.current == self.tree_state.follow):
+                pass
+            else:
+                print("go to the goal")
+                self.tree_state.current = self.tree_state.follow
+
+        elif obs[32] < -1. and obs[35] < -1.:
+            if obs[15] < -0.5 and obs[17] < -0.5:
+                print("do random direction")
+                return self._fill_random_xy_queue()
+            else:
+                print("suck")
+                self.tree_state.current = self.tree_state.suck
+                return self._fill_suck_queue()
+        else:
+            self.tree_state.vert_reset()
+
+        return self.tree_state()
+    
+    def _fill_random_xy_queue(self):
+        for _ in range(4):
+            self.queue.put(self.tree_state.up)
+        self.tree_state.re_sample_xy()
+        for _ in range(6):
+            self.queue.put(self.tree_state.random_direction)
+
+        return self.queue.get()
+    
+    def _fill_suck_queue(self):
+        for _ in range(6):
+            self.queue.put(self.tree_state.suck)
+        return self.queue.get()
+    
