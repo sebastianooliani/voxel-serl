@@ -212,7 +212,13 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
                 if done or truncated:
                     success_counter = env.unwrapped.config.SUCCESS_COUNT
+                    subsuccess_graps = float(env.unwrapped.config.SUBSUCCESS_GRASP)
+                    subsuccess_lift = float(env.unwrapped.config.SUBSUCCESS_LIFT)
+                    subsuccess_rot = float(env.unwrapped.config.SUBSUCCESS_ROT)
+                    subsuccess_motion = float(env.unwrapped.config.SUBSUCCESS_MOTION)
+
                     dt = time.time() - start_time
+                    time_list.append(dt)
                     running_reward = np.sum(np.asarray([t["rewards"] for t in trajectory]))
                     running_reward = max(running_reward, -100.)     # -100 min value
 
@@ -224,10 +230,20 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                         "running_reward": running_reward,
                         "time": dt,
                         "success_rate": env.unwrapped.config.SUCCESS_COUNT / (episode + 1),
-                        "action_cost": np.linalg.norm(np.asarray([t["actions"] for t in trajectory]), axis=1, ord=2).mean()
+                        "action_cost": np.linalg.norm(np.asarray([t["actions"] for t in trajectory]), axis=1, ord=2).mean(),
+                        "subsuccess_graps": subsuccess_graps / (episode + 1),
+                        "subsuccess_lift": subsuccess_lift / (episode + 1),
+                        "subsuccess_rot": subsuccess_rot / (episode + 1),
+                        "subsuccess_motion": subsuccess_motion / (episode + 1),
                     }
                     traj_infos.append(infos)
                     wandb_logger.log(infos, step=episode)
+
+                    # reset the subsuccess
+                    env.unwrapped.config.SUBSUCCESS_GRASP = False
+                    env.unwrapped.config.SUBSUCCESS_LIFT = False
+                    env.unwrapped.config.SUBSUCCESS_ROT = False
+                    env.unwrapped.config.SUBSUCCESS_MOTION = False
 
             # if pause event is requested, pause the actor
             if PAUSE_EVENT_FLAG.is_set():
@@ -243,6 +259,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
         traj_infos = {k: [d[k] for d in traj_infos] for k in traj_infos[0]}     # list of dicts to dict of lists
         mean_infos = {"mean_" + key: np.mean(val) for key, val in traj_infos.items()}
+        mean_infos["std_time"] = np.std(time_list)
         wandb_logger.log(mean_infos)
         for key, value in mean_infos.items():
             print(f"{key}: {value:.3f}")
