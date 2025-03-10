@@ -297,7 +297,7 @@ if __name__ == "__main__":
 
     import time
     start = time.time()
-    while box_pose_estimation.get_box_position() == []:
+    while len(box_pose_estimation.get_box_position()) == 0:
         continue
     end = time.time()
     print(f"Time to get first message: {end - start}")
@@ -306,7 +306,7 @@ if __name__ == "__main__":
         try:
             pos = np.array(box_pose_estimation.get_box_position())
             orient = np.array(box_pose_estimation.get_box_orientation())
-            # print(f"Position: {pos}")
+            print(f"Position: {pos}")
             # print(f"Orientation: {orient}")
         except KeyboardInterrupt:
             box_pose_estimation.stop()
