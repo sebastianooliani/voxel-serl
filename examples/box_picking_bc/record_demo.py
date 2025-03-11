@@ -38,7 +38,7 @@ flags.DEFINE_string("camera_mode", "none", "Type of camera mode used.")
 flags.DEFINE_integer("max_episode_length", 100, "Maximum length of trajectory.")
 
 def main(_):
-    env = gym.make("box_picking_camera_env_dual_robot_reorientation",
+    env = gym.make("box_picking_camera_env_dual_robot",
                    camera_mode="none",
                    max_episode_length=FLAGS.max_episode_length) if FLAGS.dual else gym.make("box_picking_camera_env", camera_mode="none")
     
@@ -67,7 +67,7 @@ def main(_):
     listener_2.start()
 
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"ur5_test_{success_needed}_demos_{uuid}_reorient_none.pkl"
+    file_name = f"ur5_test_{success_needed}_demos_{uuid}_lift_none.pkl"
     file_dir = os.path.dirname(os.path.realpath(__file__))  # same dir as this script
     file_path = os.path.join(file_dir, file_name)
 

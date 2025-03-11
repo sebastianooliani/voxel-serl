@@ -73,7 +73,7 @@ class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
     #     [0.1815, - 1.2945, 1.8964, - 2.1719, - 1.5658, - 1.3841],
     # ])
     # horizontal box
-    RESET_Q = np.array([[math.radians(112.46), math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.)]])
+    RESET_Q = np.array([[- math.pi / 6., math.radians(-88.27), math.radians(119.11), math.radians(-120.27), math.radians(-89.92), math.radians(0.)]])
     # vertical box
     # RESET_Q = np.array([[math.radians(241.46), math.radians(-75.78), math.radians(107.78), math.radians(-38.43), math.radians(-24.73), math.radians(33.13)]])
 
@@ -82,8 +82,8 @@ class UR5CameraConfigFinal(DefaultEnvConfig):  # config for 10 boxes
     RANDOM_ROT_RANGE = (0.04,)
     # ABS_POSE_LIMIT_HIGH = np.array([0.612, 0.116, 0.377, 0.05, 0.05, 0.2])
     # ABS_POSE_LIMIT_LOW = np.array([0.300, -0.315, 0.128, -0.05, -0.05, -0.2])
-    ABS_POSE_LIMIT_HIGH = np.array([-0.290, 0.363, 0.377, 0.05, 0.05, 0.2])
-    ABS_POSE_LIMIT_LOW = np.array([-0.640, 0.030, 0.128, -0.05, -0.05, -0.2])
+    ABS_POSE_LIMIT_HIGH = np.array([-0.335, 0.263, 0.382, 0.05, 0.05, 0.2])
+    ABS_POSE_LIMIT_LOW = np.array([-0.640, 0.030, 0.110, -0.05, -0.05, -0.2])
     ABS_POSE_RANGE_LIMITS = np.array([0.36, 0.83])
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
@@ -149,9 +149,9 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     #                     math.pi - math.pi / 6, -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.]])
     # higher version
     RESET_Q = {
-        "lift": np.array([[- math.pi / 6., math.radians(-89.6), math.radians(120.43), math.radians(-120.37), math.radians(-90.02), math.radians(0.),
+        "lift": np.array([[- math.pi / 6., math.radians(-88.27), math.radians(119.11), math.radians(-120.27), math.radians(-89.92), math.radians(0.),
                          math.radians(147.55), math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.)]]),
-        "reorient": np.array([[math.radians(-37.41), math.radians(-107.04), math.radians(129.58), math.radians(-112.1), math.radians(-90.11), math.radians(-7.41),
+        "reorient": np.array([[math.radians(-37.41), math.radians(-88.27), math.radians(119.11), math.radians(-120.27), math.radians(-89.92), math.radians(0.),
                          math.radians(147.55), math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.)]]),
         "motion": np.array([[- math.pi / 6., math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.),
                          math.radians(147.55), math.radians(-94.34), math.radians(117.29), math.radians(-112.48), math.radians(-90.02), math.radians(0.)]]),
@@ -171,7 +171,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
                             math.radians(143.25), math.radians(-120.69), math.radians(117.43), math.radians(-83.28), math.radians(-101.91), math.radians(0.)]])
     
     RANDOM_RESET = True
-    RANDOM_XYZ_RANGE = (0.01,)
+    RANDOM_XYZ_RANGE = (0.0,)
     RANDOM_ROT_RANGE = (0.05,)
 
     T_O1_O2_old = np.array([[0., 1., 0., -0.945], 
@@ -179,7 +179,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
                         [0., 0., 1., 0.01], 
                         [0., 0., 0., 1.]], dtype=np.float32)
     
-    T_O1_O2 = np.array([[1., 0., 0., -0.108],
+    T_O1_O2 = np.array([[1., 0., 0., -1.08],
                         [0., 1., 0., -0.11],
                         [0., 0., 1., -0.02],
                         [0, 0, 0, 1.]], dtype=np.float32)
@@ -231,9 +231,9 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
         "motion": np.array([-0.605, -0.533, 0.110, -0.05, -0.05, -0.2]),
     }
     ABS_POSE_LIMIT_HIGH_ROBOT_2 = {
-        "lift": np.array([0.612, 0.116, 0.382, 0.05, 0.05, 0.2]),
-        "reorient": np.array([0.652, 0.116, 0.377, 0.05, 0.05, 0.2]),
-        "motion": np.array([0.602, 0.463, 0.357, 0.05, 0.05, 0.2]),
+        "lift": np.array([0.712, 0.116, 0.382, 0.05, 0.05, 0.2]),
+        "reorient": np.array([0.752, 0.116, 0.377, 0.05, 0.05, 0.2]),
+        "motion": np.array([0.752, 0.463, 0.357, 0.05, 0.05, 0.2]),
     }
     ABS_POSE_LIMIT_LOW_ROBOT_2 = {
         "lift": np.array([0.380, -0.215, 0.128, -0.05, -0.05, -0.2]),
@@ -241,7 +241,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
         "motion": np.array([0.301, -0.533, 0.128, -0.05, -0.05, -0.2]),
     }
 
-    ACTION_SCALE = np.array([0.02, 0.1, 2.], dtype=np.float32)
+    ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
 
     POSE_ESTIMATION_IP = "ws://192.168.1.240:7777"
     POSE_ESTIMATION = True
@@ -261,15 +261,16 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     # reward dictionaries
     REWARD_DICT = {
         "lift": {
-            "step_weight": STEP_WEIGHT,
-            "action_weight": ACTION_WEIGHT,
-            "orientation_weight": ORIENTATION_WEIGHT,
-            "position_weight": POSITION_WEIGHT,
-            "distance_weight": DISTANCE_WEIGHT,
-            "suction_weight": SUCTION_WEIGHT,
-            "grasp_weight": GRASP_WEIGHT,
-            "success_weight": SUCCESS_WEIGHT,
-            "penalty": PENALTY,
+            "step_weight": 0.1,
+            "action_weight": 0.1,
+            "orientation_weight": 10.,
+            "position_weight": 10.,
+            "distance_weight": 0.,
+            "suction_rew_weight": 0.15,
+            "suction_pen_weight": 0.3,
+            "grasp_weight": 0.,
+            "success_weight": 200,
+            "penalty": 10,
             "safety_threshold": SAFETY_THRESHOLD,
         },
         "reorient": {
@@ -315,6 +316,10 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     }
 
     SUCCESS_COUNT: int = 0
+    SUBSUCCESS_GRASP = False
+    SUBSUCCESS_ROT = False
+    SUBSUCCESS_LIFT = False
+    SUBSUCCESS_MOTION = False
 
     ROBOT_IP_1: str = "192.168.1.66" # docker "172.17.0.2"
     ROBOT_IP_2: str = "192.168.1.33" # docker "172.17.0.3"

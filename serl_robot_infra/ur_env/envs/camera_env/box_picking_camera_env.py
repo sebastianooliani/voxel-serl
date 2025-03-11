@@ -118,10 +118,10 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         step_cost = self.reward_dict["step_weight"]
 
         # SUCTION: reward for successful grip and cost for unnecessary suctioning
-        suction_reward = self.reward_dict["suction_weight"] * (
+        suction_reward = self.reward_dict["suction_rew_weight"] * (
             float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5)
             )
-        suction_cost = self.reward_dict["suction_weight"] * (
+        suction_cost = self.reward_dict["suction_pen_weight"] * (
             float(obs["state"]["gripper_state"][1] < -0.5) + float(obs["state"]["gripper_state"][3] < -0.5)
             )
 
@@ -145,7 +145,6 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         if self.camera_mode is None:
             # when successfully runnning sac without wrist cameras, these were not used.
             distance_cost = 0
-            grasp_reward = 0
         else:
             T_O1_E1 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][:7])
             T_O2_E2 = construct_homogeneous_matrix(obs["state"]["tcp_pose"][7:])
@@ -153,10 +152,10 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
             T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
             distance_cost = self.reward_dict["distance_weight"] / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
 
-            grasp_reward = self.reward_dict["grasp_weight"] * (
-                float(obs["state"]["gripper_state"][1] > 0.5) * np.max(obs["state"]["tcp_pose"][2], 0) +
-                             float(obs["state"]["gripper_state"][3] > 0.5) * np.max(obs["state"]["tcp_pose"][9], 0))
-            
+        grasp_reward = self.reward_dict["grasp_weight"] * (
+            float(obs["state"]["gripper_state"][1] > 0.5) * np.max(obs["state"]["tcp_pose"][2], 0) +
+                            float(obs["state"]["gripper_state"][3] > 0.5) * np.max(obs["state"]["tcp_pose"][9], 0))
+        
             # suction_reward = 0.
 
         # TOTAL COST
@@ -180,7 +179,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
             print("\nSuccessfull lift!\n")
             self.config.SUCCESS_COUNT += 1
             self.last_action[:] = 0.
-            R_goal = 100. if self.camera_mode is None else self.reward_dict["success_weight"]
+            R_goal = self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost
         else:
             return 0. + suction_reward + grasp_reward - action_cost - orientation_cost - position_cost - \
@@ -192,9 +191,12 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         self._update_box_pos_estimate()
         # print(f"Box position: {self.box_position}")
         # add condition for second robot
+        if (self.box_position[2] - self.init_box_position[2]) > 0.05:
+            self.config.SUBSUCCESS_LIFT = True
+        if 0.1 < state['gripper_state'][0] < 1. or 0.1 < state['gripper_state'][2] < 1.:
+            self.config.SUBSUCCESS_GRASP = True
         return ((0.1 < state['gripper_state'][0] < 1. and state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.01) and \
-            (0.1 < state['gripper_state'][2] < 1. and state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.01)) \
-            or ((self.box_position[2] - self.init_box_position[2]) > 0.05 and 0.1 < state['gripper_state'][2] < 1. and 0.1 < state['gripper_state'][0] < 1.)
+            (0.1 < state['gripper_state'][2] < 1. and state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.01))
             # added check on box position, to take into account smaller boxes
     
     def reset(self, **kwargs):
@@ -360,6 +362,10 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         # print(f"Box position: {state['box_position']}")
         mid_tcp_pos = (state['tcp_pose'][:3] + (self.T_O1_O2 @ np.concatenate([state['tcp_pose'][7:10], [1.]]))[:3]) / 2.
         # using a lower threshold for the goal distance because the space is smaller
+        if np.linalg.norm(state['goal_box_position']) < 0.05:
+            self.config.SUBSUCCESS_MOTION = True
+        if 0.1 < state['gripper_state'][0] < 1. or 0.1 < state['gripper_state'][2] < 1.:
+            self.config.SUBSUCCESS_GRASP = True
         return np.linalg.norm(state['goal_box_position']) < 0.05 and \
             0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
                 # np.linalg.norm(mid_tcp_pos - state['goal_position']) < 0.05
@@ -501,7 +507,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             self.cost_infos[key] = info + (0. if key not in self.cost_infos else self.cost_infos[key])
         
         if self.reached_goal_state(obs):
-            
+            print("\nSuccessfull reorientation!\n")
             self.config.SUCCESS_COUNT += 1
             self.last_action[:] = 0.
             R_goal = self.reward_dict["success_weight"]
@@ -519,13 +525,12 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
             self.init_box_orientation, 
             R.from_mrp(state['box_orientation']).as_rotvec()
             )
-        # print(f"Rotation angle: {rot_angle}")
-        # print(f"Inital box orientation: {self.init_box_orientation}")
         # 0.09 rad = 5° tolerance
         if (np.abs(rot_angle - np.pi/4.5)) < 0.09:
-            print("\nSuccessfull reorientation!\n")
-        return (np.abs(rot_angle - np.pi/4.5)) < 0.09 and (state['tcp_pose'][2] > self.curr_reset_pose[2]) and \
-            (state['tcp_pose'][9] > self.curr_reset_pose[9])
+            self.config.SUBSUCCESS_ROT = True
+        if 0.1 < state['gripper_state'][0] < 1. or 0.1 < state['gripper_state'][2] < 1.:
+            self.config.SUBSUCCESS_GRASP = True
+        return (np.abs(rot_angle - np.pi/4.5)) < 0.09 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
     
     def reset(self, **kwargs):
         self.cycle_count += 1
