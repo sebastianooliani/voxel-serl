@@ -359,7 +359,6 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
     
     def reached_goal_state(self, obs) -> bool:
         state = obs['state']
-        # print(f"Box position: {state['box_position']}")
         mid_tcp_pos = (state['tcp_pose'][:3] + (self.T_O1_O2 @ np.concatenate([state['tcp_pose'][7:10], [1.]]))[:3]) / 2.
         # using a lower threshold for the goal distance because the space is smaller
         if np.linalg.norm(state['goal_box_position']) < 0.05:

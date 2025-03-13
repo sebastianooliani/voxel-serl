@@ -54,6 +54,19 @@ def pose_2_homogeneous_matrix(tcp_pose):
     T[:3, 3] = translation
     return T
 
+def pose_rotvec_2_homogeneous_matrix(tcp_pose):
+    """
+    Construct the homogeneous transformation matrix from given pose with orientation
+    represented with angle-axis.
+    args: tcp_pose: (x, y, z, rx, ry, rz)
+    """
+    rotation = R.from_rotvec(tcp_pose[3:]).as_matrix()
+    translation = np.array(tcp_pose[:3])
+    T = np.eye(4)
+    T[:3, :3] = rotation
+    T[:3, 3] = translation
+    return T
+
 def orientation_difference_angle_axis(angle_axis1, angle_axis2):
     """
     Compute the orientation difference between two angle-axis representations.

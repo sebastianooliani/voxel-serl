@@ -21,7 +21,7 @@ from serl_launcher.wrappers.chunking import ChunkingWrapper
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper, ScaleObservationWrapper, ScaleDualObservationWrapper
 from serl_launcher.wrappers.observation_statistics_wrapper import ObservationStatisticsWrapper, DualObservationStatisticsWrapper
 from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
-from ur_env.envs.wrappers import Quat2MrpWrapper, ObservationRotationWrapper, DualQuat2MrpWrapper
+from ur_env.envs.wrappers import Quat2MrpWrapper, ObservationRotationWrapper, DualQuat2MrpWrapper, SampleGoalPositionsWrapper
 
 import ur_env
 
@@ -38,8 +38,7 @@ flags.DEFINE_boolean("dual", False, "Dual robot mode.")
 flags.DEFINE_string("wandb_project", "bt", "Wandb project name.")
 flags.DEFINE_boolean("debug", False, "Debug mode.")
 flags.DEFINE_string("task", "lift", "Task to perform. Choices: lift, reorient, motion.")
-
-OPPOSITE_GRASP = False
+flags.DEFINE_boolean("opposite_grasp", False, "Use opposite grasp for lift task.")
 
 def main(_):
     env = gym.make(
@@ -48,20 +47,25 @@ def main(_):
         fake_env=False,
         max_episode_length=FLAGS.max_traj_length,
     )
+    task = env.unwrapped.config.TASK
+    if task in ["motion"]:
+        env = SampleGoalPositionsWrapper(env)
     env = DualRelativeFrame(env) if FLAGS.dual else RelativeFrame(env)
     env = DualQuat2MrpWrapper(env) if FLAGS.dual else Quat2MrpWrapper(env)
-    env = ScaleDualObservationWrapper(env) if FLAGS.dual else ScaleObservationWrapper(env)  # scale obs space (after quat2mrp, but before serlobs)
+    # env = ScaleDualObservationWrapper(env) if FLAGS.dual else ScaleObservationWrapper(env)  # scale obs space (after quat2mrp, but before serlobs)
     env = DualObservationStatisticsWrapper(env) if FLAGS.dual else ObservationStatisticsWrapper(env)
     env = SERLObsWrapper(env)
     env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
     env = RecordEpisodeStatistics(env)
 
-    if FLAGS.task in ["lift"]:
-        agent = DualBehaviorTree(opposite_grasp=OPPOSITE_GRASP) if FLAGS.dual else BehaviorTree()
-    elif FLAGS.task in ["reorient"]:
-        agent = DualBehaviorTreeReorientation(opposite_grasp=OPPOSITE_GRASP, reorient=True)
-    elif FLAGS.task in ["motion"]:
-        agent = DualBehaviorTreeMotionPlanning(opposite_grasp=OPPOSITE_GRASP)
+    
+
+    if task in ["lift"]:
+        agent = DualBehaviorTree(opposite_grasp=FLAGS.opposite_grasp) if FLAGS.dual else BehaviorTree()
+    elif task in ["reorient"]:
+        agent = DualBehaviorTreeReorientation(opposite_grasp=FLAGS.opposite_grasp, reorient=True)
+    elif task in ["motion"]:
+        agent = DualBehaviorTreeMotionPlanning(opposite_grasp=FLAGS.opposite_grasp)
 
     wandb_logger = make_wandb_logger(
         project=FLAGS.wandb_project,
@@ -86,6 +90,9 @@ def main(_):
                 input("ready? record robot view as well!")
 
             start_time = time.time()
+
+            if task in ["motion"]:
+                _ = env.env.env.env.env.env.env.sample_goal_position()
             
             while not done:
                 actions = agent.sample_actions(
@@ -139,6 +146,9 @@ def main(_):
                     env.unwrapped.config.SUBSUCCESS_LIFT = False
                     env.unwrapped.config.SUBSUCCESS_ROT = False
                     env.unwrapped.config.SUBSUCCESS_MOTION = False
+
+                    if task in ["motion"]:
+                        _ = env.env.env.env.env.env.env.sample_goal_position()
 
         traj_infos = {k: [d[k] for d in traj_infos] for k in traj_infos[0]}  # list of dicts to dict of lists
         mean_infos = {"mean_" + key: np.mean(val) for key, val in traj_infos.items()}

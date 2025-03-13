@@ -1,6 +1,11 @@
 import numpy as np
 from queue import Queue
+from ur_env.envs.camera_env.config import UR5CameraConfigDualRobot as config
 
+from rtde_receive import RTDEReceiveInterface
+from franka_env.utils.transformations import (
+    pose_rotvec_2_homogeneous_matrix
+)
 
 class TreeState():
     """
@@ -42,8 +47,7 @@ class DualTreeState():
                                   0., 0., 1., 0., 0., 0., 1.])
         self.suck = np.array([0., 1., 0., 0., 0., 0., 1.,
                               0., -1., 0., 0., 0., 0., 1.]) if opposite_grasp else self.suck_old
-        self.follow = np.array([0., 0., 1., 0., 0., 0., 0.,
-                                0., 0., 1., 0., 0., 0., 0.])
+        
         self.random_direction = np.zeros_like(self.down)
         self.random_orientation = np.zeros_like(self.down)
         self.re_sample_xy()
@@ -292,6 +296,11 @@ class DualBehaviorTreeMotionPlanning():
     def __init__(self, opposite_grasp=False):
         self.tree_state: DualTreeState = DualTreeState(opposite_grasp=opposite_grasp)
         self.queue = Queue()
+        self.command = np.zeros(14)
+        self.command[6] = 1.
+        self.command[13] = 1.
+        self.ur_receive_1 = RTDEReceiveInterface("192.168.1.66")
+        self.ur_receive_2 = RTDEReceiveInterface("192.168.1.33")
 
     def reset(self):
         self.tree_state.vert_reset()
@@ -303,17 +312,19 @@ class DualBehaviorTreeMotionPlanning():
         if not self.queue.empty():
             return self.queue.get()
         
+        self.compute_commands(obs)
+
         # observation order in the dictionary
         # action, gripper, joint pos, force, pos diff, pose, torque, vel
         if obs[15] > 0.5 and obs[17] > 0.5:
-            if np.all(self.tree_state.current == self.tree_state.follow):
+            if np.all(self.tree_state.current == self.command):
                 pass
             else:
                 print("go to the goal")
-                self.tree_state.current = self.tree_state.follow
+                self.tree_state.current = self.command
 
         elif obs[32] < -1. and obs[35] < -1.:
-            if obs[15] < -0.5 and obs[17] < -0.5:
+            if obs[15] < - 0.5 and obs[17] < - 0.5:
                 print("do random direction")
                 return self._fill_random_xy_queue()
             else:
@@ -321,6 +332,7 @@ class DualBehaviorTreeMotionPlanning():
                 self.tree_state.current = self.tree_state.suck
                 return self._fill_suck_queue()
         else:
+            print("down")
             self.tree_state.vert_reset()
 
         return self.tree_state()
@@ -338,4 +350,28 @@ class DualBehaviorTreeMotionPlanning():
         for _ in range(6):
             self.queue.put(self.tree_state.suck)
         return self.queue.get()
+    
+    def compute_commands(self, obs):
+        """ 
+        compute commands based on the observations 
+        """
+        pose_1 = self.ur_receive_1.getActualTCPPose()
+        pose_2 = self.ur_receive_2.getActualTCPPose()
+        # print("pose 1: ", pose_1)
+        # print("pose 2: ", pose_2)
+        T_O1_O2 = config.T_O1_O2
+        T_O2_O1 = np.linalg.inv(T_O1_O2)
+
+        goal_box_pos = obs[69:72]
+
+        T_1 = pose_rotvec_2_homogeneous_matrix(pose_1)
+        T_2 = pose_rotvec_2_homogeneous_matrix(pose_2)
+
+        distance_ee1 = (T_1 @ np.concatenate([goal_box_pos, [1.]]))[:3]
+        distance_ee2 = ((T_2 @ (T_O2_O1 @ np.concatenate([goal_box_pos, [1.]])))[:3])
+
+        self.command[0:3] = distance_ee1
+        self.command[7:10] = distance_ee2
+
+        # print("command: ", self.command)
     
