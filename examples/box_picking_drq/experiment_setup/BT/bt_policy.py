@@ -74,6 +74,10 @@ def main(_):
     )
     action_ensemble = TemporalActionEnsemble(activated=False)
     success_counter = 0
+    subsuccess_graps = 0
+    subsuccess_lift = 0
+    subsuccess_rot = 0
+    subsuccess_motion = 0
 
     time_list = []
     trajectories = []
@@ -112,12 +116,12 @@ def main(_):
                 trajectory.append(transition)
                 obs = next_obs
 
-                if done or truncated:
+                if done:
                     success_counter = env.unwrapped.config.SUCCESS_COUNT
-                    subsuccess_graps = float(env.unwrapped.config.SUBSUCCESS_GRASP)
-                    subsuccess_lift = float(env.unwrapped.config.SUBSUCCESS_LIFT)
-                    subsuccess_rot = float(env.unwrapped.config.SUBSUCCESS_ROT)
-                    subsuccess_motion = float(env.unwrapped.config.SUBSUCCESS_MOTION)
+                    subsuccess_graps += float(env.unwrapped.config.SUBSUCCESS_GRASP)
+                    subsuccess_lift += float(env.unwrapped.config.SUBSUCCESS_LIFT)
+                    subsuccess_rot += float(env.unwrapped.config.SUBSUCCESS_ROT)
+                    subsuccess_motion += float(env.unwrapped.config.SUBSUCCESS_MOTION)
 
                     dt = time.time() - start_time
                     time_list.append(dt)
@@ -131,7 +135,7 @@ def main(_):
                     infos = {
                         "running_reward": running_reward,
                         "time": dt,
-                        "success_rate": float(reward > 50.),
+                        "success_rate": success_counter / (episode + 1),
                         "action_cost": np.linalg.norm(np.asarray([t["actions"] for t in trajectory]), axis=1, ord=2).mean(),
                         "subsuccess_graps": subsuccess_graps / (episode + 1),
                         "subsuccess_lift": subsuccess_lift / (episode + 1),

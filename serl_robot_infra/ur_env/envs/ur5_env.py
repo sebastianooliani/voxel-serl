@@ -953,6 +953,7 @@ class UR5DualRobotEnv(UR5Env):
         Update the box position estimate.
         """
         while len(self.box_pose.get_box_position()) == 0:
+            print("[RIC] waiting for box position")
             continue
         self.box_position = self.box_pose.get_box_position()
         self.box_position = self.box_pose.compute_3d_ema(data=self.box_position, alpha=0.1)
@@ -963,6 +964,7 @@ class UR5DualRobotEnv(UR5Env):
         Update the box orientation estimate expressed in angle-axis representation.
         """
         while len(self.box_pose.get_box_orientation()) == 0:
+            print("[RIC] waiting for box orientation")
             continue
         self.box_orientation = self.box_pose.get_box_orientation() # angle-axis
         self.box_orientation = self.box_pose.compute_3d_ema(data=self.box_orientation, alpha=0.1) # angle-axis

@@ -433,6 +433,7 @@ class UrImpedanceController(threading.Thread):
         self.ur_control.forceModeStop()
 
         while len(self.box.get_box_orientation()) == 0:
+            print("[RIC] waiting for box orientation")
             continue
 
         # position is in a rotated world frame

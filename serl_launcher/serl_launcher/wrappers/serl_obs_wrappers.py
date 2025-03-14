@@ -3,8 +3,6 @@ from gymnasium import spaces
 from gymnasium.core import ObsType, WrapperObsType
 from gymnasium.spaces import flatten_space, flatten
 
-from ur_env.envs.camera_env.config import UR5CameraConfigDualRobot
-
 class SERLObsWrapper(gym.ObservationWrapper):
     """
     This observation wrapper treats the observation space as a dictionary
@@ -111,7 +109,7 @@ class ScaleDualObservationWrapper(gym.ObservationWrapper):
         super().__init__(env) 
         self.translation_scale, self.rotation_scale, self.force_scale, self.torque_scale = translation_scale, rotation_scale, force_scale, torque_scale
 
-        self.task = UR5CameraConfigDualRobot.TASK
+        self.task = env.unwrapped.config.TASK
 
     def scale_wrapper_get_scales(self):
         return dict(

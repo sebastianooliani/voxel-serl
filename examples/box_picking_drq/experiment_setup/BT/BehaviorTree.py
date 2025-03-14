@@ -357,8 +357,6 @@ class DualBehaviorTreeMotionPlanning():
         """
         pose_1 = self.ur_receive_1.getActualTCPPose()
         pose_2 = self.ur_receive_2.getActualTCPPose()
-        # print("pose 1: ", pose_1)
-        # print("pose 2: ", pose_2)
         T_O1_O2 = config.T_O1_O2
         T_O2_O1 = np.linalg.inv(T_O1_O2)
 
@@ -366,12 +364,12 @@ class DualBehaviorTreeMotionPlanning():
 
         T_1 = pose_rotvec_2_homogeneous_matrix(pose_1)
         T_2 = pose_rotvec_2_homogeneous_matrix(pose_2)
+        R_1 = T_1[:3, :3]
+        R_2 = T_2[:3, :3]
 
-        distance_ee1 = (T_1 @ np.concatenate([goal_box_pos, [1.]]))[:3]
-        distance_ee2 = ((T_2 @ (T_O2_O1 @ np.concatenate([goal_box_pos, [1.]])))[:3])
+        distance_ee1 = 10 * (np.linalg.inv(R_1) @ goal_box_pos)
+        distance_ee2 = 10 * (np.linalg.inv(R_2) @ (T_O2_O1[:3, :3] @ goal_box_pos))
 
         self.command[0:3] = distance_ee1
         self.command[7:10] = distance_ee2
-
-        # print("command: ", self.command)
     
