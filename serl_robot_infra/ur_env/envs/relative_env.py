@@ -189,15 +189,15 @@ class DualRelativeFrame(gym.Wrapper):
         obs["state"]["tcp_vel"][6:9] = self.rotation_matrix_reset_2.transpose() @ obs["state"]["tcp_vel"][6:9]
         obs["state"]["tcp_vel"][9:12] = self.rotation_matrix_reset_2.transpose() @ obs["state"]["tcp_vel"][9:12]
 
-        obs["state"]["tcp_force"][:3] = self.rotation_matrix_1.transpose() @ obs["state"]["tcp_force"][:3]
-        obs["state"]["tcp_force"][3:6] = self.rotation_matrix_2.transpose() @ obs["state"]["tcp_force"][3:6]
-
-        obs["state"]["tcp_torque"][:3] = self.rotation_matrix_1.transpose() @ obs["state"]["tcp_torque"][:3]
-        obs["state"]["tcp_torque"][3:6] = self.rotation_matrix_2.transpose() @ obs["state"]["tcp_torque"][3:6]
-
         if self.task in ["motion"]:
             obs["state"]["box_position"] = self.rotation_matrix_1.transpose() @ obs["state"]["box_position"]
             obs["state"]["goal_position"] = self.rotation_matrix_1.transpose() @ obs["state"]["goal_position"]
+        else:
+            obs["state"]["tcp_force"][:3] = self.rotation_matrix_1.transpose() @ obs["state"]["tcp_force"][:3]
+            obs["state"]["tcp_force"][3:6] = self.rotation_matrix_2.transpose() @ obs["state"]["tcp_force"][3:6]
+
+            obs["state"]["tcp_torque"][:3] = self.rotation_matrix_1.transpose() @ obs["state"]["tcp_torque"][:3]
+            obs["state"]["tcp_torque"][3:6] = self.rotation_matrix_2.transpose() @ obs["state"]["tcp_torque"][3:6]
 
 
         if self.include_relative_pose:

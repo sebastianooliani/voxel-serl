@@ -249,8 +249,8 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             "tcp_pose": self.curr_pos,
             "tcp_vel": self.curr_vel,
             "gripper_state": self.gripper_state,
-            "tcp_force": self.curr_force,
-            "tcp_torque": self.curr_torque,
+            # "tcp_force": self.curr_force,
+            # "tcp_torque": self.curr_torque,
             "action": action,
             # TODO: add my custom observations here
             "tcp_pos_diff": self.curr_pos[:3] - (self.T_O1_O2 @ np.concatenate([self.curr_pos[7:10], [1.]]))[:3],

@@ -19,7 +19,7 @@ def create_state_mask(mask_str: str) -> jnp.ndarray:
         mask_str = "all"
         dual = True
         if UR5CameraConfigDualRobot.TASK in ["motion"]:
-            all = jnp.ones((78,), dtype=jnp.bool)
+            all = jnp.ones((66,), dtype=jnp.bool)
         elif UR5CameraConfigDualRobot.TASK in ["reorient"]:
             all = jnp.ones((72,), dtype=jnp.bool)
         elif UR5CameraConfigDualRobot.TASK in ["lift"]:

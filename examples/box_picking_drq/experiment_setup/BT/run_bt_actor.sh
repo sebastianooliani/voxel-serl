@@ -8,4 +8,4 @@ python bt_policy.py "$@" \
     --exp_name=bt_policy \
     --max_traj_length 300 \
     --eval_n_trajs 20 \
-    --debug
+    # --debug

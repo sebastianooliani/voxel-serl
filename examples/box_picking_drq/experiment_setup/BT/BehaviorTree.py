@@ -312,18 +312,20 @@ class DualBehaviorTreeMotionPlanning():
         if not self.queue.empty():
             return self.queue.get()
         
-        self.compute_commands(obs)
+        force_1 = self.ur_receive_1.getActualTCPForce()
+        force_2 = self.ur_receive_2.getActualTCPForce()
 
         # observation order in the dictionary
         # action, gripper, joint pos, force, pos diff, pose, torque, vel
         if obs[15] > 0.5 and obs[17] > 0.5:
+            self.compute_commands(obs)
             if np.all(self.tree_state.current == self.command):
                 pass
             else:
                 print("go to the goal")
                 self.tree_state.current = self.command
 
-        elif obs[32] < -1. and obs[35] < -1.:
+        elif - force_1[2] < -1. and - force_2[2] < -1.:
             if obs[15] < - 0.5 and obs[17] < - 0.5:
                 print("do random direction")
                 return self._fill_random_xy_queue()
@@ -360,7 +362,7 @@ class DualBehaviorTreeMotionPlanning():
         T_O1_O2 = config.T_O1_O2
         T_O2_O1 = np.linalg.inv(T_O1_O2)
 
-        goal_box_pos = obs[69:72]
+        goal_box_pos = obs[57:60]
 
         T_1 = pose_rotvec_2_homogeneous_matrix(pose_1)
         T_2 = pose_rotvec_2_homogeneous_matrix(pose_2)

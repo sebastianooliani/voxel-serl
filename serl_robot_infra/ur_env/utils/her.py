@@ -39,18 +39,18 @@ class HER():
     ##########################################################################################
     #                               HER: her reward computation                              #
     ##########################################################################################
-    # observation space
-    # action -> 0:14
-    # gripper state -> 14:18
-    # joint position -> 18:30
-    # tcp force -> 30:36
-    # tcp pos diff -> 36:39
-    # tcp pose -> 39:51
-    # tcp torque -> 51:57
-    # tcp velocity -> 57:69
-    # goal box position -> 69:72
-    # box position -> 72:75
-    # goal position -> 75:78
+    # observation space ----------------------------------- after removing forces and torques
+    # action -> 0:14                                        # 0:14
+    # gripper state -> 14:18                                # 14:18
+    # joint position -> 18:30                               # 18:30
+    # tcp force -> 30:36                                    # -
+    # tcp pos diff -> 36:39                                 # 30:33
+    # tcp pose -> 39:51                                     # 33:45
+    # tcp torque -> 51:57                                   # -
+    # tcp velocity -> 57:69                                 # 45:57
+    # goal box position -> 69:72                            # 57:60
+    # box position -> 72:75                                 # 60:63
+    # goal position -> 75:78                                # 63:66
 
     def compute_reward_her(self, 
                             obs, 
@@ -67,7 +67,7 @@ class HER():
                                    axis=0)
         
         def reached_goal_state_her(obs) -> bool:
-            return np.linalg.norm(obs[69:72]) < 0.05 \
+            return np.linalg.norm(obs[57:60]) < 0.05 \
                 and 0.1 < obs[14:18][0] < 1. \
                     and 0.1 < obs[14:18][2] < 1.
 
@@ -76,9 +76,9 @@ class HER():
         
         # transform the observation
         if self.trans:
-            obs = self.transform_obs(tcp_pose=obs[39:51], obs=obs, reset_pose=reset_pose)
+            obs = self.transform_obs(tcp_pose=obs[33:45], obs=obs, reset_pose=reset_pose)
             
-        tcp_pose = obs[39:51]
+        tcp_pose = obs[33:45]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
 
         action_cost = self.weights["action_weight"] * np.sum(np.power(action, 2))
@@ -112,11 +112,11 @@ class HER():
             )
 
         goal_distance_reward = self.weights["goal_weight"] * np.where(
-            np.linalg.norm(np.concatenate([obs[39:42], obs[45:48]], axis=0) - self.last_tcp_pos) > 0.004,
-            np.linalg.norm(np.concatenate([obs[39:42], obs[45:48]], axis=0) - self.last_tcp_pos) , 0.) * (
+            np.linalg.norm(np.concatenate([obs[33:36], obs[42:45]], axis=0) - self.last_tcp_pos) > 0.004,
+            np.linalg.norm(np.concatenate([obs[33:36], obs[42:45]], axis=0) - self.last_tcp_pos) , 0.) * (
             float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5)
             )
-        self.last_tcp_pos = np.concatenate([obs[39:42], obs[45:48]], axis=0)
+        self.last_tcp_pos = np.concatenate([obs[33:36], obs[42:45]], axis=0)
         
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
@@ -183,22 +183,9 @@ class HER():
             # concatenate the last observation to the current observation
             # recompute the goal-box-position observation based on the reached position
 
-            # observation space
-            # action -> 0:14
-            # gripper state -> 14:18
-            # joint position -> 18:30
-            # tcp force -> 30:36
-            # tcp pos diff -> 36:39
-            # tcp pose -> 39:51
-            # tcp torque -> 51:57
-            # tcp velocity -> 57:69
-            # goal box position -> 69:72
-            # box position -> 72:75
-            # goal position -> 75:78
-
             # initialize the last box position at the first transition
             if i == 0:
-                self.last_box_position = trans['observations'][72:75] / self.translation_scale
+                self.last_box_position = trans['observations'][-6:-3] / self.translation_scale
                 self.last_tcp_pos = np.concatenate([reset_pose[:3], reset_pose[7:10]], axis=0)
                 
             her_dict = copy.deepcopy(
@@ -238,7 +225,7 @@ class HER():
             her_transitions.append(her_dict)
 
             # store the last box position for the next transition
-            self.last_box_position = trans['observations'][72:75] / self.translation_scale
+            self.last_box_position = trans['observations'][-6:-3] / self.translation_scale
 
             augm_dict = copy.deepcopy(
                 dict(
@@ -275,25 +262,21 @@ class HER():
         Args:
             obs: observation
         """
-        obs[30:36] /= self.force_scale
+        obs[30:33] /= self.translation_scale
 
-        obs[36:39] /= self.translation_scale
-
+        obs[33:36] /= self.translation_scale
+        obs[36:39] /= self.rotation_scale
         obs[39:42] /= self.translation_scale
         obs[42:45] /= self.rotation_scale
+
         obs[45:48] /= self.translation_scale
         obs[48:51] /= self.rotation_scale
+        obs[51:54] /= self.translation_scale
+        obs[54:57] /= self.rotation_scale
 
-        obs[51:57] /= self.torque_scale
-
-        obs[57:60] /= self.translation_scale
+        obs[57:60] /= self.rotation_scale
         obs[60:63] /= self.rotation_scale
-        obs[63:66] /= self.translation_scale
-        obs[66:69] /= self.rotation_scale
-
-        obs[69:72] /= self.rotation_scale
-        obs[72:75] /= self.rotation_scale
-        obs[75:78] /= self.rotation_scale
+        obs[63:66] /= self.rotation_scale
 
         return obs
 
@@ -304,25 +287,21 @@ class HER():
         Args:
             obs: observation
         """
-        obs[30:36] *= self.force_scale
+        obs[30:33] *= self.translation_scale
 
-        obs[36:39] *= self.translation_scale
-
+        obs[33:36] *= self.translation_scale
+        obs[36:39] *= self.rotation_scale
         obs[39:42] *= self.translation_scale
         obs[42:45] *= self.rotation_scale
+
         obs[45:48] *= self.translation_scale
         obs[48:51] *= self.rotation_scale
+        obs[51:54] *= self.translation_scale
+        obs[54:57] *= self.rotation_scale
 
-        obs[51:57] *= self.torque_scale
-
-        obs[57:60] *= self.translation_scale
+        obs[57:60] *= self.rotation_scale
         obs[60:63] *= self.rotation_scale
-        obs[63:66] *= self.translation_scale
-        obs[66:69] *= self.rotation_scale
-
-        obs[69:72] *= self.rotation_scale
-        obs[72:75] *= self.rotation_scale
-        obs[75:78] *= self.rotation_scale
+        obs[63:66] *= self.rotation_scale
     
     def transform_obs(self, tcp_pose, obs, reset_pose):
         """
@@ -342,11 +321,11 @@ class HER():
         self.T_1_temp = construct_homogeneous_matrix(reset_pose[:7]) @ np.linalg.inv(self.T_1)
         self.T_2_temp = construct_homogeneous_matrix(reset_pose[7:]) @ np.linalg.inv(self.T_2)
 
-        # tcp_pose -> 39:51
-        obs[39:42] = self.T_1_temp[:3, 3]
-        obs[42:45] = R.from_matrix(self.T_1_temp[:3, :3]).as_mrp()
-        obs[45:48] = self.T_2_temp[:3, 3]
-        obs[48:51] = R.from_matrix(self.T_2_temp[:3, :3]).as_mrp()
+        # tcp_pose -> 33:45
+        obs[33:36] = self.T_1_temp[:3, 3]
+        obs[36:39] = R.from_matrix(self.T_1_temp[:3, :3]).as_mrp()
+        obs[39:42] = self.T_2_temp[:3, 3]
+        obs[42:45] = R.from_matrix(self.T_2_temp[:3, :3]).as_mrp()
 
         self.R_1 = self.T_1_temp[:3, :3]
         self.R_2 = self.T_2_temp[:3, :3]
@@ -357,51 +336,13 @@ class HER():
         obs[7:10] = self.R_2.T @ obs[7:10]
         obs[10:13] = self.R_2.T @ obs[10:13]
 
-        # tcp force -> 30:36
-        obs[30:33] = self.R_1 @ obs[30:33]
-        obs[33:36] = self.R_2 @ obs[33:36]
-
-        # tcp torque -> 51:57
-        obs[51:54] = self.R_1 @ obs[51:54]
+        # tcp velocity -> 57:69
+        obs[45:48] = self.R_1 @ obs[45:48]
+        obs[48:51] = self.R_1 @ obs[48:51]
+        obs[51:54] = self.R_2 @ obs[51:54]
         obs[54:57] = self.R_2 @ obs[54:57]
 
-        # tcp velocity -> 57:69
-        obs[57:60] = self.R_1 @ obs[57:60]
         obs[60:63] = self.R_1 @ obs[60:63]
-        obs[63:66] = self.R_2 @ obs[63:66]
-        obs[66:69] = self.R_2 @ obs[66:69]
-
-        obs[72:75] = self.R_1 @ obs[72:75]
-        obs[75:78] = self.R_1 @ obs[75:78]
+        obs[63:66] = self.R_1 @ obs[63:66]
 
         return obs.copy()
-
-if __name__ == "__main__":
-    # debug costs
-    her = HER()
-        
-    obs = np.array([0.1614,  0.637 , -0.237 ,  0.4904, -0.1243,  0.    ,  0.    ,
-       -0.3073,  0.9153, -0.042 ,  0.    ,  0.    ,  0.    ,  0.    ,
-        0.    ,  0.    ,  0.    ,  0.    , -0.5241, -1.4397,  2.0944,
-       -2.2256, -1.5714, -0.0003,  2.618 , -1.4402,  2.0947, -2.2255,
-       -1.5708,  0.0003, -0.478 , -0.1696, -0.2226,  0.1979, -0.4382,
-        0.2885, -0.0249,  0.3177, -0.0207,  0.0002, -0.0001,  0.0001,
-        0.    ,  0.0002,  0.    , -0.0001,  0.0001,  0.    ,  0.    ,
-        0.    ,  0.    ,  0.0004, -0.0123,  0.0173,  0.0135,  0.0062,
-       -0.0146,  0.0379, -0.0135,  0.0085,  0.0324,  0.0964,  0.0115,
-       -0.0233,  0.0271,  0.0021, -0.0044, -0.0016, -0.0046,  0.    ,
-        0.    ,  0.    ,  0.5   ,  0.5   ,  0.5   ,  0.5   ,  0.5   ,
-        0.5])
-    
-    action = np.array([0.3311, -0.0939,  0.1003,  0.1242,  0.4382,  0.0004,  0.    ,
-       -0.6617,  0.6944,  0.0501,  0.    ,  0.    ,  0.    ,  0.])
-    goal_pos = np.array([0.5, 0.5, 0.5])
-    reset_pose = np.array([-0.4699, 0.119, 0.2453, -0.8663, -0.4995, -0.0015, 0.0008,
-                            0.236, 0.4235, 0.246, -0.924, 0.3823, 0.0014, 0.0015])
-    
-    rew = her.compute_reward_her(obs=obs,
-                           action=action,
-                           goal_position=goal_pos,
-                           reset_pose=reset_pose)
-    
-    print("Correct reward: ", rew)

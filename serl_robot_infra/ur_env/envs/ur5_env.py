@@ -838,8 +838,8 @@ class UR5DualRobotEnv(UR5Env):
                 ),  # xyz + quat *2
                 "tcp_vel": gym.spaces.Box(-np.inf, np.inf, shape=(12,)),
                 "gripper_state": gym.spaces.Box(-1., 1., shape=(4,)),
-                "tcp_force": gym.spaces.Box(-np.inf, np.inf, shape=(6,)),
-                "tcp_torque": gym.spaces.Box(-np.inf, np.inf, shape=(6,)),
+                # "tcp_force": gym.spaces.Box(-np.inf, np.inf, shape=(6,)),
+                # "tcp_torque": gym.spaces.Box(-np.inf, np.inf, shape=(6,)),
                 "action": gym.spaces.Box(-1., 1., shape=self.action_space.shape),
                 # TODO: add my custom observations here
                 # the paper "A Comparison of Imitation Learning Algorithms for Bimanual Manipulation" uses:
@@ -870,6 +870,9 @@ class UR5DualRobotEnv(UR5Env):
             state_space["goal_position"] = gym.spaces.Box(
                 -np.inf, np.inf, shape=(3,)
             )
+        else:
+            state_space["tcp_force"] = gym.spaces.Box(-np.inf, np.inf, shape=(6,))
+            state_space["tcp_torque"] = gym.spaces.Box(-np.inf, np.inf, shape=(6,))
 
         if self.config.TASK in ["reorient"]:
             state_space["box_orientation"] = gym.spaces.Box(
@@ -1211,8 +1214,9 @@ class UR5DualRobotEnv(UR5Env):
 
         self.curr_pos[:7] = state['pos']
         self.curr_vel[:6] = state['vel']
-        self.curr_force[:3] = state['force']
-        self.curr_torque[:3] = state['torque']
+        if self.config.TASK not in ["motion"]:
+            self.curr_force[:3] = state['force']
+            self.curr_torque[:3] = state['torque']
         self.curr_Q[:6] = state['Q']
         self.curr_Qd[:6] = state['Qd']
         self.gripper_state[:2] = state['gripper']
@@ -1221,8 +1225,9 @@ class UR5DualRobotEnv(UR5Env):
 
         self.curr_pos[7:] = state['pos']
         self.curr_vel[6:] = state['vel']
-        self.curr_force[3:] = state['force']
-        self.curr_torque[3:] = state['torque']
+        if self.config.TASK not in ["motion"]:
+            self.curr_force[3:] = state['force']
+            self.curr_torque[3:] = state['torque']
         self.curr_Q[6:] = state['Q']
         self.curr_Qd[6:] = state['Qd']
         self.gripper_state[2:] = state['gripper']
