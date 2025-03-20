@@ -161,10 +161,13 @@ def sample_points_on_boarder_in_intersecting_boxes(
     # Apply fixed margins
     intersection_max[0] -= 0.10  # x max
     intersection_max[1] -= 0.13  # y max
-    intersection_max[2] -= 0.20  # z max
+    intersection_max[2] -= 0.18  # z max
     intersection_min[0] -= 0.00  # x min
-    intersection_min[1] += 0.33  # y min
-    intersection_min[2] += 0.03  # z min
+    intersection_min[1] += 0.23  # y min
+    intersection_min[2] -= 0.05  # z min
+    
+    # Intersection Min: [-0.605 -0.303  0.06 ]
+    # Intersection Max: [-0.435  0.173  0.157]    
     
     # Set random seed
     if seed is not None:

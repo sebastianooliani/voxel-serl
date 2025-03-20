@@ -67,17 +67,21 @@ class HER():
                                    axis=0)
         
         def reached_goal_state_her(obs) -> bool:
-            return np.linalg.norm(obs[57:60]) < 0.05 \
+            return np.linalg.norm(obs[57:60]) < self.weights["success_threshold"] \
                 and 0.1 < obs[14:18][0] < 1. \
                     and 0.1 < obs[14:18][2] < 1.
 
-        if self.scale: # with DRQ
+        if self.scale:
             obs = self.unscale_obs(obs)
+            self.init_box_position /= self.rotation_scale
+            self.last_box_position /= self.rotation_scale
         
         # transform the observation
         if self.trans:
             obs = self.transform_obs(tcp_pose=obs[33:45], obs=obs, reset_pose=reset_pose)
-            
+            self.init_box_position = self.R_1 @ self.init_box_position
+            self.last_box_position = self.R_1 @ self.last_box_position
+
         tcp_pose = obs[33:45]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
 
@@ -94,30 +98,32 @@ class HER():
 
         # ORIENTATION: penalize deviating too much from the starting pose
         orientation_cost = 0
-        orientation_cost = 1. - sum(tcp_pose[3:7] * reset_pose[3:7]) ** 2
-        orientation_cost += 1. - sum(tcp_pose[10:] * reset_pose[10:]) ** 2
+        orientation_cost = 1. - np.sum(tcp_pose[3:7] * reset_pose[3:7]) ** 2
+        orientation_cost += 1. - np.sum(tcp_pose[10:] * reset_pose[10:]) ** 2
         orientation_cost = max(orientation_cost - 0.005, 0.) * self.weights["orientation_weight"]
 
         # POSITION: penalize deviating too much from the starting pose
         max_pose_diff = 0.05  # set to 5cm
         pos_diff = np.concatenate([tcp_pose[:2] - reset_pose[:2], tcp_pose[7:9] - reset_pose[7:9]])
         position_cost = self.weights["position_weight"] * np.sum(
-            np.where(np.abs(pos_diff) > 0.5, np.abs(pos_diff - np.sign(pos_diff) * 0.5), 0.0) # larger movement allowed
+            np.where(np.abs(pos_diff) > 0.6, np.abs(pos_diff - np.sign(pos_diff) * 0.1), 0.0) # larger movement allowed
         ) * (
             float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5) # when is grasping
             ) + self.weights["position_weight"] * np.sum(
-            np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.05), 0.0) # smaller movement allowed
+            np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.1), 0.0) # smaller movement allowed
         ) * (
             float(obs[14:18][1] < 0.5) + float(obs[14:18][3] < 0.5) # when is not grasping
             )
 
-        goal_distance_reward = self.weights["goal_weight"] * np.where(
-            np.linalg.norm(np.concatenate([obs[33:36], obs[42:45]], axis=0) - self.last_tcp_pos) > 0.004,
-            np.linalg.norm(np.concatenate([obs[33:36], obs[42:45]], axis=0) - self.last_tcp_pos) , 0.) * (
+        actual_norm_pos = np.sum((obs[60:63] - self.init_box_position) * (obs[63:66] - self.init_box_position)) / np.sum(np.power(obs[63:66] - self.init_box_position, 2))
+        prev_norm_pos = np.sum((self.last_box_position - self.init_box_position) * (obs[63:66] - self.init_box_position)) / np.sum(np.power(obs[63:66] - self.init_box_position, 2))
+        goal_distance_reward = self.weights["goal_weight"] * (
+            actual_norm_pos - prev_norm_pos
+        ) * (
             float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5)
             )
-        self.last_tcp_pos = np.concatenate([obs[33:36], obs[42:45]], axis=0)
-        
+        self.last_tcp_pos = np.concatenate([obs[33:36], obs[42:45]], axis=0) 
+        goal_distance_reward = 0. if goal_distance_reward < 0. else goal_distance_reward
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
@@ -185,7 +191,8 @@ class HER():
 
             # initialize the last box position at the first transition
             if i == 0:
-                self.last_box_position = trans['observations'][-6:-3] / self.translation_scale
+                self.init_box_position = trans['observations'][-6:-3].copy()
+                self.last_box_position = self.init_box_position.copy()
                 self.last_tcp_pos = np.concatenate([reset_pose[:3], reset_pose[7:10]], axis=0)
                 
             her_dict = copy.deepcopy(
@@ -225,7 +232,7 @@ class HER():
             her_transitions.append(her_dict)
 
             # store the last box position for the next transition
-            self.last_box_position = trans['observations'][-6:-3] / self.translation_scale
+            self.last_box_position = trans['observations'][-6:-3].copy()
 
             augm_dict = copy.deepcopy(
                 dict(
@@ -252,6 +259,124 @@ class HER():
                 break
 
         self.last_action[:] = 0.
+
+        # print(f"Costs: {self.costs}")
+
+        return her_transitions, augmented_transitions, self.add_to_buffer
+    
+    def process_transitions_drq(self,
+                                transitions,
+                                last_obs,
+                                goal_position,
+                                her_transitions,
+                                augmented_transitions,
+                                reset_pose):
+        """
+        Process transitions. Obtain HER and augment the standard transitions.
+        
+        Args:
+            transitions: list of transitions
+            last_obs: last observation
+            goal_position: goal position
+            her_transitions: list of HER transitions
+            augmented_transitions: list of augmented transitions
+        
+        Returns:
+            her_transitions: list of HER transitions
+            augmented_transitions: list of augmented transitions
+            add_to_buffer: boolean to add to buffer
+        """
+        # init
+        her_transitions, augmented_transitions, self.add_to_buffer = [], [], False
+
+        for i, trans in enumerate(transitions):
+            # compute reward based on the new goal state
+            # concatenate the last observation to the current observation
+            # recompute the goal-box-position observation based on the reached position
+
+            # initialize the last box position at the first transition
+            if i == 0:
+                self.init_box_position = trans['observations']['state'][0, -6:-3].copy()
+                self.last_box_position = self.init_box_position.copy()
+                self.last_tcp_pos = np.concatenate([reset_pose[:3], reset_pose[7:10]], axis=0)
+
+            her_dict = copy.deepcopy(
+                dict(
+                    observations=dict(
+                        state=np.concatenate([trans['observations']['state'][0, :-9], 
+                            last_obs['state'][0, -6:-3] - trans['observations']['state'][0, -6:-3], 
+                            trans['observations']['state'][0, -6:-3], 
+                            last_obs['state'][0, -6:-3]], 
+                            axis=0),
+                            wrist_1_pointcloud=trans['observations']['wrist_1_pointcloud'],
+                            wrist_2_pointcloud=trans['observations']['wrist_2_pointcloud'],
+                            ),
+                    actions=trans['actions'],
+                    next_observations=dict(
+                        state=np.concatenate(
+                        [trans['next_observations']['state'][0, :-9], 
+                            last_obs['state'][0, -6:-3] - trans['next_observations']['state'][0, -6:-3], 
+                            trans['next_observations']['state'][0, -6:-3], 
+                            last_obs['state'][0, -6:-3]], 
+                        axis=0),
+                        wrist_1_pointcloud=trans['next_observations']['wrist_1_pointcloud'],
+                        wrist_2_pointcloud=trans['next_observations']['wrist_2_pointcloud'],
+                        ),
+                    # compute reward based on the new goal state
+                    rewards=self.compute_reward_her(
+                        obs=np.concatenate(
+                            [trans['observations']['state'][0, :-9], 
+                            last_obs['state'][0, -6:-3] - trans['observations']['state'][0, -6:-3], 
+                            trans['observations']['state'][0, -6:-3], 
+                            last_obs['state'][0, -6:-3]], 
+                            axis=0
+                            ), # use the new observation vector
+                        action=trans['actions'], 
+                        goal_position=last_obs['state'][0, -6:-3],
+                        reset_pose=reset_pose
+                        ), # TODO: implement this function
+                    masks=1.0 - self.success,
+                    dones=self.success,
+                )
+            )
+            her_transitions.append(her_dict)
+
+            # store the last box position for the next transition
+            self.last_box_position = trans['observations']['state'][0, -6:-3].copy()
+
+            augm_dict = copy.deepcopy(
+                dict(
+                    observations=dict(
+                        state=np.concatenate(
+                        [trans['observations']['state'][0, :-3], goal_position], axis=0
+                        ),
+                        wrist_1_pointcloud=trans['observations']['wrist_1_pointcloud'],
+                        wrist_2_pointcloud=trans['observations']['wrist_2_pointcloud'],
+                    ),
+                    actions=trans['actions'],
+                    next_observations=dict(
+                        state=np.concatenate(
+                        [trans['next_observations']['state'][0, :-3], goal_position], 
+                        axis=0),
+                        wrist_1_pointcloud=trans['next_observations']['wrist_1_pointcloud'],
+                        wrist_2_pointcloud=trans['next_observations']['wrist_2_pointcloud'],
+                    ),
+                    rewards=trans['rewards'],
+                    masks=trans['masks'],
+                    dones=trans['dones'],
+                )
+            )
+            augmented_transitions.append(augm_dict)
+
+            # cut episode length if success is achieved
+            if self.success:
+                self.add_to_buffer = True
+                self.success = False
+                break
+
+        self.last_action[:] = 0.
+
+        # print(f"Costs: {self.costs}")
 
         return her_transitions, augmented_transitions, self.add_to_buffer
 
@@ -342,7 +467,8 @@ class HER():
         obs[51:54] = self.R_2 @ obs[51:54]
         obs[54:57] = self.R_2 @ obs[54:57]
 
-        obs[60:63] = self.R_1 @ obs[60:63]
-        obs[63:66] = self.R_1 @ obs[63:66]
+        # box position -> 60:63
+        # obs[60:63] = self.R_1 @ obs[60:63]
+        # obs[63:66] = self.R_1 @ obs[63:66]
 
         return obs.copy()

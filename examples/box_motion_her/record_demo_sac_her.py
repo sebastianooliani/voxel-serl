@@ -51,6 +51,8 @@ def main(_):
     env = ScaleDualObservationWrapper(env) if FLAGS.dual else env
     env = SerlObsWrapperNoImages(env) if FLAGS.camera_mode in ["none"] else SERLObsWrapper(env)
 
+    # define goal position
+    intersection_point = env.env.env.env.env.env.sample_goal_position()
     obs, _ = env.reset()
 
     her = HER(scale=True, trans=True, camera_mode=FLAGS.camera_mode)
@@ -59,6 +61,7 @@ def main(_):
     augmented_transitions = []
     all_transitions = []
     positive_transitions = []
+    running_return = 0
 
     total_count = 0
     num_points = 20
@@ -82,8 +85,6 @@ def main(_):
 
     try:
         iter = 0
-        # define goal position
-        intersection_point = env.env.env.env.env.env.sample_goal_position()
 
         while iter < num_points:            
             if exit_program.is_set():
@@ -108,8 +109,26 @@ def main(_):
             transitions.append(transition)
 
             obs = next_obs
+            running_return += rew
 
-            if done:
+            if env.unwrapped.success:
+                iter += 1
+                positive_transitions.extend(transitions)
+                all_transitions.extend(transitions)
+                transitions = []
+
+                # sample new goal position
+                intersection_point = env.env.env.env.env.env.env.sample_goal_position()
+
+                total_count += 1
+                print(
+                    f"Running return: {running_return}\tRecorded {iter}, {num_points} needed."
+                )
+                pbar.update(1)
+                obs, _ = env.reset()
+                running_return = 0
+            elif done and not env.unwrapped.success:
+                print(info)
                 curr_reset_pose = env.unwrapped.curr_reset_pose
 
                 her_transitions, augmented_transitions, _ = her.process_transitions(
@@ -133,17 +152,18 @@ def main(_):
                 
                 total_count += 1
                 print(
-                    f"{rew}\tRecorded {iter}, {num_points} needed."
+                    f"Running return: {running_return}\tRecorded {iter}, {num_points} needed."
                 )
                 pbar.update(1)
                 obs, _ = env.reset()
+                running_return = 0
+
+        with open(f"dual_{num_points}_her_transitions_{uuid}.pkl", 'wb') as f:
+            pkl.dump(positive_transitions, f)
 
         with open(file_path, "wb") as f:
             pkl.dump(all_transitions, f)
             print(f"saved {num_points} demos to {file_path}")
-            
-        with open(f"dual_{num_points}_her_transitions_{uuid}.pkl", 'wb') as f:
-            pkl.dump(positive_transitions, f)
 
     except KeyboardInterrupt as e:
         print(f'\nProgram was interrupted from keyboard, cleaning up...  ', e.__str__())

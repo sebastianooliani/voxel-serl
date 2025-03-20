@@ -52,6 +52,8 @@ def main(_):
     env = SERLObsWrapper(env)
     env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
 
+    # Sample points in the intersection
+    intersection_point = env.env.env.env.env.env.env.sample_goal_position()
     obs, _ = env.reset()
 
     her = HER(scale=True, trans=True, camera_mode=FLAGS.camera_mode)
@@ -84,9 +86,6 @@ def main(_):
     try:
         running_reward = 0.
         iter = 0
-
-        # Sample points in the intersection
-        intersection_point = env.env.env.env.env.env.env.sample_goal_position()
         
         while iter < num_points:
             # define goal position
@@ -113,10 +112,26 @@ def main(_):
             obs = next_obs
             running_reward += rew
 
-            if done or truncated:
+            if env.unwrapped.success:
+                iter += 1
+                positive_transitions.extend(transitions)
+                all_transitions.extend(transitions)
+                transitions = []
+
+                # sample new goal position
+                intersection_point = env.env.env.env.env.env.env.sample_goal_position()
+
+                total_count += 1
+                print(
+                    f"Running return: {running_reward}\tRecorded {iter}, {num_points} needed."
+                )
+                pbar.update(1)
+                obs, _ = env.reset()
+                running_reward = 0
+            elif done and not env.unwrapped.success:
                 curr_reset_pose = env.unwrapped.curr_reset_pose
 
-                her_transitions, augmented_transitions, _ = her.process_transitions(
+                her_transitions, augmented_transitions, _ = her.process_transitions_drq(
                     transitions=transitions, 
                     last_obs=next_obs, 
                     goal_position=intersection_point,
@@ -141,12 +156,13 @@ def main(_):
                 )
                 pbar.update(1)
                 obs, _ = env.reset()
+                running_reward = 0
 
         with open(file_path, "wb") as f:
             pkl.dump(all_transitions, f)
             print(f"saved {num_points} demos to {file_path}")
 
-        with open(f"dual_{num_points}_her_transitions_{uuid}.pkl", 'wb') as f:
+        with open(f"dual_{num_points}_pcd_her_transitions_{uuid}.pkl", 'wb') as f:
             pkl.dump(positive_transitions, f)
 
     except KeyboardInterrupt as e:

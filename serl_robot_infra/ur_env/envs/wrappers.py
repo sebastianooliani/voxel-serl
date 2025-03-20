@@ -440,6 +440,8 @@ class SampleGoalPositionsWrapper(gym.Wrapper):
         )
 
         self.env.unwrapped.goal_position = intersection_points[0]
+        self.env.unwrapped.config.GOAL_POSITION = intersection_points[0]
+        print("goal position: ", intersection_points[0])
         return intersection_points[0]
     
     def sample_positions_evaluation(self):

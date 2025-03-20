@@ -10,7 +10,9 @@ from franka_env.utils.transformations import (
     construct_homogeneous_matrix,
     orientation_difference_angle_axis,
     orientation_difference_mrp,
-)
+    pose_rotvec_2_homogeneous_matrix,
+    pose_2_homogeneous_matrix,
+    )
 
 class UR5CameraEnv(UR5Env):
     def __init__(self, load_config=True, **kwargs):
@@ -225,6 +227,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         if load_config:
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
             self.init = True # read and write the initial box position
+            self.success = False
         else:
             super().__init__(**kwargs)
 
@@ -238,7 +241,8 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         if self.pose_est:
             self._update_box_pos_estimate()
             if self.init:
-                self.last_box_position = self.box_position
+                self.init_box_position = self.box_position
+                self.last_box_position = self.init_box_position
                 self.init = False
                 self.last_tcp_pose = self.curr_reset_pose.copy()
         else:
@@ -293,30 +297,33 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             obs["state"]["tcp_pose"][:2] - self.curr_reset_pose[:2], obs["state"]["tcp_pose"][7:9] - self.curr_reset_pose[7:9]
             ])
         position_cost = self.reward_dict["position_weight"] * np.sum(
-            np.where(np.abs(pos_diff) > 0.5, np.abs(pos_diff - np.sign(pos_diff) * 0.5), 0.0) # larger movement allowed
+            np.where(np.abs(pos_diff) > 0.6, np.abs(pos_diff - np.sign(pos_diff) * 0.1), 0.0) # larger movement allowed
         ) * (
             float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5) # when is grasping
             ) + self.reward_dict["position_weight"] * np.sum(
-            np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.05), 0.0) # smaller movement allowed
+            np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.1), 0.0) # smaller movement allowed
         ) * (
             float(obs["state"]["gripper_state"][1] < 0.5) + float(obs["state"]["gripper_state"][3] < 0.5) # when is not grasping
             )
 
         # TODO: consider giving this reward just when the robot is grasping the box 
         # using the tcp variations at the moment, at least before printing new markers
-        tcp_pos = np.concatenate([obs['state']['tcp_pose'][:3], obs['state']['tcp_pose'][7:10]])
-        last_tcp_pos = np.concatenate([self.last_tcp_pose[:3], self.last_tcp_pose[7:10]])
-        goal_distance_reward = self.reward_dict["goal_weight"] * np.where(np.linalg.norm(tcp_pos - last_tcp_pos) > 0.004, 
-            np.linalg.norm(tcp_pos - last_tcp_pos), 0.) * (
+        actual_norm_box_pos = np.sum((obs["state"]["box_position"] - self.init_box_position) * (obs["state"]["goal_position"] - self.init_box_position)) / np.sum(np.power(obs["state"]["goal_position"] - self.init_box_position, 2))
+        prev_norm_box_pos = np.sum((self.last_box_position - self.init_box_position) * (obs["state"]["goal_position"] - self.init_box_position)) / np.sum(np.power(obs["state"]["goal_position"] - self.init_box_position, 2))
+        goal_distance_reward = self.reward_dict["goal_weight"] * (
+            actual_norm_box_pos - prev_norm_box_pos
+        ) * (
             float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5)
-            )        
+        )
+        # self.last_box_position = obs["state"]["box_position"].copy() 
+        goal_distance_reward = 0. if goal_distance_reward < 0. else goal_distance_reward  
 
         # print(f"Box pos variation: {np.linalg.norm(obs['state']['box_position'] - self.last_box_position)}")
+        # print(f"Box pos variation: {(obs['state']['box_position'] - self.last_box_position)}")
+        # print(np.dot((obs['state']['box_position'] - self.last_box_position) / np.linalg.norm(obs['state']['box_position'] - self.last_box_position), 
+        #              obs['state']['goal_box_position'] / np.linalg.norm(obs['state']['goal_box_position'])))
         # print(f"tcp pos variation: {np.linalg.norm(obs['state']['tcp_pose'][:3] - self.last_tcp_pose[:3])}")
-        # print(f"Goal distance reward: {goal_distance_reward}")
-        # print(f"Suction reward: {suction_reward}")
-        self.last_box_position = obs["state"]["box_position"].copy()
-        self.last_tcp_pose = obs["state"]["tcp_pose"].copy()
+        
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
@@ -349,6 +356,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
 
         if self.reached_goal_state(obs):
             print("\nSuccessfull motion plan!\n")
+            self.success = True
             self.config.SUCCESS_COUNT += 1
             self.last_action[:] = 0.
             R_goal = self.reward_dict["success_weight"]
@@ -359,13 +367,14 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
     
     def reached_goal_state(self, obs) -> bool:
         state = obs['state']
-        mid_tcp_pos = (state['tcp_pose'][:3] + (self.T_O1_O2 @ np.concatenate([state['tcp_pose'][7:10], [1.]]))[:3]) / 2.
+        # print(f"Box position: {state['box_position']}")
+        # mid_tcp_pos = (state['tcp_pose'][:3] + (self.T_O1_O2 @ np.concatenate([state['tcp_pose'][7:10], [1.]]))[:3]) / 2.
         # using a lower threshold for the goal distance because the space is smaller
-        if np.linalg.norm(state['goal_box_position']) < 0.05:
+        if np.linalg.norm(state['goal_box_position']) < self.reward_dict["success_threshold"]:
             self.config.SUBSUCCESS_MOTION = True
         if 0.1 < state['gripper_state'][0] < 1. or 0.1 < state['gripper_state'][2] < 1.:
             self.config.SUBSUCCESS_GRASP = True
-        return np.linalg.norm(state['goal_box_position']) < 0.05 and \
+        return np.linalg.norm(state['goal_box_position']) < self.reward_dict["success_threshold"] and \
             0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
                 # np.linalg.norm(mid_tcp_pos - state['goal_position']) < 0.05
     
@@ -381,6 +390,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
 
         # at the end of the episode, reset the box initial position
         self.init = True
+        self.success = False
 
         obs = self._get_obs(np.zeros_like(self.last_action))
         return obs, {"reset_shift": shift}
