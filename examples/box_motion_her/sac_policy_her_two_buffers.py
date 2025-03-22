@@ -179,6 +179,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
     client.recv_network_callback(update_params)
 
+    intersection_point = env.env.env.env.env.env.env.env.sample_goal_position()
     obs, _ = env.reset()
 
     done = False
@@ -197,7 +198,6 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
     timer = Timer()
     running_return = 0.0
     for step in tqdm.tqdm(range(FLAGS.max_steps), dynamic_ncols=True):
-        intersection_point = env.env.env.env.env.env.env.env.sample_goal_position()
         timer.tick("total")
 
         with timer.context("sample_actions"):

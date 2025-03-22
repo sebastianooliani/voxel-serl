@@ -79,8 +79,9 @@ class HER():
         # transform the observation
         if self.trans:
             obs = self.transform_obs(tcp_pose=obs[33:45], obs=obs, reset_pose=reset_pose)
-            self.init_box_position = self.R_1 @ self.init_box_position
-            self.last_box_position = self.R_1 @ self.last_box_position
+            # WARNINGS: boxes are not transformed anymore!
+            # self.init_box_position = self.R_1 @ self.init_box_position
+            # self.last_box_position = self.R_1 @ self.last_box_position
 
         tcp_pose = obs[33:45]
         tcp_pose = convert_pose_2_7dim(tcp_pose)
@@ -98,22 +99,26 @@ class HER():
 
         # ORIENTATION: penalize deviating too much from the starting pose
         orientation_cost = 0
-        orientation_cost = 1. - np.sum(tcp_pose[3:7] * reset_pose[3:7]) ** 2
-        orientation_cost += 1. - np.sum(tcp_pose[10:] * reset_pose[10:]) ** 2
+        orientation_cost = 1. - sum(tcp_pose[3:7] * reset_pose[3:7]) ** 2
+        orientation_cost += 1. - sum(tcp_pose[10:] * reset_pose[10:]) ** 2
         orientation_cost = max(orientation_cost - 0.005, 0.) * self.weights["orientation_weight"]
 
         # POSITION: penalize deviating too much from the starting pose
-        max_pose_diff = 0.05  # set to 5cm
-        pos_diff = np.concatenate([tcp_pose[:2] - reset_pose[:2], tcp_pose[7:9] - reset_pose[7:9]])
-        position_cost = self.weights["position_weight"] * np.sum(
-            np.where(np.abs(pos_diff) > 0.6, np.abs(pos_diff - np.sign(pos_diff) * 0.1), 0.0) # larger movement allowed
-        ) * (
-            float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5) # when is grasping
-            ) + self.weights["position_weight"] * np.sum(
-            np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.1), 0.0) # smaller movement allowed
-        ) * (
-            float(obs[14:18][1] < 0.5) + float(obs[14:18][3] < 0.5) # when is not grasping
-            )
+        # max_pose_diff = 0.05  # set to 5cm
+        # pos_diff = np.concatenate([tcp_pose[:2] - reset_pose[:2], tcp_pose[7:9] - reset_pose[7:9]])
+        # position_cost = self.weights["position_weight"] * np.sum(
+        #     np.where(np.abs(pos_diff) > 0.6, np.abs(pos_diff - np.sign(pos_diff) * 0.1), 0.0) # larger movement allowed
+        # ) * (
+        #     float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5) # when is grasping
+        #     ) + self.weights["position_weight"] * np.sum(
+        #     np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.1), 0.0) # smaller movement allowed
+        # ) * (
+        #     float(obs[14:18][1] < 0.5) + float(obs[14:18][3] < 0.5) # when is not grasping
+        #     )
+        position_cost = self.weights["position_weight"] * np.linalg.norm(
+            obs[57:60]
+        )
+        position_cost = 5. if position_cost > 5. else position_cost
 
         actual_norm_pos = np.sum((obs[60:63] - self.init_box_position) * (obs[63:66] - self.init_box_position)) / np.sum(np.power(obs[63:66] - self.init_box_position, 2))
         prev_norm_pos = np.sum((self.last_box_position - self.init_box_position) * (obs[63:66] - self.init_box_position)) / np.sum(np.power(obs[63:66] - self.init_box_position, 2))
@@ -124,6 +129,7 @@ class HER():
             )
         self.last_tcp_pos = np.concatenate([obs[33:36], obs[42:45]], axis=0) 
         goal_distance_reward = 0. if goal_distance_reward < 0. else goal_distance_reward
+        goal_distance_reward = 5. if goal_distance_reward > 5. else goal_distance_reward
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
@@ -183,6 +189,8 @@ class HER():
         """
         # init
         her_transitions, augmented_transitions, self.add_to_buffer = [], [], False
+        # scale goal position
+        goal_position *= self.rotation_scale
 
         for i, trans in enumerate(transitions):
             # compute reward based on the new goal state
@@ -194,7 +202,7 @@ class HER():
                 self.init_box_position = trans['observations'][-6:-3].copy()
                 self.last_box_position = self.init_box_position.copy()
                 self.last_tcp_pos = np.concatenate([reset_pose[:3], reset_pose[7:10]], axis=0)
-                
+
             her_dict = copy.deepcopy(
                 dict(
                     observations=np.concatenate(
@@ -230,7 +238,6 @@ class HER():
                 )
             )
             her_transitions.append(her_dict)
-
             # store the last box position for the next transition
             self.last_box_position = trans['observations'][-6:-3].copy()
 

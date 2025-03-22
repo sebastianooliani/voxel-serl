@@ -293,18 +293,23 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         orientation_cost = max(orientation_cost - 0.005, 0.) * self.reward_dict["orientation_weight"]
 
         # POSITION: penalize deviating too much from the starting pose
-        pos_diff = np.concatenate([
-            obs["state"]["tcp_pose"][:2] - self.curr_reset_pose[:2], obs["state"]["tcp_pose"][7:9] - self.curr_reset_pose[7:9]
-            ])
-        position_cost = self.reward_dict["position_weight"] * np.sum(
-            np.where(np.abs(pos_diff) > 0.6, np.abs(pos_diff - np.sign(pos_diff) * 0.1), 0.0) # larger movement allowed
-        ) * (
-            float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5) # when is grasping
-            ) + self.reward_dict["position_weight"] * np.sum(
-            np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.1), 0.0) # smaller movement allowed
-        ) * (
-            float(obs["state"]["gripper_state"][1] < 0.5) + float(obs["state"]["gripper_state"][3] < 0.5) # when is not grasping
-            )
+        # pos_diff = np.concatenate([
+        #     obs["state"]["tcp_pose"][:2] - self.curr_reset_pose[:2], obs["state"]["tcp_pose"][7:9] - self.curr_reset_pose[7:9]
+        #     ])
+        # position_cost = self.reward_dict["position_weight"] * np.sum(
+        #     np.where(np.abs(pos_diff) > 0.6, np.abs(pos_diff - np.sign(pos_diff) * 0.1), 0.0) # larger movement allowed
+        # ) * (
+        #     float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5) # when is grasping
+        #     ) + self.reward_dict["position_weight"] * np.sum(
+        #     np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.1), 0.0) # smaller movement allowed
+        # ) * (
+        #     float(obs["state"]["gripper_state"][1] < 0.5) + float(obs["state"]["gripper_state"][3] < 0.5) # when is not grasping
+        #     )
+        position_cost = self.reward_dict["position_weight"] * np.linalg.norm(
+            obs["state"]["goal_box_position"]
+        )
+
+        position_cost = 5. if position_cost > 5. else position_cost
 
         # TODO: consider giving this reward just when the robot is grasping the box 
         # using the tcp variations at the moment, at least before printing new markers
@@ -315,8 +320,9 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         ) * (
             float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5)
         )
-        # self.last_box_position = obs["state"]["box_position"].copy() 
-        goal_distance_reward = 0. if goal_distance_reward < 0. else goal_distance_reward  
+        goal_distance_reward = 0. if goal_distance_reward < 0. else goal_distance_reward
+        goal_distance_reward = 5. if goal_distance_reward > 5. else goal_distance_reward
+        self.last_box_position = obs["state"]["box_position"].copy() 
 
         # print(f"Box pos variation: {np.linalg.norm(obs['state']['box_position'] - self.last_box_position)}")
         # print(f"Box pos variation: {(obs['state']['box_position'] - self.last_box_position)}")

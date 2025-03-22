@@ -106,6 +106,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
         )
         success_counter = 0
         time_list = []
+        distance_from_goal = []
         running_return = 0.0
 
         ckpt = checkpoints.restore_checkpoint(
@@ -116,6 +117,8 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
         agent = agent.replace(state=ckpt)
 
         for episode in range(FLAGS.eval_n_trajs):
+            goals = env.env.env.env.env.env.env.env.sample_positions_evaluation()
+            env.unwrapped.goal_position = goals[episode]
             obs, _ = env.reset()
             done = False
             start_time = time.time()
@@ -137,14 +140,17 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                         time_list.append(dt)
                         print(dt)
 
-                    success_counter += int(reward > 0.99)
+                    distance_from_goal.append(info["goal_box_position"])
+                    success_counter = env.unwrapped.config.SUCCESS_COUNT
                     print(reward)
                     print(f"{success_counter}/{episode + 1}")
+                    print(f"Distance from goal: {distance_from_goal[-1]}")
 
                     infos = {
                         "running_reward": running_return,
+                        "distance_from_goal": info["goal_box_position"],
                         "time": dt,
-                        "success_rate": float(reward > 50.),
+                        "success_rate": env.unwrapped.config.SUCCESS_COUNT / (episode + 1),
                     }
                     wandb_logger.log(infos, step=episode)
 
@@ -152,6 +158,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
         print(f"success rate: {success_counter / FLAGS.eval_n_trajs}")
         print(f"average time: {np.mean(time_list)}")
+        print(f"average distance from goal: {np.mean(distance_from_goal)}")
         return  # after done eval, return and exit
 
     client = TrainerClient(

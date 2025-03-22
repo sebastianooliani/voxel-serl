@@ -467,6 +467,8 @@ class SampleGoalPositionsWrapper(gym.Wrapper):
             box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 10, seed=rnm_num
         )
 
+        # self.env.unwrapped.goal_position = np.array([-0.6, -0.3, 0.09])
+
         return intersection_points
     
     def step(self, action):

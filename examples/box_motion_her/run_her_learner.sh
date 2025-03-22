@@ -8,11 +8,11 @@ python sac_policy_her_two_buffers.py "$@" \
     --exp_name=sac_policy_motion \
     --max_traj_length 100 \
     --seed 42 \
-    --random_steps 500 \
-    --training_starts 500 \
+    --random_steps 200 \
+    --training_starts 200 \
     --utd_ratio 8 \
     --batch_size 2048 \
     --max_steps 50000 \
     --reward_scale 1 \
-    --demo_paths /home/sebastiano/voxel-serl/examples/box_motion_her/dual_20_her_transitions_2025-02-21_17-11-23.pkl \
+    --demo_paths /home/sebastiano/voxel-serl/examples/box_motion_her/dual_20_her_transitions_2025-03-21_12-09-08.pkl \
     # --debug

@@ -153,8 +153,8 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
                          math.radians(147.55), math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.)]]),
         "reorient": np.array([[math.radians(-37.41), math.radians(-88.27), math.radians(119.11), math.radians(-120.27), math.radians(-89.92), math.radians(0.),
                          math.radians(147.55), math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.)]]),
-        "motion": np.array([[- math.pi / 6., math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.),
-                         math.radians(147.55), math.radians(-94.34), math.radians(117.29), math.radians(-112.48), math.radians(-90.02), math.radians(0.)]]),
+        "motion": np.array([[- math.pi / 6., math.radians(-88.27), math.radians(119.11), math.radians(-120.27), math.radians(-89.92), math.radians(0.),
+                         math.radians(147.55), math.radians(-92.65), math.radians(119.91), math.radians(-116.80), math.radians(-90.02), math.radians(0.)]]),
     }
 
     # box in vertical position
@@ -172,7 +172,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     
     RANDOM_RESET = True
     RANDOM_XYZ_RANGE = (0.0,)
-    RANDOM_ROT_RANGE = (0.04,)
+    RANDOM_ROT_RANGE = (0.03,)
 
     T_O1_O2_old = np.array([[0., 1., 0., -0.945], 
                         [-1., 0., 0., -0.], 
@@ -223,7 +223,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     ABS_POSE_LIMIT_HIGH_ROBOT_1 = {
         "lift": np.array([-0.335, 0.263, 0.382, 0.05, 0.05, 0.2]),
         "reorient": np.array([-0.335, 0.133, 0.377, 0.05, 0.05, 0.2]),
-        "motion": np.array([-0.335, 0.463, 0.357, 0.05, 0.05, 0.2]),
+        "motion": np.array([-0.335, 0.273, 0.357, 0.05, 0.05, 0.2]),
     }
     ABS_POSE_LIMIT_LOW_ROBOT_1 = {
         "lift": np.array([-0.640, 0.030, 0.110, -0.05, -0.05, -0.2]),
@@ -289,16 +289,17 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
         "motion": {
             "step_weight": 0.1,
             "action_weight": ACTION_WEIGHT,
-            "action_diff_weight": 0.01,
-            "orientation_weight": 10.,
-            "position_weight": 10.,
+            "action_diff_weight": 0.1,
+            "orientation_weight": 3.,
+            "position_weight": 4.,
             "distance_weight": 0.1,
-            "grasping_weight": 0.5,
+            "grasping_weight": 0.3,
             "suction_weight": 0.5,
-            "goal_weight": 150,
+            "goal_weight": 50.,
             "success_weight": 200.,
-            "penalty": 10,
+            "penalty": 100.,
             "safety_threshold": 0.1,
+            "success_threshold": 0.05,
         },
         "inairrotation": {
             "step_weight": 0.1,
