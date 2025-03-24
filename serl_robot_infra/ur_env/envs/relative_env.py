@@ -192,7 +192,7 @@ class DualRelativeFrame(gym.Wrapper):
         if self.task in ["motion"] and False:
             obs["state"]["box_position"] = self.rotation_matrix_1.transpose() @ obs["state"]["box_position"]
             obs["state"]["goal_position"] = self.rotation_matrix_1.transpose() @ obs["state"]["goal_position"]
-        elif self.task in ["lift", "reorient"]:
+        if self.task in ["lift", "reorient"]:
             obs["state"]["tcp_force"][:3] = self.rotation_matrix_1.transpose() @ obs["state"]["tcp_force"][:3]
             obs["state"]["tcp_force"][3:6] = self.rotation_matrix_2.transpose() @ obs["state"]["tcp_force"][3:6]
 

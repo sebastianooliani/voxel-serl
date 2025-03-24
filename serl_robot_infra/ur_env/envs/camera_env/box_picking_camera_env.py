@@ -309,7 +309,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             obs["state"]["goal_box_position"]
         )
 
-        position_cost = 5. if position_cost > 5. else position_cost
+        position_cost = 4. if position_cost > 4. else position_cost
 
         # TODO: consider giving this reward just when the robot is grasping the box 
         # using the tcp variations at the moment, at least before printing new markers
@@ -321,7 +321,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5)
         )
         goal_distance_reward = 0. if goal_distance_reward < 0. else goal_distance_reward
-        goal_distance_reward = 5. if goal_distance_reward > 5. else goal_distance_reward
+        goal_distance_reward = 4. if goal_distance_reward > 4. else goal_distance_reward
         self.last_box_position = obs["state"]["box_position"].copy() 
 
         # print(f"Box pos variation: {np.linalg.norm(obs['state']['box_position'] - self.last_box_position)}")

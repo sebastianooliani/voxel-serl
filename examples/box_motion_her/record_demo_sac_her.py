@@ -112,13 +112,14 @@ def main(_):
             running_return += rew
 
             if env.unwrapped.success:
+                print(info)
                 iter += 1
                 positive_transitions.extend(transitions)
                 all_transitions.extend(transitions)
                 transitions = []
 
                 # sample new goal position
-                intersection_point = env.env.env.env.env.env.env.sample_goal_position()
+                intersection_point = env.env.env.env.env.env.sample_goal_position()
 
                 total_count += 1
                 print(

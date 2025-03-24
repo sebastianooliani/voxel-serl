@@ -14,5 +14,5 @@ python sac_policy_her_two_buffers.py "$@" \
     --batch_size 2048 \
     --max_steps 50000 \
     --reward_scale 1 \
-    --demo_paths /home/sebastiano/voxel-serl/examples/box_motion_her/dual_20_her_transitions_2025-03-21_12-09-08.pkl \
+    --demo_paths /home/sebastiano/voxel-serl/examples/box_motion_her/dual_20_her_transitions_2025-03-24_09-21-11.pkl \
     # --debug

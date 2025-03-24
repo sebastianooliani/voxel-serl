@@ -118,7 +118,7 @@ class HER():
         position_cost = self.weights["position_weight"] * np.linalg.norm(
             obs[57:60]
         )
-        position_cost = 5. if position_cost > 5. else position_cost
+        position_cost = 4. if position_cost > 4. else position_cost
 
         actual_norm_pos = np.sum((obs[60:63] - self.init_box_position) * (obs[63:66] - self.init_box_position)) / np.sum(np.power(obs[63:66] - self.init_box_position, 2))
         prev_norm_pos = np.sum((self.last_box_position - self.init_box_position) * (obs[63:66] - self.init_box_position)) / np.sum(np.power(obs[63:66] - self.init_box_position, 2))
@@ -129,7 +129,7 @@ class HER():
             )
         self.last_tcp_pos = np.concatenate([obs[33:36], obs[42:45]], axis=0) 
         goal_distance_reward = 0. if goal_distance_reward < 0. else goal_distance_reward
-        goal_distance_reward = 5. if goal_distance_reward > 5. else goal_distance_reward
+        goal_distance_reward = 4. if goal_distance_reward > 4. else goal_distance_reward
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions

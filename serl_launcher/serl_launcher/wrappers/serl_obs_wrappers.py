@@ -130,7 +130,7 @@ class ScaleDualObservationWrapper(gym.ObservationWrapper):
         obs["state"]["tcp_vel"][6:9] *= self.translation_scale
         obs["state"]["tcp_vel"][9:] *= self.rotation_scale
 
-        if self.task not in ["motion"]:
+        if self.task in ["lift", "reorient"]:
             obs["state"]["tcp_force"] *= self.force_scale
             obs["state"]["tcp_torque"] *= self.torque_scale
 

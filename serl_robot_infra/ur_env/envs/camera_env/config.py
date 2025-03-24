@@ -171,7 +171,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
                             math.radians(143.25), math.radians(-120.69), math.radians(117.43), math.radians(-83.28), math.radians(-101.91), math.radians(0.)]])
     
     RANDOM_RESET = True
-    RANDOM_XYZ_RANGE = (0.0,)
+    RANDOM_XYZ_RANGE = (0.01,)
     RANDOM_ROT_RANGE = (0.03,)
 
     T_O1_O2_old = np.array([[0., 1., 0., -0.945], 
@@ -271,7 +271,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "grasp_weight": 0.,
             "success_weight": 200,
             "penalty": 10,
-            "safety_threshold": SAFETY_THRESHOLD,
+            "safety_threshold": 0.07,
         },
         "reorient": {
             "step_weight": 0.1,
@@ -290,12 +290,12 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "step_weight": 0.1,
             "action_weight": ACTION_WEIGHT,
             "action_diff_weight": 0.1,
-            "orientation_weight": 3.,
+            "orientation_weight": 4.,
             "position_weight": 4.,
             "distance_weight": 0.1,
             "grasping_weight": 0.3,
             "suction_weight": 0.5,
-            "goal_weight": 50.,
+            "goal_weight": 60.,
             "success_weight": 200.,
             "penalty": 100.,
             "safety_threshold": 0.1,
