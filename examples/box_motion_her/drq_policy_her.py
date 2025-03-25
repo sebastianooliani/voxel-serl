@@ -291,7 +291,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
     client.recv_network_callback(update_params)
 
-    intersection_point = env.env.env.env.env.env.env.env.sample_goal_positions()
+    intersection_point = env.env.env.env.env.env.env.env.sample_goal_position()
     obs, _ = env.reset()
     done = False
 
@@ -390,7 +390,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
             
                 if not compare_success_count:
                     curr_reset_pose = env.unwrapped.curr_reset_pose
-                    her_transitions, augmented_transitions, add_to_buffer = her.process_transitions(
+                    her_transitions, augmented_transitions, add_to_buffer = her.process_transitions_drq(
                         transitions=transitions, 
                         last_obs=next_obs, 
                         goal_position=intersection_point,
@@ -418,7 +418,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                     transitions = []
 
                 # sample new goal position
-                intersection_point = env.env.env.env.env.env.env.env.sample_goal_positions()
+                intersection_point = env.env.env.env.env.env.env.env.sample_goal_position()
                 her_transitions = []
                 augmented_transitions = []
 

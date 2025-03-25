@@ -103,18 +103,7 @@ class HER():
         orientation_cost += 1. - sum(tcp_pose[10:] * reset_pose[10:]) ** 2
         orientation_cost = max(orientation_cost - 0.005, 0.) * self.weights["orientation_weight"]
 
-        # POSITION: penalize deviating too much from the starting pose
-        # max_pose_diff = 0.05  # set to 5cm
-        # pos_diff = np.concatenate([tcp_pose[:2] - reset_pose[:2], tcp_pose[7:9] - reset_pose[7:9]])
-        # position_cost = self.weights["position_weight"] * np.sum(
-        #     np.where(np.abs(pos_diff) > 0.6, np.abs(pos_diff - np.sign(pos_diff) * 0.1), 0.0) # larger movement allowed
-        # ) * (
-        #     float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5) # when is grasping
-        #     ) + self.weights["position_weight"] * np.sum(
-        #     np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.1), 0.0) # smaller movement allowed
-        # ) * (
-        #     float(obs[14:18][1] < 0.5) + float(obs[14:18][3] < 0.5) # when is not grasping
-        #     )
+        # POSITION: penalize being distant from the goal position
         position_cost = self.weights["position_weight"] * np.linalg.norm(
             obs[57:60]
         )
@@ -201,7 +190,6 @@ class HER():
             if i == 0:
                 self.init_box_position = trans['observations'][-6:-3].copy()
                 self.last_box_position = self.init_box_position.copy()
-                self.last_tcp_pos = np.concatenate([reset_pose[:3], reset_pose[7:10]], axis=0)
 
             her_dict = copy.deepcopy(
                 dict(
@@ -295,6 +283,8 @@ class HER():
         """
         # init
         her_transitions, augmented_transitions, self.add_to_buffer = [], [], False
+        # scale goal position
+        goal_position *= self.rotation_scale
 
         for i, trans in enumerate(transitions):
             # compute reward based on the new goal state
@@ -305,7 +295,6 @@ class HER():
             if i == 0:
                 self.init_box_position = trans['observations']['state'][0, -6:-3].copy()
                 self.last_box_position = self.init_box_position.copy()
-                self.last_tcp_pos = np.concatenate([reset_pose[:3], reset_pose[7:10]], axis=0)
 
             her_dict = copy.deepcopy(
                 dict(

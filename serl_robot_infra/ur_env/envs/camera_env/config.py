@@ -238,7 +238,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     ABS_POSE_LIMIT_LOW_ROBOT_2 = {
         "lift": np.array([0.380, -0.215, 0.128, -0.05, -0.05, -0.2]),
         "reorient": np.array([0.301, -0.235, 0.128, -0.05, -0.05, -0.2]),
-        "motion": np.array([0.301, -0.533, 0.128, -0.05, -0.05, -0.2]),
+        "motion": np.array([0.301, -0.523, 0.128, -0.05, -0.05, -0.2]),
     }
 
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
@@ -293,9 +293,9 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "orientation_weight": 4.,
             "position_weight": 4.,
             "distance_weight": 0.1,
-            "grasping_weight": 0.3,
+            "grasping_weight": 0.5,
             "suction_weight": 0.5,
-            "goal_weight": 60.,
+            "goal_weight": 80.,
             "success_weight": 200.,
             "penalty": 100.,
             "safety_threshold": 0.1,

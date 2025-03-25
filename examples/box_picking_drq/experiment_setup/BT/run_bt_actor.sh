@@ -3,9 +3,10 @@ export XLA_PYTHON_CLIENT_MEM_FRACTION=.3 && \
 which python && \
 python bt_policy.py "$@" \
     --dual \
-    --env box_picking_camera_env_dual_robot_motion_planning \
-    --wandb_project bt \
-    --exp_name=bt_policy \
-    --max_traj_length 300 \
-    --eval_n_trajs 20 \
+    --task lift \
+    --env box_picking_camera_env_dual_robot \
+    --wandb_project bt-lift \
+    --exp_name=bt_lift_policy_box54_adapt \
+    --max_traj_length 100 \
+    --eval_n_trajs 30 \
     # --debug
