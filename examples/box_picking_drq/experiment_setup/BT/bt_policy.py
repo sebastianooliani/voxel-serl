@@ -58,8 +58,6 @@ def main(_):
     env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
     env = RecordEpisodeStatistics(env)
 
-    
-
     if task in ["lift"]:
         agent = DualBehaviorTree(opposite_grasp=FLAGS.opposite_grasp) if FLAGS.dual else BehaviorTree()
     elif task in ["reorient"]:
@@ -82,6 +80,7 @@ def main(_):
     time_list = []
     trajectories = []
     traj_infos = []
+    distance_from_goal = []
 
     try:
         for episode in range(FLAGS.eval_n_trajs):
@@ -142,8 +141,6 @@ def main(_):
                         "subsuccess_rot": subsuccess_rot / (episode + 1),
                         "subsuccess_motion": subsuccess_motion / (episode + 1),
                     }
-                    traj_infos.append(infos)
-                    wandb_logger.log(infos, step=episode)
 
                     # reset the subsuccess
                     env.unwrapped.config.SUBSUCCESS_GRASP = False
@@ -152,7 +149,12 @@ def main(_):
                     env.unwrapped.config.SUBSUCCESS_MOTION = False
 
                     if task in ["motion"]:
+                        infos["distance_from_goal"] = info["goal_box_position"]
+                        distance_from_goal.append(info["goal_box_position"])
                         _ = env.env.env.env.env.env.env.sample_goal_position()
+
+                    traj_infos.append(infos)
+                    wandb_logger.log(infos, step=episode)
 
         traj_infos = {k: [d[k] for d in traj_infos] for k in traj_infos[0]}  # list of dicts to dict of lists
         mean_infos = {"mean_" + key: np.mean(val) for key, val in traj_infos.items()}
@@ -160,6 +162,9 @@ def main(_):
         wandb_logger.log(mean_infos)
         for key, value in mean_infos.items():
             print(f"{key}: {value:.3f}")
+
+        if task in ["motion"]:
+            print(f"average distance from goal: {np.mean(distance_from_goal)}")
 
         with open(f"trajectories {datetime.now().strftime('%m-%d %H%M')}.pkl", "wb") as f:
             import pickle

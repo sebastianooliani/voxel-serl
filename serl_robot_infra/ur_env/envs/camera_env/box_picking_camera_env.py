@@ -193,7 +193,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         self._update_box_pos_estimate()
         # print(f"Box position: {self.box_position}")
         # add condition for second robot
-        if (self.box_position[2] - self.init_box_position[2]) > 0.05:
+        if state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.01 or state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.01:
             self.config.SUBSUCCESS_LIFT = True
         if 0.1 < state['gripper_state'][0] < 1. or 0.1 < state['gripper_state'][2] < 1.:
             self.config.SUBSUCCESS_GRASP = True

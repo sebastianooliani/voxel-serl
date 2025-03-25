@@ -53,6 +53,7 @@ def main(_):
     env = ChunkingWrapper(env, obs_horizon=1, act_exec_horizon=None)
 
     # Sample points in the intersection
+    # define goal position
     intersection_point = env.env.env.env.env.env.env.sample_goal_position()
     obs, _ = env.reset()
 
@@ -88,8 +89,6 @@ def main(_):
         iter = 0
         
         while iter < num_points:
-            # define goal position
-            
             if exit_program.is_set():
                 raise KeyboardInterrupt  # stop program, but clean up before
 

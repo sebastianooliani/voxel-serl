@@ -171,6 +171,8 @@ class DualBehaviorTree():
     def __init__(self, opposite_grasp=False):
         self.tree_state: DualTreeState = DualTreeState(opposite_grasp=opposite_grasp)
         self.queue = Queue()
+        self.ur_receive_1 = RTDEReceiveInterface("192.168.1.66")
+        self.ur_receive_2 = RTDEReceiveInterface("192.168.1.33")
 
     def reset(self):
         self.tree_state.vert_reset()
@@ -182,6 +184,8 @@ class DualBehaviorTree():
         if not self.queue.empty():
             return self.queue.get()
 
+        force_1 = self.ur_receive_1.getActualTCPForce()
+        force_2 = self.ur_receive_2.getActualTCPForce()
         # observation order in the dictionary
         # action, gripper, joint pos, force, pos diff, pose, torque, vel
         if obs[15] > 0.5 and obs[17] > 0.5:
@@ -191,7 +195,7 @@ class DualBehaviorTree():
                 print("go up")
                 self.tree_state.current = self.tree_state.up
 
-        elif obs[32] < -1. and obs[35] < -1.:  # force check
+        elif -force_1[2] < -1. and -force_2[2] < -1.:  # force check
             if obs[15] < -0.5 and obs[17] < -0.5:  # if sucking
                 print("do random direction")
                 return self._fill_random_xy_queue()
@@ -234,6 +238,8 @@ class DualBehaviorTreeReorientation():
     def __init__(self, opposite_grasp=False, reorient=True):
         self.tree_state: DualTreeState = DualTreeState(opposite_grasp=opposite_grasp, reorient=reorient)
         self.queue = Queue()
+        self.ur_receive_1 = RTDEReceiveInterface("192.168.1.66")
+        self.ur_receive_2 = RTDEReceiveInterface("192.168.1.33")
 
     def reset(self):
         self.tree_state.vert_reset()
@@ -245,6 +251,8 @@ class DualBehaviorTreeReorientation():
         if not self.queue.empty():
             return self.queue.get()
         
+        force_1 = self.ur_receive_1.getActualTCPForce()
+        force_2 = self.ur_receive_2.getActualTCPForce()
         # observation order in the dictionary
         # action, gripper, joint pos, force, pos diff, pose, torque, vel
         if obs[15] > 0.5 and obs[17] > 0.5:
@@ -254,12 +262,12 @@ class DualBehaviorTreeReorientation():
                 print("go forward")
                 self.tree_state.current = self.tree_state.forward
 
-        elif obs[32] < -1. and obs[35] < -1.: # force check
+        elif -force_1[2] < -1. and -force_2[2] < -1.: # force check
             if obs[15] < -0.5 and obs[17] < -0.5: # if sucking
                 print("do random direction")
                 return self._fill_random_xy_queue()
             else:
-                print("suck and move forward")
+                print("suck")
                 self.tree_state.current = self.tree_state.suck
                 return self._fill_suck_queue()
         else:

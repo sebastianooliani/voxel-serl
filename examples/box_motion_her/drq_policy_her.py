@@ -161,8 +161,14 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
             description=FLAGS.exp_name or FLAGS.env,
             debug=FLAGS.debug,
         )
-        success_counter = 0
         time_list = []
+        distance_from_goal = []
+        running_return = 0.0
+        success_counter = 0
+        subsuccess_graps = 0
+        subsuccess_lift = 0
+        subsuccess_rot = 0
+        subsuccess_motion = 0
 
         ckpt = checkpoints.restore_checkpoint(
             FLAGS.checkpoint_path,
@@ -182,6 +188,8 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
         trajectories = []
         traj_infos = []
         for episode in range(FLAGS.eval_n_trajs):
+            goals = env.env.env.env.env.env.env.env.sample_positions_evaluation()
+            env.unwrapped.goal_position = goals[episode]
             trajectory = []
             obs, _ = env.reset()
             done = False
@@ -209,23 +217,40 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                 obs = next_obs
 
                 if done or truncated:
-                    success_counter += (reward > 50.)
+                    distance_from_goal.append(info["goal_box_position"])
+                    success_counter = env.unwrapped.config.SUCCESS_COUNT
+                    subsuccess_graps += float(env.unwrapped.config.SUBSUCCESS_GRASP)
+                    subsuccess_lift += float(env.unwrapped.config.SUBSUCCESS_LIFT)
+                    subsuccess_rot += float(env.unwrapped.config.SUBSUCCESS_ROT)
+                    subsuccess_motion += float(env.unwrapped.config.SUBSUCCESS_MOTION)
                     dt = time.time() - start_time
                     running_reward = np.sum(np.asarray([t["rewards"] for t in trajectory]))
-                    running_reward = max(running_reward, -100.)     # -100 min value
 
                     print(f"{success_counter}/{episode + 1} ", end=' ')
+                    print(f"Distance from goal: {distance_from_goal[-1]}")
                     print(f"time: {dt:.3f}s  running_rew: {running_reward:.2f}")
 
                     trajectories.append({"traj": trajectory, "time": dt, "success": (reward > 50.)})
                     infos = {
                         "running_reward": running_reward,
+                        "distance_from_goal": info["goal_box_position"],
                         "time": dt,
-                        "success_rate": float(reward > 50.),
+                        "success_rate": env.unwrapped.config.SUCCESS_COUNT / (episode + 1),
+                        "subsuccess_graps": subsuccess_graps / (episode + 1),
+                        "subsuccess_lift": subsuccess_lift / (episode + 1),
+                        "subsuccess_rot": subsuccess_rot / (episode + 1),
+                        "subsuccess_motion": subsuccess_motion / (episode + 1),
                         "action_cost": np.linalg.norm(np.asarray([t["actions"] for t in trajectory]), axis=1, ord=2).mean()
                     }
                     traj_infos.append(infos)
                     wandb_logger.log(infos, step=episode)
+                    
+                    running_return = 0.0
+                    # reset the subsuccess
+                    env.unwrapped.config.SUBSUCCESS_GRASP = False
+                    env.unwrapped.config.SUBSUCCESS_LIFT = False
+                    env.unwrapped.config.SUBSUCCESS_ROT = False
+                    env.unwrapped.config.SUBSUCCESS_MOTION = False
 
             # if pause event is requested, pause the actor
             if PAUSE_EVENT_FLAG.is_set():
@@ -266,7 +291,9 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
     client.recv_network_callback(update_params)
 
+    intersection_point = env.env.env.env.env.env.env.env.sample_goal_positions()
     obs, _ = env.reset()
+    done = False
 
     # training loop
     timer = Timer()
@@ -276,10 +303,13 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
     transitions = []
     her_transitions = []
     augmented_transitions = []
+    success_counter = 0
+    consecutive_successes = 0
+    intervention_count = 0
+    intervention_steps = 0
+    already_intervened = False
 
     for step in tqdm.tqdm(range(FLAGS.max_steps), dynamic_ncols=True):
-        intersection_point = env.env.env.env.env.env.env.env.sample_goal_positions()
-
         timer.tick("total")
 
         with timer.context("sample_actions"):
