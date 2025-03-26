@@ -134,12 +134,12 @@ def main(_):
                     infos = {
                         "running_reward": running_reward,
                         "time": dt,
-                        "success_rate": success_counter / (episode + 1),
+                        "success_rate": success_counter,
                         "action_cost": np.linalg.norm(np.asarray([t["actions"] for t in trajectory]), axis=1, ord=2).mean(),
-                        "subsuccess_graps": subsuccess_graps / (episode + 1),
-                        "subsuccess_lift": subsuccess_lift / (episode + 1),
-                        "subsuccess_rot": subsuccess_rot / (episode + 1),
-                        "subsuccess_motion": subsuccess_motion / (episode + 1),
+                        "subsuccess_graps": subsuccess_graps,
+                        "subsuccess_lift": subsuccess_lift,
+                        "subsuccess_rot": subsuccess_rot,
+                        "subsuccess_motion": subsuccess_motion,
                     }
 
                     # reset the subsuccess

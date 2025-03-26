@@ -444,7 +444,7 @@ class SampleGoalPositionsWrapper(gym.Wrapper):
         print("goal position: ", intersection_points[0])
         return intersection_points[0]
     
-    def sample_positions_evaluation(self):
+    def sample_positions_evaluation(self, num_points=30):
         """
         Returns a list of points inside the workspace of the two robots sampled randomly on the boarder (fixed y coordinate).
 
@@ -464,8 +464,11 @@ class SampleGoalPositionsWrapper(gym.Wrapper):
         box2_max = T @ box2_max
 
         intersection_points = sample_points_on_boarder_in_intersecting_boxes(
-            box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 10, seed=rnm_num
+            box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], num_points=num_points, seed=rnm_num
         )
+
+        if num_points == 1:
+            intersection_points = np.ones((30, 3)) * intersection_points[0]
 
         # self.env.unwrapped.goal_position = np.array([-0.6, -0.3, 0.09])
 

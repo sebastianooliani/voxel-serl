@@ -94,6 +94,54 @@ def orientation_difference_angle_axis(angle_axis1, angle_axis2):
     
     return angle_difference, axis_difference
 
+def orientation_difference_angle_axis(angle_axis1, angle_axis2, axis=None):
+    """
+    Compute the orientation difference between two angle-axis representations.
+    
+    Args:
+    angle_axis1 (array-like): First angle-axis representation (3 elements: axis * angle).
+    angle_axis2 (array-like): Second angle-axis representation (3 elements: axis * angle).
+    axis (str or numpy.ndarray, optional): Axis to constrain rotation difference.
+        Can be 'x', 'y', 'z', or a 3D unit vector. Defaults to None (full 3D rotation).
+    
+    Returns:
+    tuple: (angle_difference, axis_difference)
+    - angle_difference (float): Angle of rotation difference in radians.
+    - axis_difference (numpy.ndarray): Axis of the relative rotation (unit vector).
+    """
+    # Convert angle-axis to scipy Rotation objects
+    r1 = R.from_rotvec(angle_axis1)
+    r2 = R.from_rotvec(angle_axis2)
+    
+    # Compute the relative rotation
+    r_rel = r2 * r1.inv()
+    
+    # Extract the angle-axis representation of the relative rotation
+    angle_axis_rel = r_rel.as_rotvec()
+    
+    # Full 3D rotation difference
+    if axis is None:
+        angle_difference = np.linalg.norm(angle_axis_rel)
+        axis_difference = angle_axis_rel / angle_difference if angle_difference > 1e-6 else np.array([0, 0, 0])
+        return angle_difference, axis_difference
+    
+    # Convert axis specification to a unit vector
+    if isinstance(axis, str):
+        axis = {
+            'x': np.array([1, 0, 0]),
+            'y': np.array([0, 1, 0]),
+            'z': np.array([0, 0, 1])
+        }.get(axis.lower())
+    
+    # Ensure axis is a unit vector
+    axis = np.asarray(axis)
+    axis = axis / np.linalg.norm(axis)
+    
+    # Project the rotation onto the specified axis
+    angle_difference = np.abs(np.dot(angle_axis_rel, axis))
+    
+    return angle_difference, axis
+
 def orientation_difference_mrp(mrp1, mrp2):
     """
     Compute the orientation difference between two Modified Rodrigues Parameters (MRP) representations.

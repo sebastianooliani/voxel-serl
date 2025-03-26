@@ -26,6 +26,7 @@ from serl_launcher.utils.train_utils import (
     plot_feature_kernel_histogram,
     find_zero_weights,
     plot_conv3d_kernels,
+    concat_batches,
 )
 
 from agentlace.trainer import TrainerServer, TrainerClient
@@ -476,7 +477,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 ##############################################################################
 
 
-def learner(rng, agent: DrQAgent, replay_buffer, wandb_logger=None):
+def learner(rng, agent: DrQAgent, replay_buffer, demo_buffer, wandb_logger=None):
     """
     The learner loop, which runs when "--learner" is set to True.
     """
@@ -529,7 +530,14 @@ def learner(rng, agent: DrQAgent, replay_buffer, wandb_logger=None):
 
     replay_iterator = replay_buffer.get_iterator(
         sample_args={
-            "batch_size": FLAGS.batch_size,
+            "batch_size": FLAGS.batch_size // 2,
+            "pack_obs_and_next_obs": True,
+        },
+        device=sharding.replicate(),
+    )
+    demo_iterator = demo_buffer.get_iterator(
+        sample_args={
+            "batch_size": FLAGS.batch_size // 2,
             "pack_obs_and_next_obs": True,
         },
         device=sharding.replicate(),
@@ -545,12 +553,16 @@ def learner(rng, agent: DrQAgent, replay_buffer, wandb_logger=None):
         for critic_step in range(FLAGS.utd_ratio - 1):
             with timer.context("sample_replay_buffer"):
                 batch = next(replay_iterator)
+                demo_batch = next(demo_iterator)
+                batch = concat_batches(batch, demo_batch, axis=0)
 
             with timer.context("train_critics"):
                 agent, critics_info = agent.update_critics(batch, )
 
         with timer.context("train"):
             batch = next(replay_iterator)
+            demo_batch = next(demo_iterator)
+            batch = concat_batches(batch, demo_batch, axis=0)
             agent, update_info = agent.update_high_utd(batch, utd_ratio=1)
 
         timer.tock("learner_total")
@@ -688,6 +700,8 @@ def main(_):
     if FLAGS.learner:
         sampling_rng = jax.device_put(sampling_rng, device=sharding.replicate())
         replay_buffer, wandb_logger = create_replay_buffer_and_wandb_logger()
+        demo_buffer, _ = create_replay_buffer_and_wandb_logger()
+
 
         import pickle as pkl
         with open(FLAGS.demo_path, "rb") as f:
@@ -711,8 +725,8 @@ def main(_):
                     traj["observations"]["wrist"] = np.dot(traj["observations"]["wrist"], gray)[..., None]
                     traj["next_observations"]["wrist"] = np.dot(traj["next_observations"]["wrist"], gray)[..., None]
 
-                replay_buffer.insert(traj)
-        print(f"replay buffer size: {len(replay_buffer)}")
+                demo_buffer.insert(traj)
+        print(f"replay buffer size: {len(demo_buffer)}")
 
         # learner loop
         print_green("starting learner loop")
@@ -721,6 +735,7 @@ def main(_):
                 sampling_rng,
                 agent,
                 replay_buffer=replay_buffer,
+                demo_buffer=demo_buffer,
                 wandb_logger=wandb_logger,
             )
         except KeyboardInterrupt:

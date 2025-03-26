@@ -87,6 +87,7 @@ flags.DEFINE_boolean(
 flags.DEFINE_boolean("dual", True, "Dual robot mode.")
 flags.DEFINE_string("wandb_project", "serl", "Wandb project name.")
 flags.DEFINE_boolean("her", True, "Whether to use HER or not.")
+flags.DEFINE_integer("number_eval_points", 30, "Number of evaluation points.")
 
 def print_green(x):
     return print("\033[92m {}\033[00m".format(x))
@@ -121,7 +122,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
         agent = agent.replace(state=ckpt)
 
         for episode in range(FLAGS.eval_n_trajs):
-            goals = env.env.env.env.env.env.env.env.sample_positions_evaluation()
+            goals = env.env.env.env.env.env.env.env.sample_positions_evaluation(num_points=FLAGS.number_eval_points)
             env.unwrapped.goal_position = goals[episode]
             obs, _ = env.reset()
             done = False
