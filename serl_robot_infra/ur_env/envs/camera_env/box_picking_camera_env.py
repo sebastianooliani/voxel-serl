@@ -309,7 +309,7 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             obs["state"]["goal_box_position"]
         )
 
-        position_cost = 4. if position_cost > 4. else position_cost
+        position_cost = 3. if position_cost > 3. else position_cost
 
         # TODO: consider giving this reward just when the robot is grasping the box 
         # using the tcp variations at the moment, at least before printing new markers
@@ -569,6 +569,7 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
         if load_config:
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
             self.init = True # read and write the initial box orientation
+            self.target_rot = np.random.uniform(np.deg2rad(15), np.deg2rad(30))
         else:
             super().__init__(**kwargs)
 
@@ -649,10 +650,10 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
         
         rotation_reward = self.reward_dict["rotation_weight"] * np.where(orientation_difference_angle_axis(
                                                                             R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
-                                                                            R.from_mrp(self.last_orientation).as_rotvec())[0] > 0.015, # lower bound the minimum rotation
+                                                                            R.from_mrp(self.last_orientation).as_rotvec(), axis='x')[0] > 0.015, # lower bound the minimum rotation
                                                                             np.minimum(orientation_difference_angle_axis(
                                                                             R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
-                                                                            R.from_mrp(self.last_orientation).as_rotvec())[0], 0.3), # upper bound the maximum rotation
+                                                                            R.from_mrp(self.last_orientation).as_rotvec(), axis='x')[0], 0.3), # upper bound the maximum rotation
                                                                             0.)
 
         self.last_orientation = obs["state"]["box_orientation"].copy() # here in mrp , use copy() to avoid reference after scaling
@@ -706,12 +707,13 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
         # convert obs from MRP to rotation vector
         rot_angle, _ = orientation_difference_angle_axis(
             self.init_box_orientation, 
-            R.from_mrp(state['box_orientation']).as_rotvec()
+            R.from_mrp(state['box_orientation']).as_rotvec(),
+            axis='x'
             )
         # print(f"Rotation angle: {rot_angle}")
         # 0.09 rad = 5° tolerance
         displacement = np.linalg.norm(state['box_position'] - self.init_box_position)
-        return (np.abs(rot_angle - np.pi/2)) < 0.09 and displacement < 0.05 \
+        return (np.abs(rot_angle - self.target_rot)) < 0.09 and displacement < 0.05 \
                 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
 
     def reset(self, **kwargs):
@@ -724,6 +726,7 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
 
         # at the end of the episode, reset the box initial orientation
         self.init = True
+        self.target_rot = np.random.uniform(np.deg2rad(15), np.deg2rad(30))
 
         obs = self._get_obs(np.zeros_like(self.last_action))
         return obs, {"reset_shift": shift}

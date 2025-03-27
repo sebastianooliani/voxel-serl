@@ -1,6 +1,6 @@
 export XLA_PYTHON_CLIENT_PREALLOCATE=false && \
 export XLA_PYTHON_CLIENT_MEM_FRACTION=.3 && \
-python /home/sebastiano/voxel-serl/examples/box_motion_her/drq_policy_her.py "$@" \
+python /home/sebastiano/voxel-serl/examples/box_motion_her/drq_policy_her_two_buffers.py "$@" \
     --actor \
     --env box_picking_camera_env_dual_robot_motion_planning \
     --wandb_project "dual_motion_voxnet_pretrained" \

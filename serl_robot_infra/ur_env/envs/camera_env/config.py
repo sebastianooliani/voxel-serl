@@ -142,7 +142,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     DUAL = True
     TOP = True
     HER = True
-    TASK = "motion" # "lift", "reorient", "motion", "inairrotation"
+    TASK = "lift" # "lift", "reorient", "motion", "inairrot"
     
     # box in horizontal position
     # RESET_Q = np.array([[- math.pi / 6., -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
@@ -171,7 +171,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
                             math.radians(143.25), math.radians(-120.69), math.radians(117.43), math.radians(-83.28), math.radians(-101.91), math.radians(0.)]])
     
     RANDOM_RESET = True
-    RANDOM_XYZ_RANGE = (0.01,)
+    RANDOM_XYZ_RANGE = (0.0,)
     RANDOM_ROT_RANGE = (0.03,)
 
     T_O1_O2_old = np.array([[0., 1., 0., -0.945], 
@@ -224,21 +224,25 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
         "lift": np.array([-0.335, 0.263, 0.382, 0.05, 0.05, 0.2]),
         "reorient": np.array([-0.335, 0.133, 0.377, 0.05, 0.05, 0.2]),
         "motion": np.array([-0.335, 0.273, 0.357, 0.05, 0.05, 0.2]),
+        "inairrot": np.array([-0.335, 0.263, 0.382, 0.2, 0.2, 0.2]),
     }
     ABS_POSE_LIMIT_LOW_ROBOT_1 = {
         "lift": np.array([-0.640, 0.030, 0.110, -0.05, -0.05, -0.2]),
         "reorient": np.array([-0.655, 0.033, 0.110, -0.05, -0.05, -0.2]),
-        "motion": np.array([-0.605, -0.533, 0.110, -0.05, -0.05, -0.2]),
+        "motion": np.array([-0.605, -0.490, 0.110, -0.05, -0.05, -0.2]),
+        "inairrot": np.array([-0.605, -0.490, 0.110, -0.2, -0.2, -0.2]),
     }
     ABS_POSE_LIMIT_HIGH_ROBOT_2 = {
         "lift": np.array([0.712, 0.116, 0.382, 0.05, 0.05, 0.2]),
         "reorient": np.array([0.752, 0.116, 0.377, 0.05, 0.05, 0.2]),
         "motion": np.array([0.752, 0.463, 0.357, 0.05, 0.05, 0.2]),
+        "inairrot": np.array([0.752, 0.463, 0.357, 0.2, 0.2, 0.2]),
     }
     ABS_POSE_LIMIT_LOW_ROBOT_2 = {
         "lift": np.array([0.380, -0.215, 0.128, -0.05, -0.05, -0.2]),
         "reorient": np.array([0.301, -0.235, 0.128, -0.05, -0.05, -0.2]),
-        "motion": np.array([0.301, -0.523, 0.128, -0.05, -0.05, -0.2]),
+        "motion": np.array([0.301, -0.480, 0.128, -0.05, -0.05, -0.2]),
+        "inairrot": np.array([0.301, -0.480, 0.128, -0.2, -0.2, -0.2]),
     }
 
     ACTION_SCALE = np.array([0.02, 0.1, 1.], dtype=np.float32)
@@ -290,14 +294,14 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "step_weight": 0.1,
             "action_weight": ACTION_WEIGHT,
             "action_diff_weight": 0.1,
-            "orientation_weight": 4.,
+            "orientation_weight": 5.,
             "position_weight": 4.,
             "distance_weight": 0.1,
             "grasping_weight": 0.5,
             "suction_weight": 0.5,
             "goal_weight": 80.,
             "success_weight": 200.,
-            "penalty": 100.,
+            "penalty": 150.,
             "safety_threshold": 0.1,
             "success_threshold": 0.05,
         },

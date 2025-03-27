@@ -107,7 +107,7 @@ class HER():
         position_cost = self.weights["position_weight"] * np.linalg.norm(
             obs[57:60]
         )
-        position_cost = 4. if position_cost > 4. else position_cost
+        position_cost = 3. if position_cost > 3. else position_cost
 
         actual_norm_pos = np.sum((obs[60:63] - self.init_box_position) * (obs[63:66] - self.init_box_position)) / np.sum(np.power(obs[63:66] - self.init_box_position, 2))
         prev_norm_pos = np.sum((self.last_box_position - self.init_box_position) * (obs[63:66] - self.init_box_position)) / np.sum(np.power(obs[63:66] - self.init_box_position, 2))

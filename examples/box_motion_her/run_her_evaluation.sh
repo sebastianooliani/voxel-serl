@@ -10,4 +10,5 @@ python sac_policy_her.py "$@" \
     --eval_checkpoint_step 30000 \
     --eval_n_trajs 10 \
     --evaluation \
+    --number_eval_points 30 \
     # --debug

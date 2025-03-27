@@ -134,18 +134,31 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                         time_list.append(dt)
                         print(dt)
 
-                    success_counter += int(reward > 0.99)
+                    success_counter = env.unwrapped.config.SUCCESS_COUNT
+                    subsuccess_graps = float(env.unwrapped.config.SUBSUCCESS_GRASP)
+                    subsuccess_lift = float(env.unwrapped.config.SUBSUCCESS_LIFT)
+                    subsuccess_rot = float(env.unwrapped.config.SUBSUCCESS_ROT)
+                    subsuccess_motion = float(env.unwrapped.config.SUBSUCCESS_MOTION)
                     print(reward)
                     print(f"{success_counter}/{episode + 1}")
 
                     infos = {
                         "running_reward": running_return,
                         "time": dt,
-                        "success_rate": float(reward > 50.),
+                        "success_rate": env.unwrapped.config.SUCCESS_COUNT / (episode + 1),
+                        "subsuccess_graps": subsuccess_graps / (episode + 1),
+                        "subsuccess_lift": subsuccess_lift / (episode + 1),
+                        "subsuccess_rot": subsuccess_rot / (episode + 1),
+                        "subsuccess_motion": subsuccess_motion / (episode + 1),
                     }
                     wandb_logger.log(infos, step=episode)
 
                     running_return = 0.0
+                    # reset the subsuccess
+                    env.unwrapped.config.SUBSUCCESS_GRASP = False
+                    env.unwrapped.config.SUBSUCCESS_LIFT = False
+                    env.unwrapped.config.SUBSUCCESS_ROT = False
+                    env.unwrapped.config.SUBSUCCESS_MOTION = False
 
         print(f"success rate: {success_counter / FLAGS.eval_n_trajs}")
         print(f"average time: {np.mean(time_list)}")
@@ -172,6 +185,9 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
     # training loop
     timer = Timer()
     running_return = 0.0
+    consecutive_successes = 0
+    success_counter = 0
+
     for step in tqdm.tqdm(range(FLAGS.max_steps), dynamic_ncols=True):
         timer.tick("total")
 
@@ -194,7 +210,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
             next_obs, reward, done, truncated, info = env.step(actions)
             next_obs = np.asarray(next_obs, dtype=np.float32)
             reward = np.asarray(reward, dtype=np.float32)
-            info = np.asarray(info)
+            
             running_return += reward
 
             data_store.insert(
@@ -210,6 +226,13 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
             obs = next_obs
             if done or truncated:
+                compare_success_count = (success_counter + 1 == env.unwrapped.config.SUCCESS_COUNT) # true if there was not a success, otherwise false
+                success_counter = env.unwrapped.config.SUCCESS_COUNT
+                consecutive_successes = (consecutive_successes + 1 if compare_success_count else 0)
+                info["success_counter"] = success_counter
+                info["consecutive_successes"] = consecutive_successes
+                
+                info = np.asarray(info)
                 stats = {"train": info}  # send stats to the learner to log
                 client.request("send-stats", stats)
                 print(f"running return: {running_return}")
