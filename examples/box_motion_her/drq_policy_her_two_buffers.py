@@ -682,11 +682,20 @@ def main(_):
         print("Batch Observation Rotation enabled!")
     assert not FLAGS.enable_obs_rotation_augmentation or not FLAGS.enable_obs_rotation_wrapper  # both is pointless
 
-    def create_replay_buffer_and_wandb_logger():
+    def create_replay_buffer_and_wandb_logger(replay_buffer_capacity=FLAGS.replay_buffer_capacity):
+        """
+        Create the replay buffer and wandb logger.
+        
+        Args:
+            replay_buffer_capacity: Capacity of the replay buffer in number of transitions.
+        Returns:
+            replay_buffer: Replay buffer object.
+            wandb_logger: Wandb logger object.
+        """
         replay_buffer = MemoryEfficientReplayBufferDataStore(
             env.observation_space,
             env.action_space,
-            capacity=FLAGS.replay_buffer_capacity,
+            capacity=replay_buffer_capacity,
             image_keys=image_keys,
         )
         # set up wandb and logging
@@ -700,7 +709,7 @@ def main(_):
     if FLAGS.learner:
         sampling_rng = jax.device_put(sampling_rng, device=sharding.replicate())
         replay_buffer, wandb_logger = create_replay_buffer_and_wandb_logger()
-        demo_buffer, _ = create_replay_buffer_and_wandb_logger()
+        demo_buffer, _ = create_replay_buffer_and_wandb_logger(replay_buffer_capacity=3000)
 
 
         import pickle as pkl

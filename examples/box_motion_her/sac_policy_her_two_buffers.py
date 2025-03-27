@@ -52,7 +52,7 @@ flags.DEFINE_integer("utd_ratio", 8, "UTD ratio.")
 flags.DEFINE_integer("reward_scale", 1, "Reward Scale to help out SAC algorithm")
 
 flags.DEFINE_integer("max_steps", 100000, "Maximum number of training steps.")
-flags.DEFINE_integer("replay_buffer_capacity", 1000000, "Replay buffer capacity.")
+flags.DEFINE_integer("replay_buffer_capacity", 20000, "Replay buffer capacity.")
 flags.DEFINE_multi_string("demo_paths", None,
                           "paths to demos")
 
@@ -439,7 +439,16 @@ def main(_):
         jax.tree.map(jnp.array, agent), sharding.replicate()
     )
 
-    def create_replay_buffer_and_wandb_logger():
+    def create_replay_buffer_and_wandb_logger(replay_buffer_capacity=FLAGS.replay_buffer_capacity):
+        """
+        Create the replay buffer and wandb logger.
+        
+        Args:
+            replay_buffer_capacity: Capacity of the replay buffer in number of transitions.
+        Returns:
+            replay_buffer: Replay buffer object.
+            wandb_logger: Wandb logger object.
+        """
         replay_buffer = make_replay_buffer(
             env,
             capacity=FLAGS.replay_buffer_capacity,
@@ -458,7 +467,7 @@ def main(_):
 
     if FLAGS.learner:
         sampling_rng = jax.device_put(sampling_rng, device=sharding.replicate())
-        demo_buffer, _ = create_replay_buffer_and_wandb_logger()
+        demo_buffer, _ = create_replay_buffer_and_wandb_logger(replay_buffer_capacity=3000)
         # create two more buffers, each one for every curriculum
         experience_buffer, wandb_logger = create_replay_buffer_and_wandb_logger()
         # replay_buffer_3, _ = create_replay_buffer_and_wandb_logger()
