@@ -211,16 +211,18 @@ class BoxPoseEstimation:
                             # await websocket.send("a")
                         
                             # print("Message received")
+                            box = list(message['space'][0]['boxes'].keys())[0]
+                            box = 'box_50'
                             # Safely update the message with a lock
                             with self.state_lock:
                                 self.pos.append(message['space'][0]['boxes'][
-                                    list(message['space'][0]['boxes'].keys())[0]
+                                    box
                                 ]['world2box']['pos'])
                                 self.orient.append(message['space'][0]['boxes'][
-                                    list(message['space'][0]['boxes'].keys())[0]
+                                    box
                                 ]['world2box']['rot'])
                                 self.size = message['space'][0]['boxes'][
-                                    list(message['space'][0]['boxes'].keys())[0]
+                                    box
                                 ]['size']
                         except TimeoutError:
                             # print("Timeout error, continuing...")
@@ -291,23 +293,23 @@ class BoxPoseEstimation:
             self.stop()
 
 if __name__ == "__main__":
-    # messages = asyncio.run(read_vision_from_server())
-    # print(messages)
-    box_pose_estimation = BoxPoseEstimation("ws://192.168.1.240:7777")
+    messages = asyncio.run(read_vision_from_server())
+    print(messages)
+    # box_pose_estimation = BoxPoseEstimation("ws://192.168.1.240:7777")
 
-    import time
-    start = time.time()
-    while len(box_pose_estimation.get_box_position()) == 0:
-        continue
-    end = time.time()
-    print(f"Time to get first message: {end - start}")
-    while True:
+    # import time
+    # start = time.time()
+    # while len(box_pose_estimation.get_box_position()) == 0:
+    #     continue
+    # end = time.time()
+    # print(f"Time to get first message: {end - start}")
+    # while True:
         
-        try:
-            pos = np.array(box_pose_estimation.get_box_position())
-            orient = np.array(box_pose_estimation.get_box_orientation())
-            print(f"Position: {pos}")
-            # print(f"Orientation: {orient}")
-        except KeyboardInterrupt:
-            box_pose_estimation.stop()
-            break
+    #     try:
+    #         pos = np.array(box_pose_estimation.get_box_position())
+    #         orient = np.array(box_pose_estimation.get_box_orientation())
+    #         print(f"Position: {pos}")
+    #         # print(f"Orientation: {orient}")
+    #     except KeyboardInterrupt:
+    #         box_pose_estimation.stop()
+    #         break
