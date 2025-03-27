@@ -7,6 +7,7 @@ python sac_policy.py "$@" \
     --wandb_project "dual_sac_lift" \
     --exp_name=sac_policy_lift \
     --max_traj_length 300 \
+    --checkpoint_period 5000 \
     --seed 42 \
     --training_starts 900 \
     --utd_ratio 8 \
