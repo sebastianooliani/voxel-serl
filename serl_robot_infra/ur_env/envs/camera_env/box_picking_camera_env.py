@@ -569,7 +569,8 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
         if load_config:
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
             self.init = True # read and write the initial box orientation
-            self.target_rot = np.random.uniform(np.deg2rad(15), np.deg2rad(30))
+            self.success = False
+            self.target_rot = np.random.uniform(np.deg2rad(15), np.deg2rad(25))
         else:
             super().__init__(**kwargs)
 
@@ -626,25 +627,15 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
             )
 
         # ORIENTATION: penalize deviating too much from the starting pose
-        orientation_cost = 0
-        orientation_cost = 1. - sum(obs["state"]["tcp_pose"][3:7] * self.curr_reset_pose[3:7]) ** 2
-        orientation_cost += 1. - sum(obs["state"]["tcp_pose"][10:] * self.curr_reset_pose[10:]) ** 2
-        orientation_cost = max(orientation_cost - 0.005, 0.) * self.reward_dict["orientation_weight"]
+        orientation_cost = 0.
+        # orientation_cost = 1. - sum(obs["state"]["tcp_pose"][3:7] * self.curr_reset_pose[3:7]) ** 2
+        # orientation_cost += 1. - sum(obs["state"]["tcp_pose"][10:] * self.curr_reset_pose[10:]) ** 2
+        # orientation_cost = max(orientation_cost - 0.02, 0.) * self.reward_dict["orientation_weight"]
 
         # POSITION: penalize deviating too much from the starting pose
-        max_pose_diff = 0.30 # TODO: adjust this value
-        pos_diff = np.concatenate([
-            obs["state"]["tcp_pose"][:2] - self.curr_reset_pose[:2], obs["state"]["tcp_pose"][7:9] - self.curr_reset_pose[7:9]
-            ])
-        position_cost = self.reward_dict["position_weight"] * np.sum(
-            np.where(np.abs(pos_diff) > 0.35, np.abs(pos_diff - np.sign(pos_diff) * 0.35), 0.0) # larger movement allowed
-        ) * (
-            float(obs["state"]["gripper_state"][1] > 0.5) + float(obs["state"]["gripper_state"][3] > 0.5) # when is grasping
-            ) + self.reward_dict["position_weight"] * np.sum(
-            np.where(np.abs(pos_diff) > 0.05, np.abs(pos_diff - np.sign(pos_diff) * 0.05), 0.0) # smaller movement allowed
-        ) * (
-            float(obs["state"]["gripper_state"][1] < 0.5) + float(obs["state"]["gripper_state"][3] < 0.5) # when is not grasping
-            )
+        position_cost = self.reward_dict["position_weight"] * float(
+            obs["state"]["box_position"][2] - self.init_box_position[2] < 0.05
+        )
         
         rotation_reward = self.reward_dict["rotation_weight"] * np.where(orientation_difference_angle_axis(
                                                                             R.from_mrp(obs["state"]["box_orientation"]).as_rotvec(), 
@@ -656,9 +647,10 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
 
         self.last_orientation = obs["state"]["box_orientation"].copy() # here in mrp , use copy() to avoid reference after scaling
 
-        height_reward = self.reward_dict["grasp_weight"] * (
+        height_reward = self.reward_dict["lift_weight"] * (
                 float(obs["state"]["gripper_state"][1] > 0.5) * np.max(obs["state"]["tcp_pose"][2], 0) +
-                             float(obs["state"]["gripper_state"][3] > 0.5) * np.max(obs["state"]["tcp_pose"][9], 0))
+                             float(obs["state"]["gripper_state"][3] > 0.5) * np.max(obs["state"]["tcp_pose"][9], 0)
+                            )
         
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         if self.camera_mode is None:
@@ -691,6 +683,7 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
         if self.reached_goal_state(obs):
             print("\nSuccessfull in-air rotation!\n")
             self.config.SUCCESS_COUNT += 1
+            self.success = True
             self.last_action[:] = 0.
             R_goal = self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
@@ -708,10 +701,11 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
             R.from_mrp(state['box_orientation']).as_rotvec(),
             axis='x'
             )
+        print(rot_angle)
         # print(f"Rotation angle: {rot_angle}")
         # 0.09 rad = 5° tolerance
-        displacement = np.linalg.norm(state['box_position'] - self.init_box_position)
-        return (np.abs(rot_angle - self.target_rot)) < 0.09 and displacement < 0.05 \
+        displacement = (state['box_position'][2] - self.init_box_position[2])
+        return (np.abs(rot_angle - self.target_rot)) < 0.09 and displacement > 0.05 \
                 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
 
     def reset(self, **kwargs):
@@ -724,6 +718,7 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
 
         # at the end of the episode, reset the box initial orientation
         self.init = True
+        self.success = False
         self.target_rot = np.random.uniform(np.deg2rad(15), np.deg2rad(30))
 
         obs = self._get_obs(np.zeros_like(self.last_action))

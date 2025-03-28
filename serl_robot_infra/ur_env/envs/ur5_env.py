@@ -870,9 +870,16 @@ class UR5DualRobotEnv(UR5Env):
             state_space["goal_position"] = gym.spaces.Box(
                 -np.inf, np.inf, shape=(3,)
             )
-        else:
+        elif self.config.TASK in ["lift", "reorient"]:
             state_space["tcp_force"] = gym.spaces.Box(-np.inf, np.inf, shape=(6,))
             state_space["tcp_torque"] = gym.spaces.Box(-np.inf, np.inf, shape=(6,))
+        elif self.config.TASK in ["inairrot"]:
+            state_space["box_position"] = gym.spaces.Box(
+                -np.inf, np.inf, shape=(3,)
+            )
+            state_space["box_orientation"] = gym.spaces.Box(
+                -np.inf, np.inf, shape=(3,)
+            )
 
         if self.config.TASK in ["reorient"]:
             state_space["box_orientation"] = gym.spaces.Box(

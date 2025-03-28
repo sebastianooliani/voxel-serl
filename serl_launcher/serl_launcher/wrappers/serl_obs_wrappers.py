@@ -146,5 +146,8 @@ class ScaleDualObservationWrapper(gym.ObservationWrapper):
             obs['state']['goal_position'] *= self.rotation_scale
         elif self.task in ["reorient"]:
             obs['state']['box_orientation'] *= self.rotation_scale
+        elif self.task in ["inairrot"]:
+            obs['state']['box_orientation'] *= self.rotation_scale
+            obs['state']['box_position'] *= self.rotation_scale
 
         return obs
