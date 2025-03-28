@@ -176,6 +176,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
         print(f"success rate: {success_counter / FLAGS.eval_n_trajs}")
         print(f"average time: {np.mean(time_list)}")
+        print(f"std time: {np.std(time_list)}")
         print(f"average distance from goal: {np.mean(distance_from_goal)}")
         return  # after done eval, return and exit
 

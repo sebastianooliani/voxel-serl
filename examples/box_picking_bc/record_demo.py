@@ -101,12 +101,12 @@ def main(_):
             running_return += rew
 
             if done:
-                success_count += int(rew > 0.99)
+                success_count = env.unwrapped.config.SUCCESS_COUNT
                 total_count += 1
                 print(
-                    f"{rew}\tGot {success_count} successes of {total_count} trials. {success_needed} successes needed."
+                    f"Got {success_count} successes of {total_count} trials. {success_needed} successes needed."
                 )
-                pbar.update(int(rew > 0.99))
+                pbar.update(int(env.unwrapped.success))
                 obs, _ = env.reset()
                 # print(info)
                 print(f"Running return: {running_return}\n")
