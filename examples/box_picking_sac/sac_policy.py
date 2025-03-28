@@ -104,6 +104,10 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
         success_counter = 0
         time_list = []
         running_return = 0.0
+        subsuccess_graps = 0.0
+        subsuccess_lift = 0.0
+        subsuccess_rot = 0.0
+        subsuccess_motion = 0.0
 
         ckpt = checkpoints.restore_checkpoint(
             FLAGS.eval_checkpoint_path,
@@ -134,21 +138,35 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                         time_list.append(dt)
                         print(dt)
 
-                    success_counter += int(reward > 0.99)
+                    success_counter = env.unwrapped.config.SUCCESS_COUNT
+                    subsuccess_graps += float(env.unwrapped.config.SUBSUCCESS_GRASP)
+                    subsuccess_lift += float(env.unwrapped.config.SUBSUCCESS_LIFT)
+                    subsuccess_rot += float(env.unwrapped.config.SUBSUCCESS_ROT)
+                    subsuccess_motion += float(env.unwrapped.config.SUBSUCCESS_MOTION)
                     print(reward)
                     print(f"{success_counter}/{episode + 1}")
 
                     infos = {
                         "running_reward": running_return,
                         "time": dt,
-                        "success_rate": float(reward > 50.),
+                        "success_rate": env.unwrapped.config.SUCCESS_COUNT / (episode + 1),
+                        "subsuccess_graps": subsuccess_graps / (episode + 1),
+                        "subsuccess_lift": subsuccess_lift / (episode + 1),
+                        "subsuccess_rot": subsuccess_rot / (episode + 1),
+                        "subsuccess_motion": subsuccess_motion / (episode + 1),
                     }
                     wandb_logger.log(infos, step=episode)
 
                     running_return = 0.0
+                    # reset the subsuccess
+                    env.unwrapped.config.SUBSUCCESS_GRASP = False
+                    env.unwrapped.config.SUBSUCCESS_LIFT = False
+                    env.unwrapped.config.SUBSUCCESS_ROT = False
+                    env.unwrapped.config.SUBSUCCESS_MOTION = False
 
         print(f"success rate: {success_counter / FLAGS.eval_n_trajs}")
         print(f"average time: {np.mean(time_list)}")
+        print(f"std dev time: {np.std(time_list)}")
         return  # after done eval, return and exit
 
     client = TrainerClient(

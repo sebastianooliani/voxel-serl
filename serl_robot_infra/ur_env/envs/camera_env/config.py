@@ -172,7 +172,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     
     RANDOM_RESET = True
     RANDOM_XYZ_RANGE = (0.0,)
-    RANDOM_ROT_RANGE = (0.05,)
+    RANDOM_ROT_RANGE = (0.04,)
 
     T_O1_O2_old = np.array([[0., 1., 0., -0.945], 
                         [-1., 0., 0., -0.], 
