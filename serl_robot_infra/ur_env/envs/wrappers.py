@@ -468,7 +468,7 @@ class SampleGoalPositionsWrapper(gym.Wrapper):
         )
 
         if num_points == 1:
-            intersection_points = np.ones((30, 3)) * intersection_points[0]
+            intersection_points = np.ones((30, 3)) * np.array([-0.5628, -0.303, 0.1036])
 
         # self.env.unwrapped.goal_position = np.array([-0.6, -0.3, 0.09])
 

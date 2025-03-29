@@ -5,7 +5,7 @@ python sac_policy_her_two_buffers.py "$@" \
     --actor \
     --env box_picking_camera_env_dual_robot_motion_planning \
     --wandb_project "dual_sac_motion_planning" \
-    --exp_name=sac_policy_motion \
+    --exp_name=sac_policy_motion_60_demos \
     --max_traj_length 100 \
     --seed 42 \
     --max_steps 10000 \

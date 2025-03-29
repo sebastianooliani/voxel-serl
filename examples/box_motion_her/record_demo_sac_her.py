@@ -64,7 +64,7 @@ def main(_):
     running_return = 0
 
     total_count = 0
-    num_points = 20
+    num_points = 60
     pbar = tqdm(total=num_points)
 
     info_dict = {'state': env.unwrapped.curr_pos, 'gripper_state': env.unwrapped.gripper_state,
@@ -128,6 +128,9 @@ def main(_):
                 pbar.update(1)
                 obs, _ = env.reset()
                 running_return = 0
+
+                if num_points > 20 and iter % 20 == 0 and iter > 0:
+                    input("Take a break, and press enter to continue...")
             elif done and not env.unwrapped.success:
                 print(info)
                 curr_reset_pose = env.unwrapped.curr_reset_pose
@@ -158,6 +161,9 @@ def main(_):
                 pbar.update(1)
                 obs, _ = env.reset()
                 running_return = 0
+
+                if num_points > 20 and iter % 20 == 0 and iter > 0:
+                    input("Take a break, and press enter to continue...")
 
         with open(f"dual_{num_points}_her_transitions_{uuid}.pkl", 'wb') as f:
             pkl.dump(positive_transitions, f)

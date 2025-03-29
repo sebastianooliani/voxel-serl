@@ -64,7 +64,7 @@ def main(_):
     all_transitions = []
     positive_transitions = []
 
-    num_points = 20
+    num_points = 60
     total_count = 0
     pbar = tqdm(total=num_points)
 
@@ -156,6 +156,9 @@ def main(_):
                 pbar.update(1)
                 obs, _ = env.reset()
                 running_reward = 0
+
+            if num_points > 20 and iter % 20 == 0:
+                input("Take a break, and press enter to continue...")
 
         with open(file_path, "wb") as f:
             pkl.dump(all_transitions, f)

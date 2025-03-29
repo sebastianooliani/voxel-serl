@@ -231,7 +231,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     ABS_POSE_LIMIT_LOW_ROBOT_1 = {
         "lift": np.array([-0.640, 0.030, 0.110, -0.05, -0.05, -0.2]),
         "reorient": np.array([-0.655, 0.033, 0.110, -0.05, -0.05, -0.2]),
-        "motion": np.array([-0.605, -0.490, 0.110, -0.05, -0.05, -0.2]),
+        "motion": np.array([-0.605, -0.533, 0.110, -0.05, -0.05, -0.2]),
         "inairrot": np.array([-0.605, -0.110, 0.110, -0.3, -0.3, -0.2]),
     }
     ABS_POSE_LIMIT_HIGH_ROBOT_2 = {
@@ -243,7 +243,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     ABS_POSE_LIMIT_LOW_ROBOT_2 = {
         "lift": np.array([0.380, -0.215, 0.128, -0.05, -0.05, -0.2]),
         "reorient": np.array([0.301, -0.235, 0.128, -0.05, -0.05, -0.2]),
-        "motion": np.array([0.301, -0.480, 0.128, -0.05, -0.05, -0.2]),
+        "motion": np.array([0.301, -0.533, 0.128, -0.05, -0.05, -0.2]),
         "inairrot": np.array([0.301, -0.235, 0.128, -0.3, -0.3, -0.2]),
     }
 
@@ -296,12 +296,12 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "step_weight": 0.1,
             "action_weight": ACTION_WEIGHT,
             "action_diff_weight": 0.1,
-            "orientation_weight": 5.,
+            "orientation_weight": 4.,
             "position_weight": 4.,
             "distance_weight": 0.1,
-            "grasping_weight": 0.5,
+            "grasping_weight": 0.3,
             "suction_weight": 0.5,
-            "goal_weight": 80.,
+            "goal_weight": 60.,
             "success_weight": 200.,
             "penalty": 150.,
             "safety_threshold": 0.1,
@@ -314,7 +314,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "distance_weight": 0.1,
             "grasping_weight": 0.5,
             "suction_weight": 0.5,
-            "rotation_weight": 20.,
+            "rotation_weight": 40.,
             "lift_weight": 0.,
             "success_weight": 200.,
             "penalty": 150.,
