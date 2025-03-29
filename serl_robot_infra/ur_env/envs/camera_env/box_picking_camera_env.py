@@ -701,7 +701,7 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
             R.from_mrp(state['box_orientation']).as_rotvec(),
             axis='x'
             )
-        print(rot_angle)
+        # print(rot_angle)
         # print(f"Rotation angle: {rot_angle}")
         # 0.09 rad = 5° tolerance
         displacement = (state['box_position'][2] - self.init_box_position[2])

@@ -67,7 +67,7 @@ flags.DEFINE_boolean("learner", False, "Is this a learner or a trainer.")
 flags.DEFINE_boolean("actor", False, "Is this a learner or a trainer.")
 flags.DEFINE_string("ip", "localhost", "IP address of the learner.")
 flags.DEFINE_integer("checkpoint_period", 5000, "Period to save checkpoints.")
-flags.DEFINE_string("checkpoint_path", '/home/sebastiano/voxel-serl/examples/box_picking_sac/checkpoints',
+flags.DEFINE_string("checkpoint_path", '/home/sebastiano/voxel-serl/examples/box_inair_motion/checkpoints',
                     "Path to save checkpoints.")
 
 flags.DEFINE_integer("eval_checkpoint_step", 0, "evaluate the policy from ckpt at this step")

@@ -14,5 +14,5 @@ python sac_policy_hil.py "$@" \
     --max_steps 50000 \
     --reward_scale 1 \
     --checkpoint_period 500 \
-    --demo_paths /home/sebastiano/voxel-serl/examples/box_picking_bc/ur5_test_20_demos_2025-03-11_10-10-39_lift_none.pkl \
+    --demo_paths /home/sebastiano/voxel-serl/examples/box_inair_motion/ur5_test_20_demos_2025-03-29_13-21-07_lift_none.pkl \
     # --debug
