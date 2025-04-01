@@ -1,5 +1,5 @@
 import numpy as np
-from BehaviorTree import BehaviorTree, DualBehaviorTree, DualBehaviorTreeReorientation, DualBehaviorTreeMotionPlanning
+from BehaviorTree import BehaviorTree, DualBehaviorTree, DualBehaviorTreeReorientation, DualBehaviorTreeMotionPlanning, DualBehaviorTreeInAirRotation
 
 import copy
 import time
@@ -64,6 +64,8 @@ def main(_):
         agent = DualBehaviorTreeReorientation(opposite_grasp=FLAGS.opposite_grasp, reorient=True)
     elif task in ["motion"]:
         agent = DualBehaviorTreeMotionPlanning(opposite_grasp=FLAGS.opposite_grasp)
+    elif task in ["inairrot"]:
+        agent = DualBehaviorTreeInAirRotation(opposite_grasp=FLAGS.opposite_grasp)
 
     wandb_logger = make_wandb_logger(
         project=FLAGS.wandb_project,
@@ -152,7 +154,9 @@ def main(_):
                         infos["distance_from_goal"] = info["goal_box_position"]
                         distance_from_goal.append(info["goal_box_position"])
                         _ = env.env.env.env.env.env.env.sample_goal_position()
-
+                    elif task in ["inairrot"]:
+                        agent.init_box_pos = None
+                        
                     traj_infos.append(infos)
                     wandb_logger.log(infos, step=episode)
 

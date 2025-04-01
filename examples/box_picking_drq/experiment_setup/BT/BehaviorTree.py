@@ -383,3 +383,77 @@ class DualBehaviorTreeMotionPlanning():
         self.command[0:3] = distance_ee1
         self.command[7:10] = distance_ee2
     
+
+class DualBehaviorTreeInAirRotation():
+    def __init__(self, opposite_grasp=False, reorient=True):
+        self.tree_state: DualTreeState = DualTreeState(opposite_grasp=opposite_grasp, reorient=reorient)
+        self.queue = Queue()
+        self.command = np.zeros(14)
+        self.command[6] = 1.
+        self.command[13] = 1.
+        self.ur_receive_1 = RTDEReceiveInterface("192.168.1.66")
+        self.ur_receive_2 = RTDEReceiveInterface("192.168.1.33")
+        self.init_box_pos = None
+
+    def reset(self):
+        self.tree_state.vert_reset()
+        print("down")
+        return self.tree_state()
+    
+    def sample_actions(self, observations):
+        obs = observations["state"].reshape(-1)
+        if not self.queue.empty():
+            return self.queue.get()
+        
+        force_1 = self.ur_receive_1.getActualTCPForce()
+        force_2 = self.ur_receive_2.getActualTCPForce()
+        # observation order in the dictionary
+        # action, gripper, joint pos, force, pos diff, pose, torque, vel
+        if obs[15] > 0.5 and obs[17] > 0.5:
+            self.compute_commands(obs)
+            if np.all(self.tree_state.current == self.command):
+                pass
+            else:
+                print("go forward")
+                self.tree_state.current = self.command
+
+        elif -force_1[2] < -1. and -force_2[2] < -1.: # force check
+            if obs[15] < -0.5 and obs[17] < -0.5: # if sucking
+                print("do random direction")
+                return self._fill_random_xy_queue()
+            else:
+                print("suck")
+                self.tree_state.current = self.tree_state.suck
+                return self._fill_suck_queue()
+        else:
+            self.tree_state.vert_reset()
+
+        return self.tree_state()
+    
+    def _fill_random_xy_queue(self):
+        for _ in range(4):
+            self.queue.put(self.tree_state.up)
+        self.tree_state.re_sample_xy()
+        for _ in range(6):
+            self.queue.put(self.tree_state.random_direction)
+
+        return self.queue.get()
+    
+    def _fill_suck_queue(self):
+        for _ in range(6):
+            self.queue.put(self.tree_state.suck)
+        return self.queue.get()
+    
+    def compute_commands(self, obs):
+        """ 
+        compute commands based on the observations 
+        """
+        if self.init_box_pos is None:
+            self.init_box_pos = obs[-6:-3]
+
+        if np.linalg.norm(obs[-6:-3] - self.init_box_pos) < 0.05:
+            self.command[0:3] = np.array([0, 0, -1])
+            self.command[7:10] = np.array([0, 0, -1])
+        elif np.linalg.norm(obs[-6:-3] - self.init_box_pos) > 0.05:
+            self.command[0:3] = np.array([0, 0, 0])
+            self.command[7:10] = np.array([0, 0, -1])

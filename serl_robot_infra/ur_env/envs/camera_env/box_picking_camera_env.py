@@ -705,6 +705,14 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
         # print(f"Rotation angle: {rot_angle}")
         # 0.09 rad = 5° tolerance
         displacement = (state['box_position'][2] - self.init_box_position[2])
+        
+        if (np.abs(rot_angle - self.target_rot)) < 0.09:
+            self.config.SUBSUCCESS_ROT = True
+        if 0.1 < state['gripper_state'][0] < 1. or 0.1 < state['gripper_state'][2] < 1.:
+            self.config.SUBSUCCESS_GRASP = True
+        if displacement > 0.05:
+            self.config.SUBSUCCESS_LIFT = True
+        
         return (np.abs(rot_angle - self.target_rot)) < 0.09 and displacement > 0.05 \
                 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
 
