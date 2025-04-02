@@ -1095,7 +1095,6 @@ class UR5DualRobotEnv(UR5Env):
         done = (self.curr_path_length >= self.max_episode_length) or (self.reached_goal_state(obs)) or (truncated) or (collided)
         self._is_collided = False
 
-
         dt = time.time() - start_time
         to_sleep = max(0, (1.0 / self.hz) - dt)
         if to_sleep == 0:
