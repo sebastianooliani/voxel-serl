@@ -2,6 +2,8 @@ import numpy as np
 import copy
 import asyncio
 from scipy.spatial.transform import Rotation as R
+import time
+import warnings
 
 from ur_env.envs.ur5_env import UR5Env, UR5DualRobotEnv
 from ur_env.envs.camera_env.config import UR5CameraConfigFinal, UR5CameraConfigFinalTests, UR5CameraConfigFinalEvaluation, UR5CameraConfigDemo, UR5CameraConfigDualRobot
@@ -400,6 +402,54 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
 
         obs = self._get_obs(np.zeros_like(self.last_action))
         return obs, {"reset_shift": shift}
+    
+    def residual_learning_step(self, action: np.ndarray) -> tuple:
+        """standard gym step function."""
+        start_time = time.time()
+        action = np.clip(action, self.action_space.low, self.action_space.high)
+        feedforward_action = self.goal_position - self.box_position
+        feedforward_action /= np.linalg.norm(feedforward_action)
+        feedforward_action /= 4.
+
+        # position TODO: check input
+        next_pos = self.curr_pos.copy()
+        next_pos[:3] = next_pos[:3] + (action[:3] + feedforward_action) * self.action_scale[0]
+        next_pos[7:10] = next_pos[7:10] + (action[7:10] + feedforward_action) * self.action_scale[0]
+
+        next_pos[3:7] = (
+                R.from_mrp(action[3:6] * self.action_scale[1] / 4.) * R.from_quat(next_pos[3:7])
+        ).as_quat()             # c * r  --> applies c after r
+        next_pos[10:] = (
+                R.from_mrp(action[10:13] * self.action_scale[1] / 4.) * R.from_quat(next_pos[10:])
+        ).as_quat()             # c * r  --> applies c after r
+
+        gripper_1_action = action[6] * self.action_scale[2]
+        gripper_2_action = action[13] * self.action_scale[2]
+        gripper_action = np.array([gripper_1_action, gripper_2_action])
+
+        safe_pos = self.clip_safety_box(next_pos)
+        self._send_pos_command(safe_pos)
+        self._send_gripper_command(gripper_action)
+
+        self.curr_path_length += 1
+
+        obs = self._get_obs(action)
+
+        reward = self.compute_reward(obs, action)
+        truncated = self._is_truncated()
+        collided = self._is_collided
+        reward = reward if not (truncated or collided) else reward - self.config.PENALTY  # truncation penalty. Original value in single arm was -10.
+        # reward = reward if not collided else reward - self.config.PENALTY  # collision penalty. TODO: adjust this value
+        done = (self.curr_path_length >= self.max_episode_length) or (self.reached_goal_state(obs)) or (truncated) or (collided)
+        self._is_collided = False
+
+        dt = time.time() - start_time
+        to_sleep = max(0, (1.0 / self.hz) - dt)
+        if to_sleep == 0:
+            warnings.warn(f"environment could not be within {self.hz} Hz, took {dt:.4f}s!")
+        time.sleep(to_sleep)
+
+        return obs, reward, done, truncated, self.get_cost_infos(done)
     
 ############################################################################################################
 
