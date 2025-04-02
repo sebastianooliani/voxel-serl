@@ -127,7 +127,6 @@ def main(_):
                     dt = time.time() - start_time
                     time_list.append(dt)
                     running_reward = np.sum(np.asarray([t["rewards"] for t in trajectory]))
-                    running_reward = max(running_reward, -100.)
 
                     print(f"{success_counter}/{episode + 1} ", end=' ')
                     print(f"time: {dt:.3f}s  running_rew: {running_reward:.2f}")
@@ -156,7 +155,7 @@ def main(_):
                         _ = env.env.env.env.env.env.env.sample_goal_position()
                     elif task in ["inairrot"]:
                         agent.init_box_pos = None
-                        
+
                     traj_infos.append(infos)
                     wandb_logger.log(infos, step=episode)
 
