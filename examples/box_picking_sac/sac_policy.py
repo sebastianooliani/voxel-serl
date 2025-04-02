@@ -135,10 +135,10 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                         print(dt)
 
                     success_counter = env.unwrapped.config.SUCCESS_COUNT
-                    subsuccess_graps = float(env.unwrapped.config.SUBSUCCESS_GRASP)
-                    subsuccess_lift = float(env.unwrapped.config.SUBSUCCESS_LIFT)
-                    subsuccess_rot = float(env.unwrapped.config.SUBSUCCESS_ROT)
-                    subsuccess_motion = float(env.unwrapped.config.SUBSUCCESS_MOTION)
+                    subsuccess_graps += float(env.unwrapped.config.SUBSUCCESS_GRASP)
+                    subsuccess_lift += float(env.unwrapped.config.SUBSUCCESS_LIFT)
+                    subsuccess_rot += float(env.unwrapped.config.SUBSUCCESS_ROT)
+                    subsuccess_motion += float(env.unwrapped.config.SUBSUCCESS_MOTION)
                     print(reward)
                     print(f"{success_counter}/{episode + 1}")
 
@@ -162,6 +162,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
         print(f"success rate: {success_counter / FLAGS.eval_n_trajs}")
         print(f"average time: {np.mean(time_list)}")
+        print(f"std time: {np.std(time_list)}")
         return  # after done eval, return and exit
 
     client = TrainerClient(

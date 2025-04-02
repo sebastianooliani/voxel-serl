@@ -212,10 +212,10 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
                 if done or truncated:
                     success_counter = env.unwrapped.config.SUCCESS_COUNT
-                    subsuccess_graps = float(env.unwrapped.config.SUBSUCCESS_GRASP)
-                    subsuccess_lift = float(env.unwrapped.config.SUBSUCCESS_LIFT)
-                    subsuccess_rot = float(env.unwrapped.config.SUBSUCCESS_ROT)
-                    subsuccess_motion = float(env.unwrapped.config.SUBSUCCESS_MOTION)
+                    subsuccess_graps += float(env.unwrapped.config.SUBSUCCESS_GRASP)
+                    subsuccess_lift += float(env.unwrapped.config.SUBSUCCESS_LIFT)
+                    subsuccess_rot += float(env.unwrapped.config.SUBSUCCESS_ROT)
+                    subsuccess_motion += float(env.unwrapped.config.SUBSUCCESS_MOTION)
 
                     dt = time.time() - start_time
                     time_list.append(dt)

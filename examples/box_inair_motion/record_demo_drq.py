@@ -99,7 +99,7 @@ def main(_):
             running_reward += rew
 
             if done or truncated:
-                success_count = env.unwrapped.config.success_count
+                success_count = env.unwrapped.config.SUCCESS_COUNT
                 total_count += 1
                 print(
                     f"Got {success_count} successes of {total_count} trials. {success_needed} successes needed."

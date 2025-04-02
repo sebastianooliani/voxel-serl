@@ -24,6 +24,8 @@ def create_state_mask(mask_str: str) -> jnp.ndarray:
             all = jnp.ones((72,), dtype=jnp.bool)
         elif UR5CameraConfigDualRobot.TASK in ["lift"]:
             all = jnp.ones((69,), dtype=jnp.bool)
+        elif UR5CameraConfigDualRobot.TASK in ["inairrot"]:
+            all = jnp.ones((63,), dtype=jnp.bool)
         else:
             raise NotImplementedError(f"{UR5CameraConfigDualRobot.TASK} not implemented yet!\n")
         

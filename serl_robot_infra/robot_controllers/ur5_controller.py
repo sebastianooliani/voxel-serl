@@ -470,9 +470,11 @@ class UrImpedanceController(threading.Thread):
         await self._update_robot_state()
         with self.lock:
             self.target_pos = self.curr_pos.copy()
+
         self.ur_control.forceModeSetDamping(self.fm_damping)  # less damping = Faster
         self.ur_control.zeroFtSensor()
         if not success:     # restart if not successful
+            print("[RIC] failed to move to box position")
             await self.restart_ur_interface()
         else:
             self._reset.clear()
