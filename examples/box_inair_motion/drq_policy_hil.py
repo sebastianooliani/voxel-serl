@@ -164,6 +164,10 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
         )
 
         success_counter = 0
+        subsuccess_rot = 0
+        subsuccess_graps = 0
+        subsuccess_lift = 0
+        subsuccess_motion = 0
         time_list = []
 
         ckpt = checkpoints.restore_checkpoint(
@@ -229,12 +233,12 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                     infos = {
                         "running_reward": running_reward,
                         "time": dt,
-                        "success_rate": env.unwrapped.config.SUCCESS_COUNT / (episode + 1),
+                        "success_rate": env.unwrapped.config.SUCCESS_COUNT,
                         "action_cost": np.linalg.norm(np.asarray([t["actions"] for t in trajectory]), axis=1, ord=2).mean(),
-                        "subsuccess_graps": subsuccess_graps / (episode + 1),
-                        "subsuccess_lift": subsuccess_lift / (episode + 1),
-                        "subsuccess_rot": subsuccess_rot / (episode + 1),
-                        "subsuccess_motion": subsuccess_motion / (episode + 1),
+                        "subsuccess_graps": subsuccess_graps,
+                        "subsuccess_lift": subsuccess_lift,
+                        "subsuccess_rot": subsuccess_rot,
+                        "subsuccess_motion": subsuccess_motion,
                     }
                     traj_infos.append(infos)
                     wandb_logger.log(infos, step=episode)

@@ -142,7 +142,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     DUAL = True
     TOP = True
     HER = True
-    TASK = "inairrot" # "lift", "reorient", "motion", "inairrot"
+    TASK = "motion" # "lift", "reorient", "motion", "inairrot"
     
     # box in horizontal position
     # RESET_Q = np.array([[- math.pi / 6., -math.pi/2 + math.pi/24, math.pi/2 + math.pi/6, -math.pi/2 - math.pi/6 - math.pi/24, -math.pi/2, 0.,
@@ -311,7 +311,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "step_weight": 0.2,
             "action_weight": 0.2,
             "position_weight": 0.5,
-            "distance_weight": 0.1,
+            "distance_weight": 0.05,
             "grasping_weight": 0.5,
             "suction_weight": 0.5,
             "rotation_weight": 40.,

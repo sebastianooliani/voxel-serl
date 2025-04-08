@@ -403,13 +403,13 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         obs = self._get_obs(np.zeros_like(self.last_action))
         return obs, {"reset_shift": shift}
     
-    def residual_learning_step(self, action: np.ndarray) -> tuple:
-        """standard gym step function."""
+    def step(self, action: np.ndarray) -> tuple:
+        """residual learning step function."""
         start_time = time.time()
         action = np.clip(action, self.action_space.low, self.action_space.high)
         feedforward_action = self.goal_position - self.box_position
         feedforward_action /= np.linalg.norm(feedforward_action)
-        feedforward_action /= 4.
+        feedforward_action /= 2.
 
         # position TODO: check input
         next_pos = self.curr_pos.copy()
@@ -778,6 +778,7 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
         self.init = True
         self.success = False
         self.target_rot = np.random.uniform(np.deg2rad(15), np.deg2rad(30))
+        self.box_pose.clear_data()
 
         obs = self._get_obs(np.zeros_like(self.last_action))
         return obs, {"reset_shift": shift}
