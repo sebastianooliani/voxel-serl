@@ -416,7 +416,7 @@ class SampleGoalPositionsWrapper(gym.Wrapper):
         self.env.unwrapped.goal_position = intersection_points[0]
         return intersection_points[0]
     
-    def sample_goal_position(self):
+    def sample_goal_position(self, harder=False):
         """
         Returns a point inside the workspace of the two robots sampled randomly on the boarder (fixed y coordinate).
 
@@ -436,7 +436,7 @@ class SampleGoalPositionsWrapper(gym.Wrapper):
         box2_max = T @ box2_max
 
         intersection_points = sample_points_on_boarder_in_intersecting_boxes(
-            box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 1, seed=rnm_num
+            box1_min[:3], box1_max[:3], box2_min[:3], box2_max[:3], 1, seed=rnm_num, harder=harder
         )
 
         self.env.unwrapped.goal_position = intersection_points[0]

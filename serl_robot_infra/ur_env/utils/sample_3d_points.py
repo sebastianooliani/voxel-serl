@@ -128,7 +128,9 @@ def sample_points_on_boarder_in_intersecting_boxes(
     box2_min=np.array([-0.650, -0.569, 0.114]),
     box2_max=np.array([-0.352, 0.369, 0.387]),
     num_points=1,
-    seed=42):
+    seed=42,
+    harder=False,
+    ):
     """
     Sample points from intersection of two 3D boxes, keeping x,y fixed at intersection_min
     and only varying z coordinate.
@@ -166,9 +168,9 @@ def sample_points_on_boarder_in_intersecting_boxes(
     intersection_min[1] += 0.23  # y min
     intersection_min[2] -= 0.05  # z min
     
-    # Intersection Min: [-0.605 -0.303  0.06 ]
-    # Intersection Max: [-0.435  0.173  0.157]    
-    
+    if harder:
+        intersection_min[2] += 0.05
+
     # Set random seed
     if seed is not None:
         np.random.seed(seed)
