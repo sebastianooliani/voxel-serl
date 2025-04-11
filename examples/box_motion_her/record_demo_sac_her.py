@@ -64,7 +64,7 @@ def main(_):
     running_return = 0
 
     total_count = 0
-    num_points = 60
+    num_points = 20
     pbar = tqdm(total=num_points)
 
     info_dict = {'state': env.unwrapped.curr_pos, 'gripper_state': env.unwrapped.gripper_state,

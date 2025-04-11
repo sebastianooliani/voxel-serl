@@ -158,7 +158,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
     if FLAGS.eval_checkpoint_step and FLAGS.evaluation:
         wandb_logger = make_wandb_logger(
-            project="drq_rgb_top",  # TODO only temporary
+            project=FLAGS.wandb_project,  # TODO only temporary
             description=FLAGS.exp_name or FLAGS.env,
             debug=FLAGS.debug,
         )
@@ -188,9 +188,10 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
         trajectories = []
         traj_infos = []
+        goals = env.env.env.env.env.env.env.env.sample_positions_evaluation(num_points=FLAGS.number_eval_points)
         for episode in range(FLAGS.eval_n_trajs):
-            goals = env.env.env.env.env.env.env.env.sample_positions_evaluation(num_points=FLAGS.number_eval_points)
             env.unwrapped.goal_position = goals[episode]
+            print(f"goal position: {goals[episode]}")
             trajectory = []
             obs, _ = env.reset()
             done = False
@@ -267,6 +268,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
         traj_infos = {k: [d[k] for d in traj_infos] for k in traj_infos[0]}     # list of dicts to dict of lists
         mean_infos = {"mean_" + key: np.mean(val) for key, val in traj_infos.items()}
+        mean_infos["std_time"] = np.std(time_list)
         wandb_logger.log(mean_infos)
         for key, value in mean_infos.items():
             print(f"{key}: {value:.3f}")

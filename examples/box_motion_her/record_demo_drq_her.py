@@ -64,7 +64,7 @@ def main(_):
     all_transitions = []
     positive_transitions = []
 
-    num_points = 60
+    num_points = 20
     total_count = 0
     pbar = tqdm(total=num_points)
 

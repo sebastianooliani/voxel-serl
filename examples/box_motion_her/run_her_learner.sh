@@ -5,7 +5,7 @@ python sac_policy_her_two_buffers.py "$@" \
     --learner \
     --env box_picking_camera_env_dual_robot_motion_planning \
     --wandb_project "dual_sac_motion_planning" \
-    --exp_name=sac_policy_motion_60_demos \
+    --exp_name=sac_policy_motion_residual_learning \
     --max_traj_length 100 \
     --seed 42 \
     --random_steps 0 \
@@ -14,5 +14,5 @@ python sac_policy_her_two_buffers.py "$@" \
     --batch_size 2048 \
     --max_steps 50000 \
     --reward_scale 1 \
-    --demo_paths /home/sebastiano/voxel-serl/examples/box_motion_her/dual_60_her_transitions_2025-03-29_09-18-07.pkl \
+    --demo_paths /home/sebastiano/voxel-serl/examples/box_motion_her/dual_20_her_transitions_2025-04-08_14-19-49.pkl \
     # --debug

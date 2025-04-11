@@ -67,7 +67,7 @@ def main(_):
     listener_2.start()
 
     uuid = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"ur5_test_{success_needed}_demos_{uuid}_lift_none.pkl"
+    file_name = f"ur5_test_{success_needed}_demos_{uuid}_inairrot_none.pkl"
     file_dir = os.path.dirname(os.path.realpath(__file__))  # same dir as this script
     file_path = os.path.join(file_dir, file_name)
 
