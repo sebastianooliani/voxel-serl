@@ -5,7 +5,7 @@
 | Code Directory                                                                                             | Description                                |
 |------------------------------------------------------------------------------------------------------------|--------------------------------------------|
 | [robot_controllers](https://github.com/sebastianooliani/dual-serl/tree/dual_robot/serl_robot_infra/robot_controllers) | Impedance controller for the UR5 robot arm |
-| [box_picking_env](https://github.com/sebastianooliani/dual-serl/tree/dual_robot/serl_robot_infra/box_motion_her)     | Environment setup for the box picking task |
+| [box_picking_env](https://github.com/sebastianooliani/dual-serl/tree/dual_robot/serl_robot_infra/ur_env/)     | Environment setup for the UR5 env |
 | [vision](https://github.com/sebastianooliani/dual-serl/tree/dual_robot/serl_launcher/serl_launcher/vision)            | Point-Cloud based encoders                 |
 | [utils](https://github.com/sebastianooliani/dual-serl/blob/dual_robot/serl_robot_infra/ur_env/camera/utils.py)        | Point-Cloud fusion and voxelization        |
 
