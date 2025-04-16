@@ -245,6 +245,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                         "action_cost": np.linalg.norm(np.asarray([t["actions"] for t in trajectory]), axis=1, ord=2).mean()
                     }
                     traj_infos.append(infos)
+                    time_list.append(dt)
                     wandb_logger.log(infos, step=episode)
                     
                     running_return = 0.0

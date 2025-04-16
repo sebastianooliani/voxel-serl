@@ -445,7 +445,7 @@ class UrImpedanceController(threading.Thread):
         size = self.box.get_box_size()
         actual_pose = np.array(self.ur_receive.getActualTCPPose())
 
-        traslation = np.array([0., size[1] / 2.5, 0.])
+        traslation = np.array([0., size[1] / 3, 0.])
         error = np.array([0.03, 0., 0.])
         
         # move to box position

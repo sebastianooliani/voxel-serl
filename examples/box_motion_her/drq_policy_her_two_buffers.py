@@ -82,7 +82,7 @@ flags.DEFINE_bool("enable_temporal_ensemble_sampling", False,
                   "Whether to enable sampling the action from a temporal ensemble: action = 0.5*a0 + 0.3*a-1 + 0.2*a-2 + 0.1*a-3")
 
 flags.DEFINE_integer("max_steps", 1000000, "Maximum number of training steps.")
-flags.DEFINE_integer("replay_buffer_capacity", 10000,
+flags.DEFINE_integer("replay_buffer_capacity", 8000,
                      "Replay buffer capacity.")  # quite low to forget demo trajectories
 
 flags.DEFINE_integer("random_steps", 0, "Sample random actions for this many steps.")
@@ -159,7 +159,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
     if FLAGS.eval_checkpoint_step and FLAGS.evaluation:
         wandb_logger = make_wandb_logger(
-            project="drq_rgb_top",  # TODO only temporary
+            project=FLAGS.wandb_project,  # TODO only temporary
             description=FLAGS.exp_name or FLAGS.env,
             debug=FLAGS.debug,
         )
@@ -189,9 +189,11 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
         trajectories = []
         traj_infos = []
+        goals = env.env.env.env.env.env.env.env.sample_positions_evaluation(num_points=FLAGS.number_eval_points)
+
         for episode in range(FLAGS.eval_n_trajs):
-            goals = env.env.env.env.env.env.env.env.sample_positions_evaluation(num_points=FLAGS.number_eval_points)
             env.unwrapped.goal_position = goals[episode]
+            print(f"goal position: {goals[episode]}")
             trajectory = []
             obs, _ = env.reset()
             done = False
@@ -245,6 +247,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                         "action_cost": np.linalg.norm(np.asarray([t["actions"] for t in trajectory]), axis=1, ord=2).mean()
                     }
                     traj_infos.append(infos)
+                    time_list.append(dt)
                     wandb_logger.log(infos, step=episode)
                     
                     running_return = 0.0
@@ -268,6 +271,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
         traj_infos = {k: [d[k] for d in traj_infos] for k in traj_infos[0]}     # list of dicts to dict of lists
         mean_infos = {"mean_" + key: np.mean(val) for key, val in traj_infos.items()}
+        mean_infos["std_time"] = np.std(time_list)
         wandb_logger.log(mean_infos)
         for key, value in mean_infos.items():
             print(f"{key}: {value:.3f}")
@@ -419,11 +423,6 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                         data_store.insert(transition)
                     transitions = []
 
-                # sample new goal position
-                intersection_point = env.env.env.env.env.env.env.env.sample_goal_position()
-                her_transitions = []
-                augmented_transitions = []
-
                 info = np.asarray(info)
                 stats = {"train": info}  # send stats to the learner to log
                 client.request("send-stats", stats)
@@ -432,6 +431,12 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                 intervention_count = 0
                 intervention_steps = 0
                 already_intervened = False
+
+                # sample new goal position
+                intersection_point = env.env.env.env.env.env.env.env.sample_goal_position(harder=harder)
+                her_transitions = []
+                augmented_transitions = []
+
                 obs, _ = env.reset()
 
         if step % FLAGS.steps_per_update == 0:
@@ -617,7 +622,7 @@ def learner(rng, agent: DrQAgent, replay_buffer, demo_buffer, wandb_logger=None)
 def main(_):
     assert FLAGS.batch_size % num_devices == 0
     if FLAGS.checkpoint_path.split('/')[-1] == "checkpoints":
-        FLAGS.checkpoint_path = FLAGS.checkpoint_path + " " + FLAGS.exp_name + " " + datetime.now().strftime(
+        FLAGS.checkpoint_path = FLAGS.checkpoint_path + "_" + FLAGS.exp_name + "_" + datetime.now().strftime(
             "%m%d-%H:%M")
 
     # seed

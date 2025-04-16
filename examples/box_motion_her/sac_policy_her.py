@@ -95,7 +95,7 @@ def print_green(x):
 
 ##############################################################################
 
-def actor(agent: SACAgent, data_store, env, sampling_rng):
+def actor(agent: SACAgent, data_store, env, sampling_rng, wandb_logger=None):
     """
     This is the actor loop, which runs when "--actor" is set to True.
     """
@@ -120,13 +120,15 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
             step=FLAGS.eval_checkpoint_step,
         )
         agent = agent.replace(state=ckpt)
+        goals = env.env.env.env.env.env.env.env.sample_positions_evaluation(num_points=FLAGS.number_eval_points)
 
         for episode in range(FLAGS.eval_n_trajs):
-            goals = env.env.env.env.env.env.env.env.sample_positions_evaluation(num_points=FLAGS.number_eval_points)
             env.unwrapped.goal_position = goals[episode]
+            print(f"goal position: {goals[episode]}")
             obs, _ = env.reset()
             done = False
             start_time = time.time()
+
             while not done:
                 actions = agent.sample_actions(
                     observations=jax.device_put(obs),

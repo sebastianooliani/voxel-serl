@@ -51,7 +51,7 @@ flags.DEFINE_integer("batch_size", 256, "Batch size.")
 flags.DEFINE_integer("utd_ratio", 8, "UTD ratio.")
 flags.DEFINE_integer("reward_scale", 1, "Reward Scale to help out SAC algorithm")
 
-flags.DEFINE_integer("max_steps", 100000, "Maximum number of training steps.")
+flags.DEFINE_integer("max_steps", 200000, "Maximum number of training steps.")
 flags.DEFINE_integer("replay_buffer_capacity", 20000, "Replay buffer capacity.")
 flags.DEFINE_multi_string("demo_paths", None,
                           "paths to demos")
@@ -88,6 +88,7 @@ flags.DEFINE_boolean(
 flags.DEFINE_boolean("dual", True, "Dual robot mode.")
 flags.DEFINE_string("wandb_project", "serl", "Wandb project name.")
 flags.DEFINE_boolean("her", True, "Whether to use HER or not.")
+flags.DEFINE_integer("number_eval_points", 30, "Number of evaluation points.")
 
 def print_green(x):
     return print("\033[92m {}\033[00m".format(x))
@@ -95,7 +96,7 @@ def print_green(x):
 
 ##############################################################################
 
-def actor(agent: SACAgent, data_store, env, sampling_rng):
+def actor(agent: SACAgent, data_store, env, sampling_rng, wandb_logger = None):
     """
     This is the actor loop, which runs when "--actor" is set to True.
     """
@@ -109,6 +110,11 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
         time_list = []
         distance_from_goal = []
         running_return = 0.0
+        success_counter = 0
+        subsuccess_graps = 0
+        subsuccess_lift = 0
+        subsuccess_rot = 0
+        subsuccess_motion = 0
 
         ckpt = checkpoints.restore_checkpoint(
             FLAGS.eval_checkpoint_path,
@@ -117,11 +123,12 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
         )
         agent = agent.replace(state=ckpt)
 
-        goals = env.env.env.env.env.env.env.env.sample_positions_evaluation()
+        goals = env.env.env.env.env.env.env.env.sample_positions_evaluation(num_points=FLAGS.number_eval_points)
 
         for episode in range(FLAGS.eval_n_trajs):
-            obs, _ = env.reset()
             env.unwrapped.goal_position = goals[episode]
+            env.unwrapped.config.GOAL_POSITION = goals[episode]
+            obs, _ = env.reset()
             # env.unwrapped.goal_position[1] += 0.15
             done = False
             start_time = time.time()
@@ -145,6 +152,10 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
                     distance_from_goal.append(info["goal_box_position"])
                     success_counter = env.unwrapped.config.SUCCESS_COUNT
+                    subsuccess_graps += float(env.unwrapped.config.SUBSUCCESS_GRASP)
+                    subsuccess_lift += float(env.unwrapped.config.SUBSUCCESS_LIFT)
+                    subsuccess_rot += float(env.unwrapped.config.SUBSUCCESS_ROT)
+                    subsuccess_motion += float(env.unwrapped.config.SUBSUCCESS_MOTION)
                     print(reward)
                     print(f"{success_counter}/{episode + 1}")
                     print(f"Distance from goal: {distance_from_goal[-1]}")
@@ -153,14 +164,24 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                         "running_reward": running_return,
                         "distance_from_goal": info["goal_box_position"],
                         "time": dt,
-                        "success_rate": env.unwrapped.config.SUCCESS_COUNT / (episode + 1),
+                        "success_rate": env.unwrapped.config.SUCCESS_COUNT,
+                        "subsuccess_graps": subsuccess_graps,
+                        "subsuccess_lift": subsuccess_lift,
+                        "subsuccess_rot": subsuccess_rot,
+                        "subsuccess_motion": subsuccess_motion,
                     }
                     wandb_logger.log(infos, step=episode)
 
                     running_return = 0.0
+                    # reset the subsuccess
+                    env.unwrapped.config.SUBSUCCESS_GRASP = False
+                    env.unwrapped.config.SUBSUCCESS_LIFT = False
+                    env.unwrapped.config.SUBSUCCESS_ROT = False
+                    env.unwrapped.config.SUBSUCCESS_MOTION = False
 
         print(f"success rate: {success_counter / FLAGS.eval_n_trajs}")
         print(f"average time: {np.mean(time_list)}")
+        print(f"std time: {np.std(time_list)}")
         print(f"average distance from goal: {np.mean(distance_from_goal)}")
         return  # after done eval, return and exit
 
