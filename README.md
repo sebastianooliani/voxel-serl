@@ -1,11 +1,15 @@
 # Dual SERL
 
+<p style="display: flex; align-items: center;">
+  <img src="./docs/images/github_cover.png" height="250pt" style="margin-right: 20pt"/>
+</p>
+
 ## Contributions
 
 | Code Directory                                                                                             | Description                                |
 |------------------------------------------------------------------------------------------------------------|--------------------------------------------|
 | [robot_controllers](https://github.com/sebastianooliani/dual-serl/tree/dual_robot/serl_robot_infra/robot_controllers) | Impedance controller for the UR5 robot arm |
-| [box_picking_env](https://github.com/sebastianooliani/dual-serl/tree/dual_robot/serl_robot_infra/ur_env/)     | Environment setup for the UR5 env |
+| [dual_ur5_env](https://github.com/sebastianooliani/dual-serl/tree/dual_robot/serl_robot_infra/ur_env/)     | Environment setup for the UR5 env |
 | [vision](https://github.com/sebastianooliani/dual-serl/tree/dual_robot/serl_launcher/serl_launcher/vision)            | Point-Cloud based encoders                 |
 | [utils](https://github.com/sebastianooliani/dual-serl/blob/dual_robot/serl_robot_infra/ur_env/camera/utils.py)        | Point-Cloud fusion and voxelization        |
 
