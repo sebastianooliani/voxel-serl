@@ -2,7 +2,8 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 from franka_env.utils.transformations import (
     construct_homogeneous_matrix,
-    pose_2_homogeneous_matrix
+    pose_2_homogeneous_matrix,
+    construct_rotation_matrix
 )
 import copy
 
@@ -95,7 +96,7 @@ class HER():
 
         # SUCTION: reward for successful grip and cost for unnecessary suctioning
         suction_reward = self.weights["grasping_weight"] * (float(obs[14:18][1] > 0.5) + float(obs[14:18][3] > 0.5))
-        suction_cost = self.weights["suction_weight"] * (float(obs[14:18][1] < -0.5) + float(obs[14:18][3] < -0.5))
+        suction_cost = self.weights["suction_weight"] * (float(obs[14:18][1] < 0.5) + float(obs[14:18][3] < 0.5))
 
         # ORIENTATION: penalize deviating too much from the starting pose
         orientation_cost = 0
@@ -107,7 +108,7 @@ class HER():
         position_cost = self.weights["position_weight"] * np.linalg.norm(
             obs[57:60]
         )
-        position_cost = 3. if position_cost > 3. else position_cost
+        position_cost = 5. if position_cost > 5. else position_cost
 
         actual_norm_pos = np.sum((obs[60:63] - self.init_box_position) * (obs[63:66] - self.init_box_position)) / np.sum(np.power(obs[63:66] - self.init_box_position, 2))
         prev_norm_pos = np.sum((self.last_box_position - self.init_box_position) * (obs[63:66] - self.init_box_position)) / np.sum(np.power(obs[63:66] - self.init_box_position, 2))
@@ -122,14 +123,11 @@ class HER():
 
         # 3D DISTANCE: penalize the distance between the two robots' end-effectors
         # TODO: adjust reference frames and relative base positions
-        if self.camera_mode is None:
-            distance_cost = 0.
-        else:
-            T_O1_E1 = construct_homogeneous_matrix(tcp_pose[:7])
-            T_O2_E2 = construct_homogeneous_matrix(tcp_pose[7:])
-            T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
-            T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
-            distance_cost = self.weights["distance_weight"] / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
+        T_O1_E1 = construct_homogeneous_matrix(tcp_pose[:7])
+        T_O2_E2 = construct_homogeneous_matrix(tcp_pose[7:])
+        T_O1_SC1 = T_O1_E1 @ self.T_EE_SC
+        T_O1_SC2 = self.T_O1_O2 @ T_O2_E2 @ self.T_EE_SC
+        distance_cost = self.weights["distance_weight"] / np.linalg.norm(T_O1_SC1[:3, 3] - T_O1_SC2[:3, 3])
 
         costs = dict(
             action_cost=action_cost,
@@ -466,5 +464,30 @@ class HER():
         # box position -> 60:63
         # obs[60:63] = self.R_1 @ obs[60:63]
         # obs[63:66] = self.R_1 @ obs[63:66]
+
+        return obs.copy()
+
+    def transform_wrt_goal(self, obs, goal_position):
+        """
+        Transform the observation with respect to the goal position.
+
+        Args:
+            obs: observation
+            goal_position: goal position
+        """
+
+        goal_pose = np.concatenate((goal_position, R.from_matrix(np.eye(3)).as_quat()))
+        self.rotation_matrix = construct_rotation_matrix(goal_pose)
+
+        # tcp position
+        obs[33:36] = obs[33:36] + goal_position
+        obs[39:42] = obs[39:42] + goal_position
+
+        # goal and box position
+        obs[57:60] = - obs[57:60]
+        obs[60:63] = obs[60:63] + goal_position
+        obs[63:66] = obs[63:66] + goal_position 
+
+
 
         return obs.copy()

@@ -278,3 +278,115 @@ class DualRelativeFrame(gym.Wrapper):
         transformed_obs = self.transform_observation(obs)
 
         return transformed_obs, reward, done, truncated, info
+    
+
+class GoalOrientedRelativeEnv(gym.Wrapper):
+    """
+    This wrapper transforms the observation and action to be expressed in the goal frame.
+    """
+    def __init__(self, env: Env):
+        super().__init__(env)
+        self.rotation_matrix = np.eye((3))
+        self.rotation_matrix_reset = np.eye((3))
+
+        self.task = env.unwrapped.config.TASK
+        self.WF = env.unwrapped.config.T_O1_O2
+        self.goal_pose = np.zeros((7,))
+
+    def rotate_in_world_frame(self, action: np.ndarray, obs: np.ndarray):
+        """
+        Transform action from goal frame to world frame
+        using the rotation matrix
+        """
+        action = np.array(action)
+
+        obs["state"]["tcp_pose"][7:10] = (self.WF @ np.concatenate([obs["state"]["tcp_pose"][7:10], [1]]))[:3]
+        # obs["state"]["tcp_pose"][10:] = R.from_rotvec(self.WF[:3, :3] @ R.from_quat(obs["state"]["tcp_pose"][10:]).as_rotvec()).as_quat()
+        obs["state"]["tcp_vel"][7:10] = (self.WF @ np.concatenate([obs["state"]["tcp_vel"][7:10], [1]]))[:3]
+        # obs["state"]["tcp_vel"][10:] = R.from_rotvec(self.WF[:3, :3] @ R.from_quat(obs["state"]["tcp_vel"][10:]).as_rotvec()).as_quat()
+
+        # probably no need to transform actions right now
+
+        return action, obs
+
+    def step(self, action: np.ndarray):
+        # action is assumed to be (x, y, z, rx, ry, rz, gripper)
+        # Transform action from end-effector frame to base frame
+        transformed_action = self.transform_action(action)
+        # print("action", action)
+        # print("transformed_action", transformed_action)
+        obs, reward, done, truncated, info = self.env.step(transformed_action)
+        action, obs = self.rotate_in_world_frame(transformed_action, obs)
+        # print("obs", obs)
+
+        self.goal_pose = np.concatenate((obs["state"]["goal_position"], R.from_matrix(np.eye(3)).as_quat()))
+        # Update rotation matrix
+        self.rotation_matrix = construct_rotation_matrix(self.goal_pose)
+
+        if "intervene_action" in info:
+            info["intervene_action"] = self.transform_action_inv(info["intervene_action"])
+
+        if "hil_action" in info:
+            info["hil_action"] = self.transform_action_inv(info["hil_action"])
+
+        # Transform observation to spatial frame
+        transformed_obs = self.transform_observation(obs)
+        # print("transformed_obs", transformed_obs)
+        return transformed_obs, reward, done, truncated, info
+    
+    def reset(self, **kwargs):
+        obs, info = self.env.reset(**kwargs)
+        # initialize goal pose
+        self.goal_pose = np.concatenate([obs["state"]["goal_position"], R.from_matrix(np.eye(3)).as_quat()])
+        # Update rotation matrix
+        self.rotation_matrix = construct_rotation_matrix(self.goal_pose)
+
+        self.rotation_matrix_reset = self.rotation_matrix.copy()
+
+        assert self.rotation_matrix.shape == (3, 3)
+        assert self.rotation_matrix_reset.shape == (3, 3)
+        # Transform observation to spatial frame
+        return self.transform_observation(obs), info
+    
+    def transform_observation(self, obs):
+        tcp_pose = obs["state"]["tcp_pose"]
+        new_tcp_pose = np.concatenate(
+            (
+                tcp_pose[:3], 
+                R.from_quat(tcp_pose[3:7]).as_mrp(),
+                tcp_pose[7:10],
+                R.from_quat(tcp_pose[10:14]).as_mrp()
+            )
+        )
+        obs["state"]["tcp_pose"][:3] = new_tcp_pose[:3] - obs["state"]["goal_position"]
+        obs["state"]["tcp_pose"][3:7] = R.from_mrp(self.rotation_matrix_reset.transpose() @ new_tcp_pose[3:6]).as_quat()
+        obs["state"]["tcp_pose"][7:10] = new_tcp_pose[6:9] - obs["state"]["goal_position"]
+        obs["state"]["tcp_pose"][10:] = R.from_mrp(self.rotation_matrix_reset.transpose() @ new_tcp_pose[9:12]).as_quat()
+
+        obs["state"]["tcp_vel"][:3] = obs["state"]["tcp_vel"][:3]
+        obs["state"]["tcp_vel"][3:6] = self.rotation_matrix_reset.transpose() @ obs["state"]["tcp_vel"][3:6]
+        obs["state"]["tcp_vel"][6:9] = obs["state"]["tcp_vel"][6:9]
+        obs["state"]["tcp_vel"][9:12] = self.rotation_matrix_reset.transpose() @ obs["state"]["tcp_vel"][9:12]
+
+        obs["state"]["goal_box_position"] = - obs["state"]["goal_box_position"]
+        obs["state"]["box_position"] = obs["state"]["box_position"] - obs["state"]["goal_position"]
+        obs["state"]["goal_position"] -= obs["state"]["goal_position"]
+
+        return obs
+    
+    def transform_action(self, action: np.ndarray):
+        action = np.array(action)  # in case action is a jax read-only array
+        action[:3] = self.rotation_matrix_reset @ action[:3]
+        action[3:6] = self.rotation_matrix_reset @ action[3:6]
+        action[7:10] = self.rotation_matrix_reset @ action[7:10]
+        action[10:13] = self.rotation_matrix_reset @ action[10:13]
+        return action
+    
+    def transform_action_inv(self, action: np.ndarray):
+        action = np.array(action)
+        action[:3] = self.rotation_matrix_reset.transpose() @ action[:3]
+        action[3:6] = self.rotation_matrix_reset.transpose() @ action[3:6]
+        # skip the gripper action
+        action[7:10] = self.rotation_matrix_reset.transpose() @ action[7:10]
+        action[10:13] = self.rotation_matrix_reset.transpose() @ action[10:13]
+        return action
