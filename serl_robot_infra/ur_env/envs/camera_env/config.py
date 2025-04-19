@@ -225,7 +225,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     ABS_POSE_LIMIT_HIGH_ROBOT_1 = {
         "lift": np.array([-0.335, 0.263, 0.382, 0.05, 0.05, 0.2]),
         "reorient": np.array([-0.335, 0.133, 0.377, 0.05, 0.05, 0.2]),
-        "motion": np.array([-0.335, 0.273, 0.357, 0.05, 0.05, 0.2]),
+        "motion": np.array([-0.335, 0.273, 0.360, 0.05, 0.05, 0.2]),
         "inairrot": np.array([-0.335, 0.263, 0.482, 0.2, 0.2, 0.2]),
     }
     ABS_POSE_LIMIT_LOW_ROBOT_1 = {
@@ -237,7 +237,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     ABS_POSE_LIMIT_HIGH_ROBOT_2 = {
         "lift": np.array([0.712, 0.116, 0.382, 0.05, 0.05, 0.2]),
         "reorient": np.array([0.752, 0.116, 0.377, 0.05, 0.05, 0.2]),
-        "motion": np.array([0.752, 0.463, 0.357, 0.05, 0.05, 0.2]),
+        "motion": np.array([0.752, 0.463, 0.360, 0.05, 0.05, 0.2]),
         "inairrot": np.array([0.752, 0.116, 0.482, 0.2, 0.2, 0.2]),
     }
     ABS_POSE_LIMIT_LOW_ROBOT_2 = {
@@ -293,18 +293,18 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "safety_threshold": 0.1,
         },
         "motion": {
-            "step_weight": 0.1,
-            "action_weight": ACTION_WEIGHT,
-            "action_diff_weight": 0.1,
-            "orientation_weight": 4.,
-            "position_weight": 4.,
-            "distance_weight": 0.1,
-            "grasping_weight": 0.3,
-            "suction_weight": 0.5,
-            "goal_weight": 60.,
+            "step_weight": 0.2,
+            "action_weight": 0.3,
+            "action_diff_weight": 0.3,
+            "orientation_weight": 10.,
+            "position_weight": 10.,
+            "distance_weight": 0.5,
+            "grasping_weight": 2.,
+            "suction_weight": 1,
+            "goal_weight": 80.,
             "success_weight": 200.,
             "penalty": 150.,
-            "safety_threshold": 0.1,
+            "safety_threshold": 0.01,
             "success_threshold": 0.05,
         },
         "inairrot": {
@@ -318,7 +318,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
             "lift_weight": 0.,
             "success_weight": 200.,
             "penalty": 150.,
-            "safety_threshold": 0.07,
+            "safety_threshold": 0.05,
         },
     }
 
