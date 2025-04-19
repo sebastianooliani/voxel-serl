@@ -5,7 +5,7 @@ python /home/sebastiano/voxel-serl/examples/box_inair_motion/drq_policy_hil.py "
     --actor \
     --env box_picking_camera_env_dual_robot_in_air_rotation \
     --wandb_project "dual_inairrot_voxnet_pretrained" \
-    --exp_name="InAirRot_VoxNet_3500_box54_adapt" \
+    --exp_name="InAirRot_VoxNet_3500_box52" \
     --camera_mode pointcloud \
     --batch_size 128 \
     --max_traj_length 100 \

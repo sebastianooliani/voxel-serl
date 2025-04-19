@@ -21,7 +21,7 @@ from serl_launcher.data.data_store import populate_data_store
 from serl_launcher.utils.train_utils import concat_batches
 
 from serl_launcher.wrappers.chunking import ChunkingWrapper
-from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
+from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame, GoalOrientedRelativeEnv
 
 from agentlace.trainer import TrainerServer, TrainerClient
 from agentlace.data.data_store import QueuedDataStore
@@ -128,6 +128,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng, wandb_logger = None):
         for episode in range(FLAGS.eval_n_trajs):
             env.unwrapped.goal_position = goals[episode]
             env.unwrapped.config.GOAL_POSITION = goals[episode]
+            print(f"goal position: {goals[episode]}")
             obs, _ = env.reset()
             # env.unwrapped.goal_position[1] += 0.15
             done = False

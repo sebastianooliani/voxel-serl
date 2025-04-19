@@ -5,7 +5,7 @@ python /home/sebastiano/voxel-serl/examples/box_motion_her/drq_policy_her_two_bu
     --learner \
     --env box_picking_camera_env_dual_robot_motion_planning \
     --wandb_project "dual_motion_voxnet_pretrained" \
-    --exp_name="dual_motion_voxnet_pretrained_resl" \
+    --exp_name="dual_motion_voxnet_pretrained_rrl" \
     --camera_mode pointcloud \
     --max_traj_length 100 \
     --seed 42 \
@@ -16,7 +16,7 @@ python /home/sebastiano/voxel-serl/examples/box_motion_her/drq_policy_her_two_bu
     --batch_size 128 \
     --checkpoint_period 500 \
     --checkpoint_path /home/sebastiano/voxel-serl/examples/box_motion_her/checkpoints \
-    --demo_path /home/sebastiano/voxel-serl/examples/box_motion_her/dual_20_pcd_her_transitions_2025-04-09_09-04-28.pkl \
+    --demo_path /home/sebastiano/voxel-serl/examples/box_motion_her/dual_20_pcd_her_transitions_2025-04-15_09-32-34.pkl \
     --dual \
     --encoder_type voxnet-pretrained \
     --state_mask dual \

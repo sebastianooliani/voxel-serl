@@ -5,7 +5,7 @@ python /home/sebastiano/voxel-serl/examples/box_motion_her/drq_policy_her_two_bu
     --actor \
     --env box_picking_camera_env_dual_robot_motion_planning \
     --wandb_project "dual_motion_voxnet_pretrained" \
-    --exp_name="dual_motion_voxnet_pretrained_resl" \
+    --exp_name="dual_motion_voxnet_pretrained_rrl" \
     --camera_mode pointcloud \
     --max_traj_length 100 \
     --seed 42 \

@@ -15,7 +15,7 @@ from absl import app, flags
 from ur_env.envs.wrappers import SpacemouseIntervention, Quat2MrpWrapper, DualQuat2MrpWrapper, TwoSpacemiceIntervention, SampleGoalPositionsWrapper
 from serl_launcher.wrappers.serl_obs_wrappers import SerlObsWrapperNoImages, SERLObsWrapper, ScaleDualObservationWrapper
 
-from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame
+from ur_env.envs.relative_env import RelativeFrame, DualRelativeFrame, GoalOrientedRelativeEnv
 
 from ur_env.utils.her import HER
 
