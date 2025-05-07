@@ -1,7 +1,7 @@
 # Dual SERL
 
 <p style="display: flex; align-items: center;">
-  <img src="./docs/images/github_cover.png" height="500px" style="margin-right: 20pt"/>
+  <img src="./docs/images/github_cover_blurred.png" height="500px" style="margin-right: 20pt"/>
 </p>
 
 For detailed information about this project, please refer to the paper included in this repository:  
