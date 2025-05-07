@@ -6,7 +6,21 @@
 
 For detailed information about this project, please refer to the paper included in this repository:  
 **[Oliani_two_arms_one_goal.pdf](Oliani_two_arms_one_goal.pdf)**.
-
+<!-- 
+## Evaluations
+<p style="display: flex; align-items: center;">
+  <img src="./docs/images/lift.gif" height="400px" style="margin-right: 20pt"/>
+</p>
+<p style="display: flex; align-items: center;">
+  <img src="./docs/images/rot.gif" height="400px" style="margin-right: 20pt"/>
+</p>
+<p style="display: flex; align-items: center;">
+  <img src="./docs/images/lift_rot.gif" height="400px" style="margin-right: 20pt"/>
+</p>
+<p style="display: flex; align-items: center;">
+  <img src="./docs/images/motion.gif" height="400px" style="margin-right: 20pt"/>
+</p>
+-->
 ## Contributions
 
 | Code Directory                                                                                             | Description                                |
