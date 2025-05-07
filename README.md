@@ -21,8 +21,9 @@ For detailed information about this project, please refer to the paper included 
 |------------------------------------------------------------------------------------------------------------|--------------------------------------------|
 | [robot_controllers](https://github.com/sebastianooliani/dual-serl/tree/dual_robot/serl_robot_infra/robot_controllers) | Impedance controller for the UR5 robot arm |
 | [dual_ur5_env](https://github.com/sebastianooliani/dual-serl/tree/dual_robot/serl_robot_infra/ur_env/)     | Environment setup for the UR5 env |
-| [vision](https://github.com/sebastianooliani/dual-serl/tree/dual_robot/serl_launcher/serl_launcher/vision)            | Point-Cloud based encoders                 |
-| [utils](https://github.com/sebastianooliani/dual-serl/blob/dual_robot/serl_robot_infra/ur_env/camera/utils.py)        | Point-Cloud fusion and voxelization        |
+| [vision](https://github.com/sebastianooliani/dual-serl/tree/dual_robot/serl_launcher/serl_launcher/vision)      | Point-Cloud based encoders|
+| [utils](https://github.com/sebastianooliani/dual-serl/blob/dual_robot/serl_robot_infra/ur_env/camera/utils.py)  | Point-Cloud fusion and voxelization|
+| [her](https://github.com/sebastianooliani/dual-serl/blob/dual_robot/serl_robot_infra/ur_env/utils/her.py)       | Hindsight Experience Replay for online learning|
 
 ## Quick start guide for box picking with a UR5 robot arm
 
