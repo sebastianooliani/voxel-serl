@@ -10,14 +10,8 @@ For detailed information about this project, please refer to the paper included 
 ## Evaluations
 <p style="display: flex; align-items: center;">
   <img src="./docs/images/lift_adapt_pose.gif" height="100px" style="margin-right: 20pt"/>
-</p>
-<p style="display: flex; align-items: center;">
   <img src="./docs/images/reorient_drq.gif" height="100px" style="margin-right: 20pt"/>
-</p>
-<p style="display: flex; align-items: center;">
   <img src="./docs/images/lift_rot.gif" height="100px" style="margin-right: 20pt"/>
-</p>
-<p style="display: flex; align-items: center;">
   <img src="./docs/images/motion.gif" height="100px" style="margin-right: 20pt"/>
 </p>
 
