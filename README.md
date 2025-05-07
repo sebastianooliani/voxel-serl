@@ -8,15 +8,17 @@ For detailed information about this project, please refer to the paper included 
 **[Oliani_two_arms_one_goal.pdf](Oliani_two_arms_one_goal.pdf)**.
 
 ## Evaluations
-![til](./docs/images/lift_adapt_pose.gif)
 <p style="display: flex; align-items: center;">
-  <img src="./docs/images/reorient_drq.gif" height="400px" style="margin-right: 20pt"/>
+  <img src="./docs/images/lift_adapt_pose.gif" height="100px" style="margin-right: 20pt"/>
 </p>
 <p style="display: flex; align-items: center;">
-  <img src="./docs/images/lift_rot.gif" height="400px" style="margin-right: 20pt"/>
+  <img src="./docs/images/reorient_drq.gif" height="100px" style="margin-right: 20pt"/>
 </p>
 <p style="display: flex; align-items: center;">
-  <img src="./docs/images/motion.gif" height="400px" style="margin-right: 20pt"/>
+  <img src="./docs/images/lift_rot.gif" height="100px" style="margin-right: 20pt"/>
+</p>
+<p style="display: flex; align-items: center;">
+  <img src="./docs/images/motion.gif" height="100px" style="margin-right: 20pt"/>
 </p>
 
 ## Contributions
