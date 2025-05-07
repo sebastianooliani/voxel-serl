@@ -8,9 +8,7 @@ For detailed information about this project, please refer to the paper included 
 **[Oliani_two_arms_one_goal.pdf](Oliani_two_arms_one_goal.pdf)**.
 
 ## Evaluations
-<p style="display: flex; align-items: center;">
-  <img src="./docs/images/lift_adapt_pose.gif" height="400px" style="margin-right: 20pt"/>
-</p>
+![til](./docs/images/lift_adapt_pose.gif)
 <p style="display: flex; align-items: center;">
   <img src="./docs/images/reorient_drq.gif" height="400px" style="margin-right: 20pt"/>
 </p>
