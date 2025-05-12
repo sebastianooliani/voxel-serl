@@ -215,11 +215,11 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                 obs = next_obs
 
                 if done or truncated:
-                    success_counter = env.unwrapped.config.SUCCESS_COUNT
-                    subsuccess_graps += float(env.unwrapped.config.SUBSUCCESS_GRASP)
-                    subsuccess_lift += float(env.unwrapped.config.SUBSUCCESS_LIFT)
-                    subsuccess_rot += float(env.unwrapped.config.SUBSUCCESS_ROT)
-                    subsuccess_motion += float(env.unwrapped.config.SUBSUCCESS_MOTION)
+                    success_counter = info["success_count"]
+                    subsuccess_graps += float(info["subsuccess_grasp"])
+                    subsuccess_lift += float(info["subsuccess_lift"])
+                    subsuccess_rot += float(info["subsuccess_rot"])
+                    subsuccess_motion += float(info["subsuccess_motion"])
 
                     dt = time.time() - start_time
                     time_list.append(dt)
@@ -233,7 +233,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                     infos = {
                         "running_reward": running_reward,
                         "time": dt,
-                        "success_rate": env.unwrapped.config.SUCCESS_COUNT,
+                        "success_rate": info["success_count"],
                         "action_cost": np.linalg.norm(np.asarray([t["actions"] for t in trajectory]), axis=1, ord=2).mean(),
                         "subsuccess_graps": subsuccess_graps,
                         "subsuccess_lift": subsuccess_lift,
@@ -372,8 +372,8 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
             if done or truncated:
                 info["intervention_count"] = intervention_count
                 info["intervention_steps"] = intervention_steps
-                compare_success_count = (success_counter + 1 == env.unwrapped.config.SUCCESS_COUNT) # true if there was not a success, otherwise false
-                success_counter = env.unwrapped.config.SUCCESS_COUNT
+                compare_success_count = (success_counter + 1 == info["success_count"]) # true if there was not a success, otherwise false
+                success_counter = info["success_count"]
                 consecutive_successes = (consecutive_successes + 1 if compare_success_count else 0)
                 info["success_counter"] = success_counter
                 info["consecutive_successes"] = consecutive_successes

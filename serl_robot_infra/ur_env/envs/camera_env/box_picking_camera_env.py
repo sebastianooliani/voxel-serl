@@ -77,6 +77,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         if load_config:
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
             self.init = True # read and write the initial box position
+            self.cost_infos["success_count"] = 0
         else:
             super().__init__(**kwargs)
 
@@ -182,6 +183,7 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         if self.reached_goal_state(obs):
             print("\nSuccessfull lift!\n")
             self.config.SUCCESS_COUNT += 1
+            self.cost_infos["success_count"] += 1
             self.last_action[:] = 0.
             R_goal = self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost
@@ -197,8 +199,10 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         # add condition for second robot
         if state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.01 or state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.01:
             self.config.SUBSUCCESS_LIFT = True
+            self.cost_infos["subsuccess_lift"] = True
         if 0.1 < state['gripper_state'][0] < 1. or 0.1 < state['gripper_state'][2] < 1.:
             self.config.SUBSUCCESS_GRASP = True
+            self.cost_infos["subsuccess_grasp"] = True
         return ((0.1 < state['gripper_state'][0] < 1. and state['tcp_pose'][2] > self.curr_reset_pose[2] + 0.01) and \
             (0.1 < state['gripper_state'][2] < 1. and state['tcp_pose'][9] > self.curr_reset_pose[9] + 0.01))
             # added check on box position, to take into account smaller boxes
@@ -214,6 +218,8 @@ class UR5CameraEnvDualRobot(UR5DualRobotEnv):
         self.box_pose.clear_data()
         # at the end of the episode, reset the box initial orientation
         self.init = True
+        self.cost_infos["subsuccess_lift"] = False
+        self.cost_infos["subsuccess_grasp"] = False
 
         obs = self._get_obs(np.zeros_like(self.last_action))
         return obs, {"reset_shift": shift}
@@ -230,6 +236,8 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
             self.init = True # read and write the initial box position
             self.success = False
+            self.cost_infos["success"] = False
+            self.cost_infos["success_count"] = 0
         else:
             super().__init__(**kwargs)
 
@@ -348,6 +356,8 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
             print("\nSuccessfull motion plan!\n")
             self.success = True
             self.config.SUCCESS_COUNT += 1
+            self.cost_infos["success_count"] += 1
+            self.cost_infos["success"] = True
             self.last_action[:] = 0.
             R_goal = self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
@@ -360,8 +370,10 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         # using a lower threshold for the goal distance because the space is smaller
         if np.linalg.norm(state['goal_box_position']) < self.reward_dict["success_threshold"]:
             self.config.SUBSUCCESS_MOTION = True
+            self.cost_infos["subsuccess_motion"] = True
         if 0.1 < state['gripper_state'][0] < 1. or 0.1 < state['gripper_state'][2] < 1.:
             self.config.SUBSUCCESS_GRASP = True
+            self.cost_infos["subsuccess_grasp"] = True
         return np.linalg.norm(state['goal_box_position']) < self.reward_dict["success_threshold"] and \
             0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
                 # np.linalg.norm(mid_tcp_pos - state['goal_position']) < 0.05
@@ -379,6 +391,9 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         # at the end of the episode, reset the box initial position
         self.init = True
         self.success = False
+        self.cost_infos["success"] = False
+        self.cost_infos["subsuccess_motion"] = False
+        self.cost_infos["subsuccess_grasp"] = False
 
         obs = self._get_obs(np.zeros_like(self.last_action))
         return obs, {"reset_shift": shift}
@@ -387,9 +402,13 @@ class UR5CameraEnvDualRobotMotionPlanning(UR5DualRobotEnv):
         """residual learning step function."""
         start_time = time.time()
         action = np.clip(action, self.action_space.low, self.action_space.high)
-        feedforward_action = self.goal_position - self.box_position
-        feedforward_action /= np.linalg.norm(feedforward_action)
-        feedforward_action /= 2.
+
+        if self.config.RRL:
+            feedforward_action = self.goal_position - self.box_position
+            feedforward_action /= np.linalg.norm(feedforward_action)
+            feedforward_action /= 2.
+        else:
+            feedforward_action = np.zeros_like(action[:3])
 
         # position TODO: check input
         next_pos = self.curr_pos.copy()
@@ -438,6 +457,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         if load_config:
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
             self.init = True # read and write the initial box orientation
+            self.cost_infos["success_count"] = 0
         else:
             super().__init__(**kwargs)
 
@@ -554,6 +574,7 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         if self.reached_goal_state(obs):
             print("\nSuccessfull reorientation!\n")
             self.config.SUCCESS_COUNT += 1
+            self.cost_infos["success_count"] += 1
             self.last_action[:] = 0.
             R_goal = self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
@@ -573,8 +594,10 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         # 0.09 rad = 5° tolerance
         if (np.abs(rot_angle - np.pi/4.5)) < 0.09:
             self.config.SUBSUCCESS_ROT = True
+            self.cost_infos["subsuccess_rot"] = True
         if 0.1 < state['gripper_state'][0] < 1. or 0.1 < state['gripper_state'][2] < 1.:
             self.config.SUBSUCCESS_GRASP = True
+            self.cost_infos["subsuccess_grasp"] = True
         return (np.abs(rot_angle - np.pi/4.5)) < 0.09 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
     
     def reset(self, **kwargs):
@@ -588,6 +611,9 @@ class UR5CameraEnvDualRobotReorientation(UR5DualRobotEnv):
         self.box_pose.clear_data()
         # at the end of the episode, reset the box initial orientation
         self.init = True
+        self.cost_infos["success"] = False
+        self.cost_infos["subsuccess_rot"] = False
+        self.cost_infos["subsuccess_grasp"] = False
 
         obs = self._get_obs(np.zeros_like(self.last_action))
         return obs, {"reset_shift": shift}
@@ -600,6 +626,8 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
             super().__init__(**kwargs, config=UR5CameraConfigDualRobot)
             self.init = True # read and write the initial box orientation
             self.success = False
+            self.cost_infos["success"] = False
+            self.cost_infos["success_count"] = 0
             self.target_rot = np.random.uniform(np.deg2rad(15), np.deg2rad(25))
         else:
             super().__init__(**kwargs)
@@ -714,6 +742,8 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
             print("\nSuccessfull in-air rotation!\n")
             self.config.SUCCESS_COUNT += 1
             self.success = True
+            self.cost_infos["success_count"] += 1
+            self.cost_infos["success"] = True
             self.last_action[:] = 0.
             R_goal = self.reward_dict["success_weight"]
             return R_goal - action_cost - orientation_cost - position_cost - action_diff_cost - distance_cost
@@ -738,10 +768,13 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
         
         if (np.abs(rot_angle - self.target_rot)) < 0.09:
             self.config.SUBSUCCESS_ROT = True
+            self.cost_infos["subsuccess_rot"] = True
         if 0.1 < state['gripper_state'][0] < 1. or 0.1 < state['gripper_state'][2] < 1.:
             self.config.SUBSUCCESS_GRASP = True
+            self.cost_infos["subsuccess_grasp"] = True
         if displacement > 0.05:
             self.config.SUBSUCCESS_LIFT = True
+            self.cost_infos["subsuccess_lift"] = True
         
         return (np.abs(rot_angle - self.target_rot)) < 0.09 and displacement > 0.05 \
                 and 0.1 < state['gripper_state'][0] < 1. and 0.1 < state['gripper_state'][2] < 1.
@@ -757,6 +790,10 @@ class UR5CameraEnvDualRobotInAirRotation(UR5DualRobotEnv):
         # at the end of the episode, reset the box initial orientation
         self.init = True
         self.success = False
+        self.cost_infos["success"] = False
+        self.cost_infos["subsuccess_rot"] = False
+        self.cost_infos["subsuccess_lift"] = False
+        self.cost_infos["subsuccess_grasp"] = False
         self.target_rot = np.random.uniform(np.deg2rad(15), np.deg2rad(30))
         self.box_pose.clear_data()
 

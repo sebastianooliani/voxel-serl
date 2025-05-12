@@ -134,18 +134,18 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
                         time_list.append(dt)
                         print(dt)
 
-                    success_counter = env.unwrapped.config.SUCCESS_COUNT
-                    subsuccess_graps += float(env.unwrapped.config.SUBSUCCESS_GRASP)
-                    subsuccess_lift += float(env.unwrapped.config.SUBSUCCESS_LIFT)
-                    subsuccess_rot += float(env.unwrapped.config.SUBSUCCESS_ROT)
-                    subsuccess_motion += float(env.unwrapped.config.SUBSUCCESS_MOTION)
+                    success_counter = info["success_count"]
+                    subsuccess_graps += float(info["subsuccess_grasp"])
+                    subsuccess_lift += float(info["subsuccess_lift"])
+                    subsuccess_rot += float(info["subsuccess_rot"])
+                    subsuccess_motion += float(info["subsuccess_motion"])
                     print(reward)
                     print(f"{success_counter}/{episode + 1}")
 
                     infos = {
                         "running_reward": running_return,
                         "time": dt,
-                        "success_rate": env.unwrapped.config.SUCCESS_COUNT / (episode + 1),
+                        "success_rate": info["success_count"] / (episode + 1),
                         "subsuccess_graps": subsuccess_graps / (episode + 1),
                         "subsuccess_lift": subsuccess_lift / (episode + 1),
                         "subsuccess_rot": subsuccess_rot / (episode + 1),
@@ -227,8 +227,8 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 
             obs = next_obs
             if done or truncated:
-                compare_success_count = (success_counter + 1 == env.unwrapped.config.SUCCESS_COUNT) # true if there was not a success, otherwise false
-                success_counter = env.unwrapped.config.SUCCESS_COUNT
+                compare_success_count = (success_counter + 1 == info["success_count"]) # true if there was not a success, otherwise false
+                success_counter = info["success_count"] 
                 consecutive_successes = (consecutive_successes + 1 if compare_success_count else 0)
                 info["success_counter"] = success_counter
                 info["consecutive_successes"] = consecutive_successes

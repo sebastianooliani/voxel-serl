@@ -148,11 +148,11 @@ def actor(agent: SACAgent, data_store, env, sampling_rng, wandb_logger=None):
                         print(dt)
 
                     distance_from_goal.append(info["goal_box_position"])
-                    success_counter = env.unwrapped.config.SUCCESS_COUNT
-                    subsuccess_graps += float(env.unwrapped.config.SUBSUCCESS_GRASP)
-                    subsuccess_lift += float(env.unwrapped.config.SUBSUCCESS_LIFT)
-                    subsuccess_rot += float(env.unwrapped.config.SUBSUCCESS_ROT)
-                    subsuccess_motion += float(env.unwrapped.config.SUBSUCCESS_MOTION)
+                    success_counter = info["success_count"]
+                    subsuccess_graps += float(info["subsuccess_grasp"])
+                    subsuccess_lift += float(info["subsuccess_lift"])
+                    subsuccess_rot += float(info["subsuccess_rot"])
+                    subsuccess_motion += float(info["subsuccess_motion"])
                     print(reward)
                     print(f"{success_counter}/{episode + 1}")
                     print(f"Distance from goal: {distance_from_goal[-1]}")
@@ -161,7 +161,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng, wandb_logger=None):
                         "running_reward": running_return,
                         "distance_from_goal": info["goal_box_position"],
                         "time": dt,
-                        "success_rate": env.unwrapped.config.SUCCESS_COUNT / (episode + 1),
+                        "success_rate": info["success_count"] / (episode + 1),
                         "subsuccess_graps": subsuccess_graps / (episode + 1),
                         "subsuccess_lift": subsuccess_lift / (episode + 1),
                         "subsuccess_rot": subsuccess_rot / (episode + 1),
@@ -271,8 +271,8 @@ def actor(agent: SACAgent, data_store, env, sampling_rng, wandb_logger=None):
                 # intervention statistics
                 info["intervention_count"] = intervention_count
                 info["intervention_steps"] = intervention_steps
-                compare_success_count = (success_counter + 1 == env.unwrapped.config.SUCCESS_COUNT) # true if there was a success, otherwise false
-                success_counter = env.unwrapped.config.SUCCESS_COUNT
+                compare_success_count = (success_counter + 1 == info["success_count"]) # true if there was a success, otherwise false
+                success_counter = info["success_count"]
                 consecutive_successes = (consecutive_successes + 1 if compare_success_count else 0)
                 info["success_counter"] = success_counter
                 info["consecutive_successes"] = consecutive_successes

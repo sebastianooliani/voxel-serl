@@ -222,11 +222,11 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
 
                 if done or truncated:
                     distance_from_goal.append(info["goal_box_position"])
-                    success_counter = env.unwrapped.config.SUCCESS_COUNT
-                    subsuccess_graps += float(env.unwrapped.config.SUBSUCCESS_GRASP)
-                    subsuccess_lift += float(env.unwrapped.config.SUBSUCCESS_LIFT)
-                    subsuccess_rot += float(env.unwrapped.config.SUBSUCCESS_ROT)
-                    subsuccess_motion += float(env.unwrapped.config.SUBSUCCESS_MOTION)
+                    success_counter = info["success_count"]
+                    subsuccess_graps += float(info["subsuccess_grasp"])
+                    subsuccess_lift += float(info["subsuccess_lift"])
+                    subsuccess_rot += float(info["subsuccess_rot"])
+                    subsuccess_motion += float(info["subsuccess_motion"])
                     dt = time.time() - start_time
                     running_reward = np.sum(np.asarray([t["rewards"] for t in trajectory]))
 
@@ -239,7 +239,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                         "running_reward": running_reward,
                         "distance_from_goal": info["goal_box_position"],
                         "time": dt,
-                        "success_rate": env.unwrapped.config.SUCCESS_COUNT,
+                        "success_rate": info["success_count"],
                         "subsuccess_graps": subsuccess_graps,
                         "subsuccess_lift": subsuccess_lift,
                         "subsuccess_rot": subsuccess_rot,
@@ -388,8 +388,8 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
             if done or truncated:
                 info["intervention_count"] = intervention_count
                 info["intervention_steps"] = intervention_steps
-                compare_success_count = (success_counter + 1 == env.unwrapped.config.SUCCESS_COUNT) # true if there was not a success, otherwise false
-                success_counter = env.unwrapped.config.SUCCESS_COUNT
+                compare_success_count = (success_counter + 1 == info["success_count"]) # true if there was not a success, otherwise false
+                success_counter = info["success_count"]
                 consecutive_successes = (consecutive_successes + 1 if compare_success_count else 0)
                 info["success_counter"] = success_counter
                 info["consecutive_successes"] = consecutive_successes
@@ -433,7 +433,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng, dual=False):
                 already_intervened = False
 
                 # sample new goal position
-                intersection_point = env.env.env.env.env.env.env.env.sample_goal_position(harder=harder)
+                intersection_point = env.env.env.env.env.env.env.env.sample_goal_position()
                 her_transitions = []
                 augmented_transitions = []
 

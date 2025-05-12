@@ -142,6 +142,7 @@ class UR5CameraConfigDualRobot(DualRobotDefaultEnvConfig):
     DUAL = True
     TOP = True
     HER = True
+    RRL = True
     TASK = "motion" # "lift", "reorient", "motion", "inairrot"
     
     # box in horizontal position
